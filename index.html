@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#22334f">
+<title>J&amp;B Post Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Pacifico&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --navy:#22334f; --navy-d:#1a2840; --coral:#e8836f; --coral-d:#d96f5a;
+  --mint:#a9cbb7; --mint-d:#8db49d; --peach:#f2c4ae; --bg:#f7f7f5; --card:#ffffff;
+  --ink:#2b3648; --muted:#8a93a3; --line:#e8eaee; --good:#5aa477; --warn:#d9a04b; --bad:#c96a5a;
+  --r:14px; --shadow:0 6px 20px rgba(34,51,79,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-weight:700}
+input,select,textarea{font-family:inherit;font-size:14px;border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;background:#fff;color:var(--ink);width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--mint-d)}
+.app{display:flex;min-height:100vh}
+
+/* ---------- SIDEBAR ---------- */
+.side{width:218px;min-width:218px;background:var(--navy);color:#fff;display:flex;flex-direction:column;padding:18px 12px;position:sticky;top:0;height:100vh}
+.brand{text-align:center;margin:6px 0 2px}
+.brand .logobox{background:#fff;border-radius:10px;padding:9px 10px;display:block}
+.brand img{width:100%;display:block}
+.brand small{display:block;font-family:'Nunito Sans';font-size:9px;letter-spacing:3px;color:var(--mint);text-transform:uppercase;margin-top:8px}
+.ico{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+.nav{margin-top:22px;display:flex;flex-direction:column;gap:4px}
+.nav button{display:flex;align-items:center;gap:11px;background:transparent;color:#cfd6e2;padding:11px 14px;border-radius:11px;font-size:14.5px;font-weight:700;text-align:left;width:100%}
+.nav button .ic{width:20px;text-align:center;font-size:16px}
+.nav button.on{background:rgba(255,255,255,.12);color:#fff}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav .badge{margin-left:auto;background:var(--coral);color:#fff;border-radius:20px;font-size:11px;padding:1px 8px}
+.side .foot{margin-top:auto;font-size:11px;color:#7f8aa0;text-align:center;padding:10px 0}
+
+/* ---------- MAIN ---------- */
+.main{flex:1;padding:26px 30px;max-width:1120px}
+.viewtitle{display:flex;align-items:baseline;gap:14px;margin-bottom:18px}
+.viewtitle h1{font-family:'Bebas Neue',sans-serif;font-size:34px;letter-spacing:1px;color:var(--navy)}
+.viewtitle .sub{color:var(--muted);font-size:13px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+.card h3{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:12px;font-weight:800}
+.btn{background:var(--coral);color:#fff;padding:10px 18px;font-size:14px}
+.btn:hover{background:var(--coral-d)}
+.btn.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+.btn.mint{background:var(--mint-d);color:#fff}
+.btn.sm{padding:6px 12px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:default}
+.pill{display:inline-block;border-radius:20px;padding:2px 10px;font-size:11.5px;font-weight:800}
+.pill.p1{background:#fdeae4;color:#b35a44}.pill.p2{background:#e6f0ea;color:#3f7355}.pill.p3{background:#fbeee2;color:#a97434}.pill.p4{background:#e8ecf4;color:#44598a}.pill.p5{background:#f3e8f0;color:#8a4f7a}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:9px;padding:4px 10px;font-size:12px;font-weight:800;border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+.row{display:flex;align-items:center;gap:10px}
+.spacer{flex:1}
+.alert{border-left:4px solid var(--warn);background:#fdf6ea;border-radius:10px;padding:10px 14px;font-size:13.5px;margin-bottom:8px}
+.alert.bad{border-color:var(--bad);background:#fbeeec}
+.alert.good{border-color:var(--good);background:#eef6f0}
+.alert.prod{border-color:var(--coral);background:#fdf0ec}
+.meter{height:9px;border-radius:6px;background:#eef0f3;overflow:hidden;margin-top:5px}
+.meter i{display:block;height:100%;border-radius:6px;background:var(--mint-d)}
+.meter i.over{background:var(--coral)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.copyfield{position:relative;margin-bottom:10px}
+.copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:800;display:block;margin-bottom:4px}
+.copyfield textarea{min-height:64px;font-size:13.5px;padding-right:64px}
+.copyfield .cp{position:absolute;right:8px;top:26px;background:var(--navy);color:#fff;padding:4px 10px;font-size:11px;border-radius:8px}
+.statusflow{display:flex;gap:5px;flex-wrap:wrap}
+.statusflow .st{font-size:11px;font-weight:800;padding:4px 9px;border-radius:8px;background:#eef0f3;color:var(--muted);cursor:pointer}
+.statusflow .st.done{background:var(--mint);color:#204430}
+.statusflow .st.cur{background:var(--navy);color:#fff}
+.tabbar{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tabbar button{background:#fff;border:1.5px solid var(--line);color:var(--muted);padding:8px 16px;border-radius:20px;font-size:13px}
+.tabbar button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.skel-card{border:1.5px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:14px;align-items:flex-start}
+.skel-prev{width:76px;min-width:76px;aspect-ratio:2/3;border-radius:8px;position:relative;overflow:hidden;border:2px solid var(--line)}
+.unit{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff}
+.unit.open{border-color:var(--mint-d)}
+.plat{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 8px;border-radius:7px;background:#eef0f3;color:var(--muted);cursor:pointer}
+.plat.on{background:var(--mint);color:#204430}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 22px;border-radius:12px;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:99;display:none}
+.overlay{position:fixed;inset:0;background:rgba(20,28,44,.45);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow:auto}
+.modal{background:#fff;border-radius:16px;max-width:680px;width:100%;padding:24px}
+.spin{display:inline-block;width:14px;height:14px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:860px){
+  .app{flex-direction:column}
+  .side{width:100%;height:auto;position:static;flex-direction:row;align-items:center;padding:10px;overflow-x:auto}
+  .brand{font-size:18px;margin:0 10px}.brand small{display:none}
+  .nav{flex-direction:row;margin-top:0}.nav button{padding:9px 11px;font-size:13px;white-space:nowrap}
+  .side .foot{display:none}
+  .main{padding:16px}
+  .g2,.g3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><span class="logobox"><img src="https://i0.wp.com/juneybyrd.com/wp-content/uploads/2026/07/JuneyByrd-Logo-1000x275-1.png?fit=1000%2C275&amp;ssl=1" alt="Juney &amp; Byrd"></span><small>Post Picker</small></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="foot">the hub &amp; brain</div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<script>
+/* ================= CONFIG ================= */
+const SB_URL='https://ypekahkqbnccbrccaqfe.supabase.co';
+const SB_KEY='sb_publishable_IE9lkBK6Q282q-5mlVwnBA_2G6rxqck';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const WP_API='https://public-api.wordpress.com/wp/v2/sites/juneybyrd.com/posts?per_page=50&_fields=id,title,link,date';
+const MODEL='claude-sonnet-4-5';
+const PILLARS={1:'Pain hooks',2:'Plain-English help',3:'Tools talking',4:'The maker',5:'Ask the bestie'};
+const THEMES=['money','habits','home','organizing','planning'];
+const PLATFORMS=['pinterest','instagram','facebook','tiktok'];
+const STATUSES=['idea','image_made','draft_staged','caption_added','scheduled','published'];
+const STATUS_LABEL={idea:'Idea',image_made:'Image made',draft_staged:'Draft staged',caption_added:'Caption added',scheduled:'Scheduled',published:'Published'};
+
+/* Distilled juneybyrd-voice (v1-2026-07-12). Re-sync if the skill changes. */
+const VOICE=`You write social copy for Juney & Byrd (juneybyrd.com), Holly's brand of simple honest apps and trackers for overwhelmed freelancers, creators, and busy women. Voice: it IS Holly. First person singular (I/my, never we). Warm, playful teasing, dry deadpan wit, full bestie energy. Exclamation points welcome. A few emojis max, on purpose.
+HARD RULES: NO em-dashes ever (use commas, periods, colons). No unverifiable effort claims (no "in seconds", "2 minutes", "one tap" unless literally true for that exact action; "opens in one tap" from home screen is fine). Fixed factual durations are fine ("15-minute weekly check-in" as a routine name is fine). No fake urgency (no HURRY, last chance, don't miss out). No influencer-speak (obsessed, iconic, era, unhinged). No corporate buzzwords. No fake reviews or invented anecdotes. Never frame money content as tax advice: education only, point to "ask your CPA" when law-adjacent. Holly is an accountant, present tense, mention only on money topics. Products are "apps and trackers", never "little app" or "just an app".
+PLATFORM RULES: TikTok captions never say "link in bio" or reference links; say juneybyrd.com out loud in the text. Pinterest titles are keyword-rich and clear. Alt text describes the image plainly for accessibility.
+After reading, the person should feel seen, calmer, and a little hyped. If it sounds stiff, salesy, or blah, it is wrong.`;
+
+/* ================= STATE ================= */
+let S={view:'dash',settings:{},topics:[],units:[],blog:[],skeletons:[],inbox:[],winners:[],keywords:[],seasonal:[],week:monday(new Date()),braintab:'blog',anthKey:null};
+
+/* ================= UTILS ================= */
+const $=q=>document.querySelector(q);
+const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* inline SVG icon set (feather-style) */
+const ICON_PATHS={
+home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+brain:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>',
+leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z"/><path d="M2 21c0-3 1.9-5.4 5.1-6"/>',
+gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+image:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>',
+sparkle:'<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/>',
+refresh:'<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/>',
+drop:'<path d="M12 2.7l5.7 5.7a8 8 0 1 1-11.4 0z"/>',
+star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>',
+ban:'<circle cx="12" cy="12" r="10"/><path d="M4.9 4.9l14.2 14.2"/>',
+chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+check:'<path d="M20 6L9 17l-4-4"/>',
+bulb:'<path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/>',
+hash:'<path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/>',
+pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+music:'<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+tool:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'};
+const ic=n=>`<svg class="ico" viewBox="0 0 24 24">${ICON_PATHS[n]||''}</svg>`;
+const PLAT_ICON={pinterest:'pin',instagram:'camera',facebook:'users',tiktok:'music'};
+function monday(d){d=new Date(d);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);d.setHours(0,0,0,0);return d;}
+function iso(d){return d.toISOString().slice(0,10);}
+function fmt(d){return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600);}
+function copyText(txt,msg){navigator.clipboard.writeText(txt).then(()=>toast(msg||'Copied!'));}
+window.copyText=copyText;
+function modal(html){$('#modal').innerHTML=html;$('#overlay').style.display='flex';}
+function closeModal(){$('#overlay').style.display='none';}
+window.closeModal=closeModal;
+$('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal();});
+
+/* ================= DATA ================= */
+async function loadAll(){
+  const [set,top,sk,se]=await Promise.all([
+    sb.from('jb_settings').select('*'),
+    sb.from('jb_topics').select('*').order('created_at',{ascending:false}),
+    sb.from('jb_skeletons').select('*'),
+    sb.from('jb_seasonal').select('*')
+  ]);
+  S.settings={};(set.data||[]).forEach(r=>S.settings[r.key]=r.value);
+  S.topics=top.data||[];S.skeletons=sk.data||[];S.seasonal=se.data||[];
+  const [un,bl,inb,win,kw]=await Promise.all([
+    sb.from('jb_units').select('*').order('week_start').order('day'),
+    sb.from('jb_blog').select('*').order('published_at',{ascending:false}),
+    sb.from('jb_inbox').select('*').order('created_at',{ascending:false}),
+    sb.from('jb_winners').select('*'),
+    sb.from('jb_keywords').select('*')
+  ]);
+  S.units=un.data||[];S.blog=bl.data||[];S.inbox=inb.data||[];S.winners=win.data||[];S.keywords=kw.data||[];
+  S.anthKey=S.settings.anth_key||null;
+}
+async function saveSetting(key,value){await sb.from('jb_settings').upsert({key,value,updated_at:new Date().toISOString()});S.settings[key]=value;}
+async function updUnit(id,patch){patch.updated_at=new Date().toISOString();await sb.from('jb_units').update(patch).eq('id',id);const u=S.units.find(x=>x.id===id);Object.assign(u,patch);}
+
+/* ================= CLAUDE ================= */
+async function claude(system,user,maxTok=1500,useSearch=false){
+  if(!S.anthKey)throw new Error('No Anthropic key found (pinterest_auth id=anth_key).');
+  const body={model:MODEL,max_tokens:maxTok,system,messages:[{role:'user',content:user}]};
+  if(useSearch)body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3}];
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.anthKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+  if(!r.ok)throw new Error('Claude API '+r.status);
+  const j=await r.json();
+  return j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
+}
+function extractJSON(t){const m=t.match(/\{[\s\S]*\}/);if(!m)throw new Error('No JSON in response');return JSON.parse(m[0]);}
+
+/* ================= SEASONAL ENGINE ================= */
+function seasonalAlerts(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const out=[];
+  for(const ev of S.seasonal){
+    for(const yr of [today.getFullYear(),today.getFullYear()+1]){
+      const d=new Date(yr,ev.month-1,ev.day||1);
+      const days=Math.round((d-today)/864e5);
+      if(days<0)continue;
+      if(days<=ev.product_lead_days&&days>ev.content_lead_days)out.push({ev,days,horizon:'product'});
+      else if(days<=ev.content_lead_days)out.push({ev,days,horizon:'content'});
+      break;
+    }
+  }
+  return out.sort((a,b)=>a.days-b.days);
+}
+
+/* ================= PILLAR MATH ================= */
+function pillarStats(){
+  const cutoff=new Date(Date.now()-14*864e5);
+  const recent=S.units.filter(u=>u.kind==='social'&&new Date(u.created_at)>cutoff&&u.pillar);
+  const total=recent.length||1;
+  const counts={1:0,2:0,3:0,4:0,5:0};
+  recent.forEach(u=>counts[u.pillar]=(counts[u.pillar]||0)+1);
+  const targets=S.settings.pillar_targets||{p1:.25,p2:.25,p3:.2,p4:.1,p5:.2};
+  const stats=[];
+  for(let p=1;p<=5;p++){const actual=counts[p]/total;const target=targets['p'+p]||.2;stats.push({p,actual,target,deficit:target-actual});}
+  return {stats,promoShare:(counts[3]/total)||0,total:recent.length};
+}
+function nextTheme(){
+  const rot=S.settings.themes_rotation||THEMES;
+  const recent=S.units.filter(u=>u.kind==='social'&&u.theme).slice(-3).map(u=>u.theme);
+  for(const t of rot){if(!recent.includes(t))return t;}
+  return rot[0];
+}
+function suggestSkeleton(){
+  const sk=[...S.skeletons].sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
+  return sk[0]||null;
+}
+</script>
+<script>
+/* ================= SKELETON PROMPTS ================= */
+const SKELETON_PROMPTS={
+s1:{edit:`===== EDIT THIS BLOCK (words + props, nothing else) =====
+HEADLINE: {HEADLINE}
+HERO WORD: {HERO}
+LINE 2: {LINE2}
+KICKER: {KICKER}
+ACCENT COLOR: warm coral
+PROPS AROUND THE EDGES: a low-profile white minimalist keyboard, a small ceramic vase with dried pampas grass, a trailing green pothos plant, a neat stack of plain white hardcover notebooks, gold scissors resting in a light oak wood tray
+===== DO NOT EDIT BELOW THIS LINE =====`,
+body:`
+
+Create an eye-catching vertical Pinterest pin that combines a REAL PHOTOGRAPHED flat-lay with a flat graphic text card layered on top, using the words, accent color, and props listed above.
+
+THE PHOTO: a real photographed desk flat-lay fills the entire frame, shot from above, bright and airy, washed in white light. Only the props listed above are visible, and ONLY around the four edges of the frame. The center of the frame stays clear. CRITICAL: all props must look like REAL PHOTOGRAPHS with natural soft shadows, NOT illustrations or drawings. Modern, minimal, Scandinavian: light oak wood and white ceramic textures, nothing ornate or cozy-cluttered.
+
+THE CARD: centered on top of the photo, covering about 78% of the image width and 82% of the image height, a solid PURE WHITE card. The card has CLEARLY ROUNDED CORNERS, like a rounded-rectangle app icon: absolutely no sharp square corners. It casts a soft subtle drop shadow. Inset just inside the card's edge runs a very thin border line in the ACCENT COLOR, about 4 pixels thick, following the same ROUNDED corners, like a delicate hairline frame with visibly curved corners. The border is never navy and never dark. Do NOT use cream, ivory, or beige anywhere on the card.
+
+THE TEXT: crisp FLAT GRAPHIC overlay (clean vector, like a Canva design), all centered on the card, large and readable, stacked top to bottom: the HEADLINE in large tall condensed bold uppercase sans-serif letters, deep navy; the HERO WORD in a thick friendly retro script, in the ACCENT COLOR, slightly larger than everything around it; a thin horizontal rule line in the ACCENT COLOR, centered, about half the card width; LINE 2 in the same tall condensed bold uppercase sans-serif, deep navy; the KICKER in the same thick retro script, in the ACCENT COLOR.
+
+Place the EXACT Juney & Byrd logo from the attached reference image, small and legible, centered at the bottom of the card. Do NOT invent or add any other logo, watermark, or URL text.
+
+Palette: pure white, deep navy, and the ACCENT COLOR. Calm, clean, modern, magazine-quality, uncluttered, all text crisp and correctly spelled.`},
+s2:{edit:`===== EDIT THIS BLOCK (words + props, nothing else) =====
+SMALL WORD: {SMALL}
+MAIN HEADLINE: {HEADLINE}
+LINE 2: {LINE2}
+PUNCH WORD: {PUNCH}
+BADGE 1: {BADGE1}
+BADGE 2: {BADGE2}
+CHECKLIST TITLE: THIS WEEK:
+CHECKLIST ITEMS: {CHECK1} / {CHECK2} / {CHECK3}
+PHONE TEXT: Plan Save Breathe
+ACCENT COLOR: warm coral
+PROPS FOR THE FLAT-LAY: an open laptop showing a simple spreadsheet, a small clipped stack of paper receipts, a sleek white calculator, an open planner notebook with handwriting, a trailing green pothos plant, a gold pen
+===== DO NOT EDIT BELOW THIS LINE =====`,
+body:`
+
+Create a cute, eye-catching vertical 2:3 Pinterest pin that combines REAL PHOTOGRAPHED objects with flat graphic typography layered on top, on a clean PURE WHITE (#FFFFFF) background, using the words, accent color, and props listed above. Do NOT use cream, ivory, beige, or off-white anywhere: the background is pure white, and any light-colored text inside badges or paint blocks is pure white too.
+
+THE PROPS: a styled flat-lay in the right and lower area of the frame using ONLY the real photographic objects listed above. Modern, minimal, Scandinavian: light oak wood and white ceramic textures, nothing ornate or cozy-cluttered, no flowers, no coffee cups. CRITICAL: all props must look like REAL PHOTOGRAPHS with natural soft shadows grounding them on the white surface, NOT illustrations or drawings.
+
+THE BORDER: a very thin border line in the ACCENT COLOR, about 4 pixels thick, inset about 25 pixels from all four edges of the image, with CLEARLY ROUNDED CORNERS, like a delicate hairline frame with visibly curved corners. The border is never navy and never dark.
+
+THE TEXT: on TOP, add crisp FLAT GRAPHIC design elements (clean vector, like a Canva overlay). Headline stack in the upper-left: the SMALL WORD in a small thick friendly retro script, deep navy; the MAIN HEADLINE in large tall condensed bold uppercase sans-serif letters, deep navy; a short brush underline in the ACCENT COLOR; LINE 2 in the same tall condensed bold uppercase sans-serif, deep navy; the PUNCH WORD in white uppercase letters on a rough paint block in the ACCENT COLOR. Scatter a few small hand-drawn doodles in the ACCENT COLOR (sparkle bursts, tiny dashes, small hearts). Add two small navy circle badges with clean white uppercase text reading BADGE 1 and BADGE 2. On the planner notebook, a handwritten checklist titled with the CHECKLIST TITLE and checkmarks in the ACCENT COLOR beside each of the CHECKLIST ITEMS. If a phone is among the props, its screen shows the PHONE TEXT.
+
+Place the EXACT Juney & Byrd logo from the attached reference image, small and legible, in the bottom-right corner. Do NOT invent or add any other logo or watermark.
+
+Palette: pure white, deep navy, and the ACCENT COLOR. Warm, modern, magazine-quality, balanced, uncluttered, all text crisp and correctly spelled.`},
+s3:{edit:`===== EDIT THIS BLOCK (words + props, nothing else) =====
+LINE 1 (small spaced caps): {L1}
+LINE 2 (big caps): {L2}
+SCRIPT WORD (sits on the soft block): {SCRIPT}
+LINE 4 (italic spaced caps): {L4}
+LINE 5 (big caps): {L5}
+LINE 6 (small spaced caps): {L6}
+ACCENT COLOR: warm coral
+SOFT BLOCK COLOR: soft peach
+PROPS AROUND THE EDGES: a laptop keyboard corner, a woven rattan tray, dried pampas grass stems, a folded linen cloth, small brass paper clips, a terracotta pot with a trailing green plant
+===== DO NOT EDIT BELOW THIS LINE =====`,
+body:`
+
+Create an eye-catching vertical 2:3 Pinterest pin where bold flat graphic typography sits directly on top of a REAL PHOTOGRAPHED flat-lay, using the words, colors, and props listed above.
+
+THE PHOTO: a real photographed desk flat-lay fills the entire frame, shot from above, bright and airy, washed in soft white light so text reads clearly on top of it. Only the props listed above are visible, arranged around the edges and corners of the frame; the center stays visually calm. Modern boho style: woven and rattan textures, dried botanicals, linen, warm brass, terracotta. CRITICAL: all props must look like REAL PHOTOGRAPHS with natural soft shadows, NOT illustrations or drawings.
+
+THE BORDER: a very thin border line in the ACCENT COLOR, about 4 pixels thick, inset about 25 pixels from all four edges, with CLEARLY ROUNDED CORNERS, like a delicate hairline frame with visibly curved corners. Never navy, never dark.
+
+THE TEXT: crisp FLAT GRAPHIC overlay (clean vector, like a Canva design), one centered stack filling the middle of the pin, large and readable, top to bottom: LINE 1 in small clean uppercase sans-serif with wide letter-spacing, deep navy; LINE 2 in very large tall condensed bold uppercase sans-serif, deep navy; the SCRIPT WORD in a thick friendly retro script, deep navy, sitting on a solid horizontal rectangle in the SOFT BLOCK COLOR that spans most of the pin width; LINE 4 in small italic uppercase sans-serif with wide letter-spacing, deep navy; LINE 5 in the same very large tall condensed bold uppercase sans-serif, deep navy; LINE 6 in small clean uppercase sans-serif with wide letter-spacing, deep navy.
+
+Place the EXACT Juney & Byrd logo from the attached reference image, small and legible, centered near the bottom of the pin. Do NOT invent or add any other logo, watermark, or URL text.
+
+Palette: bright white-washed photo, deep navy type, the ACCENT COLOR border, the SOFT BLOCK COLOR behind the script word. Warm, modern, magazine-quality, uncluttered, all text crisp and correctly spelled.`},
+s4:{edit:`===== EDIT THIS BLOCK (words + photo scene, nothing else) =====
+TOP LINE (smaller caps): {TOP}
+SCRIPT LINE (in brackets): {SCRIPT}
+HERO LINE (biggest caps): {HERO}
+PHOTO OVERLAY LINE (small, on the photo): {OVERLAY}
+SCRIPT + BORDER COLOR: soft mint green
+DOODLE COLOR: warm coral
+THE PHOTO SCENE: a bright modern boho-Scandinavian desk setup, light oak desk, a slim white widescreen monitor sitting off to one side at a slight natural angle, a low-profile white wireless keyboard resting on the desk in front of it, a styled shelf above with trailing green plants, dried pampas grass in a white ceramic vase, white ceramics, a woven rattan tray, soft daylight
+===== DO NOT EDIT BELOW THIS LINE =====`,
+body:`
+
+Create an eye-catching vertical 2:3 Pinterest pin: one REAL PHOTOGRAPH fills the top of the frame and melts into a deep navy blue color field at the bottom where bold flat graphic typography sits, using the words, colors, and scene listed above.
+
+THE PHOTO: a single real photograph of THE PHOTO SCENE fills the ENTIRE width of the pin, edge to edge, covering roughly the top three quarters of the frame. The photo looks like a candid interior-magazine shot of a real workspace, NOT a product advertisement: the monitor is one object among the styled objects, positioned off-center at a slight angle, never centered and never dominating. COMPOSITION IS CRITICAL: all the visual detail and styled objects sit in the TOP HALF of the photo; the LOWER PART of the photo is plain, calm, and uncluttered (an empty stretch of desk surface, soft light, gentle shadow) so the text below sits on quiet space.
+
+THE SCREEN: the monitor's screen shows a clean, minimal, softly lit budgeting spreadsheet using ONLY deep navy, soft mint green, white, and pale grey. Simple rows and one small simple chart at most. NO colorful dashboard, NO rainbow charts, NO orange, yellow, red, or bright blue on the screen.
+
+The photo's colors are cool and bright: whites, soft greys, sage green plants, light oak wood, white ceramics. ABSOLUTELY NO BROWN TONES, no dark wood, no moody brown shadows anywhere. Everything must look like a REAL PHOTOGRAPH with natural light and soft shadows, NOT an illustration.
+
+THE FADE: the photo dissolves smoothly downward into a solid deep navy blue (#22334f) color field that fills the bottom quarter of the pin, with no brown or muddy tones in the transition.
+
+THE BORDER: a very thin border line in soft mint green, about 4 pixels thick, inset about 25 pixels from all four edges of the whole pin, floating over both photo and navy, with CLEARLY ROUNDED CORNERS. Never navy, never dark.
+
+THE TEXT: crisp FLAT GRAPHIC overlay, left-aligned, stacked in the lower third, starting over the bottom of the photo and finishing on the navy: the PHOTO OVERLAY LINE in very small clean white uppercase sans-serif with wide letter-spacing, upper-left corner ON the photo, subtle soft shadow; the TOP LINE in large tall condensed bold uppercase sans-serif, PURE WHITE; the SCRIPT LINE in a thick friendly retro script, soft mint green, sized nearly as tall as the lines above and below it, framed by a thin white square bracket on each side, with one small hand-drawn sparkle doodle in warm coral beside it; the HERO LINE in very large tall condensed bold uppercase sans-serif, PURE WHITE, the single biggest text on the pin. ALL text is PURE WHITE except the mint script and coral doodle. No cream, no ivory, no off-white anywhere.
+
+Place the EXACT Juney & Byrd logo from the attached reference image, small and legible, in the bottom-right corner on the navy. Do NOT invent or add any other logo, watermark, or URL text.
+
+Palette: bright cool photo, deep navy, pure white type, soft mint green accents, one warm coral doodle. Modern, calm, magazine-quality, uncluttered, all text crisp and correctly spelled.`}
+};
+const SKEL_PREVIEWS={
+s1:'<div style="position:absolute;inset:0;background:#f0ede8"></div><div style="position:absolute;inset:12% 14%;background:#fff;border-radius:6px;border:1.5px solid #e8836f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><div style="width:70%;height:5px;background:#22334f"></div><div style="width:30%;height:6px;background:#e8836f;border-radius:3px"></div><div style="width:60%;height:4px;background:#22334f"></div></div>',
+s2:'<div style="position:absolute;inset:0;background:#fff;border:1.5px solid #e8836f;border-radius:4px"></div><div style="position:absolute;top:10%;left:10%;width:55%;height:5px;background:#22334f"></div><div style="position:absolute;top:22%;left:10%;width:40%;height:6px;background:#e8836f"></div><div style="position:absolute;bottom:8%;right:8%;width:45%;height:30%;background:#eceae4;border-radius:4px"></div>',
+s3:'<div style="position:absolute;inset:0;background:#f2efe9"></div><div style="position:absolute;top:18%;left:12%;width:76%;height:4px;background:#22334f"></div><div style="position:absolute;top:30%;left:8%;width:84%;height:9px;background:#f2c4ae"></div><div style="position:absolute;top:48%;left:12%;width:76%;height:6px;background:#22334f"></div><div style="position:absolute;top:62%;left:20%;width:60%;height:4px;background:#22334f"></div>',
+s4:'<div style="position:absolute;top:0;left:0;right:0;height:60%;background:linear-gradient(160deg,#e9ecea,#9fb0b4)"></div><div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:#22334f"></div><div style="position:absolute;bottom:26%;left:10%;width:55%;height:5px;background:#fff"></div><div style="position:absolute;bottom:16%;left:10%;width:40%;height:6px;background:#a9cbb7"></div><div style="position:absolute;bottom:7%;left:10%;width:70%;height:7px;background:#fff"></div>'
+};
+function buildImagePrompt(skelId,unit){
+  const t=SKELETON_PROMPTS[skelId];if(!t)return '';
+  const title=(unit.title||'').toUpperCase();
+  let edit=t.edit.replace(/\{[A-Z0-9]+\}/g,m=>({'{HEADLINE}':title,'{HERO}':'YES','{LINE2}':'MADE SIMPLE','{KICKER}':'you can do this','{SMALL}':'The','{PUNCH}':'DONE.','{BADGE1}':'SIMPLE. HONEST.','{BADGE2}':'NO OVERWHELM.','{CHECK1}':'Start small','{CHECK2}':'Stay honest','{CHECK3}':'Keep going','{L1}':'THE','{L2}':title,'{L4}':'THAT ACTUALLY','{L5}':'WORKS','{L6}':'FOR REAL LIFE','{SCRIPT}':'finally','{TOP}':title,'{OVERLAY}':'OVERWHELMING, MADE EASY'}[m]||m));
+  return edit+t.body;
+}
+</script>
+<script>
+/* ================= NAV / ROUTER ================= */
+const VIEWS=[['dash','home','Dashboard'],['plan','calendar','Plan'],['packs','pen','Copy Packs'],['skel','grid','Skeletons'],['brain','brain','Brain'],['season','leaf','Seasonal'],['set','gear','Settings']];
+function renderNav(){
+  const newInbox=S.inbox.filter(i=>i.status==='new').length;
+  $('#nav').innerHTML=VIEWS.map(([id,icn,label])=>
+    `<button class="${S.view===id?'on':''}" onclick="go('${id}')"><span class="ic">${ic(icn)}</span>${label}${id==='skel'&&newInbox?`<span class="badge">${newInbox}</span>`:''}</button>`).join('');
+}
+function go(v){S.view=v;render();}
+window.go=go;
+function render(){renderNav();({dash:vDash,plan:vPlan,packs:vPacks,skel:vSkel,brain:vBrain,season:vSeason,set:vSet})[S.view]();}
+
+/* ================= DASHBOARD ================= */
+function weekUnits(ws){return S.units.filter(u=>u.week_start===iso(ws));}
+function vDash(){
+  const ws=monday(new Date());
+  const units=weekUnits(ws);
+  const social=units.filter(u=>u.kind==='social');
+  const done=social.filter(u=>['scheduled','published'].includes(u.status)).length;
+  const {stats,promoShare}=pillarStats();
+  const alerts=seasonalAlerts();
+  const fuel=S.blog.filter(b=>b.status==='published').length;
+  const blogTasks=units.filter(u=>u.kind==='blog-task');
+  const needsCaption=S.units.filter(u=>u.kind==='social'&&['image_made','draft_staged'].includes(u.status));
+  let todo=[];
+  if(!units.length)todo.push(`No plan for this week yet. <b>→ Plan My Week</b>`);
+  needsCaption.slice(0,3).forEach(u=>todo.push(`"${esc(u.title)}" needs its caption / draft finished`));
+  blogTasks.filter(b=>b.status==='idea').forEach(b=>todo.push(`Blog to write: <b>${esc(b.title)}</b>`));
+  if(fuel===0)todo.push(`<b>Blog fuel empty:</b> no published posts left to waterfall. Social runs on fumes without blog content!`);
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Dashboard</h1><span class="sub">week of ${fmt(ws)}</span></div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>This week</h3>
+      ${units.length?`<div class="row"><b style="font-size:26px">${done}/${social.length}</b><span class="muted small">social units scheduled or published</span></div>
+      <div class="meter"><i style="width:${social.length?Math.round(done/social.length*100):0}%"></i></div>
+      <div style="margin-top:10px" class="small muted">${blogTasks.length} blog task${blogTasks.length===1?'':'s'} · <a href="#" onclick="go('packs');return false">open the workbench →</a></div>`
+      :`<p class="muted">Nothing planned yet.</p><br><button class="btn" onclick="go('plan')">Plan My Week</button>`}
+    </div>
+    <div class="card">
+      <h3>What needs me today</h3>
+      ${todo.length?todo.map(t=>`<div class="alert">${t}</div>`).join(''):'<div class="alert good">Nothing urgent. Look at you!</div>'}
+    </div>
+    <div class="card">
+      <h3>Pillar balance (last 14 days)</h3>
+      ${stats.map(s=>`<div class="small" style="margin-bottom:7px"><span class="pill p${s.p}">P${s.p}</span> ${PILLARS[s.p]} <span class="muted">· ${(s.actual*100).toFixed(0)}% vs ${(s.target*100).toFixed(0)}% target${s.deficit>0.08?' · <b style="color:var(--coral)">feed me</b>':''}</span>
+      <div class="meter"><i class="${s.actual>s.target*1.5?'over':''}" style="width:${Math.min(100,s.actual/(s.target||.2)*50)}%"></i></div></div>`).join('')}
+      <div class="small muted" style="margin-top:8px">Promo share: ${(promoShare*100).toFixed(0)}% (target ≤ 20%)</div>
+    </div>
+    <div class="card">
+      <h3>Seasonal radar</h3>
+      ${alerts.length?alerts.slice(0,5).map(a=>`<div class="alert ${a.horizon==='product'?'prod':''}"><b>${esc(a.ev.name)}</b> · in ${a.days} days<br><span class="small muted">${a.horizon==='product'?ic('tool')+' PRODUCT window: build/plan the product now':ic('pen')+' CONTENT window: create posts now'}${a.ev.notes?' · '+esc(a.ev.notes):''}</span></div>`).join(''):'<p class="muted small">Nothing on the radar.</p>'}
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <h3>Quick capture</h3>
+      <div class="row" style="flex-wrap:wrap">
+        <input id="qc-text" placeholder="Idea, topic, or a note to Claude..." style="flex:2;min-width:220px">
+        <select id="qc-pillar" style="width:150px"><option value="">Pillar?</option>${Object.entries(PILLARS).map(([k,v])=>`<option value="${k}">P${k} ${v}</option>`).join('')}</select>
+        <select id="qc-kind" style="width:160px"><option value="topic">Topic idea</option><option value="note-to-claude">Note to Claude</option></select>
+        <button class="btn" onclick="quickCapture()">Save</button>
+        <label class="btn ghost" style="margin:0">${ic('camera')} Image<input type="file" accept="image/*" style="display:none" onchange="uploadInboxImage(this)"></label>
+      </div>
+    </div>
+  </div>`;
+}
+async function quickCapture(){
+  const text=$('#qc-text').value.trim();if(!text)return;
+  const kind=$('#qc-kind').value;
+  if(kind==='topic'){
+    const {data}=await sb.from('jb_topics').insert({title:text,pillar:+$('#qc-pillar').value||null,source:'holly'}).select();
+    if(data)S.topics.unshift(data[0]);
+  }else{
+    const {data}=await sb.from('jb_inbox').insert({kind:'note-to-claude',note:text}).select();
+    if(data)S.inbox.unshift(data[0]);
+  }
+  toast('Captured!');render();
+}
+window.quickCapture=quickCapture;
+async function uploadInboxImage(input){
+  const f=input.files[0];if(!f)return;
+  toast('Uploading...');
+  const path=Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.]/g,'_');
+  const {error}=await sb.storage.from('jb-images').upload(path,f);
+  if(error){toast('Upload failed: '+error.message);return;}
+  const url=sb.storage.from('jb-images').getPublicUrl(path).data.publicUrl;
+  const {data}=await sb.from('jb_inbox').insert({kind:'skeleton-idea',image_url:url,note:$('#qc-text')?$('#qc-text').value.trim():''}).select();
+  if(data)S.inbox.unshift(data[0]);
+  toast('Image saved to skeleton ideas!');render();
+}
+window.uploadInboxImage=uploadInboxImage;
+
+/* ================= PLAN ================= */
+let planDraft=null;
+function vPlan(){
+  const weeks=[0,1,2,3].map(i=>{const d=monday(new Date());d.setDate(d.getDate()+i*7);return d;});
+  const wsIso=iso(S.week);
+  const units=weekUnits(S.week);
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Plan</h1><span class="sub">batch up to 4 weeks ahead</span></div>
+  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">wk of ${fmt(w)}${weekUnits(w).length?' ·'+weekUnits(w).length:''}</button>`).join('')}</div>
+  ${units.length?renderWeekGrid(units):planDraft&&planDraft.week===wsIso?renderWizard():`
+  <div class="card" style="text-align:center;padding:44px">
+    <p class="muted">No plan for this week yet.</p><br>
+    <button class="btn" onclick="startWizard()">${ic('sparkle')} Plan this week</button>
+  </div>`}`;
+}
+function setWeek(w){S.week=new Date(w+'T00:00:00');planDraft=null;render();}
+window.setWeek=setWeek;
+function startWizard(){
+  const cad=S.settings.cadence||{};
+  const socialCount=7;
+  const blogPerWeek=Math.max(1,Math.round((cad.blog_per_month||4)/4));
+  const {stats}=pillarStats();
+  const byDeficit=[...stats].sort((a,b)=>b.deficit-a.deficit);
+  const pool=S.topics.filter(t=>t.status==='idea'&&(!t.snooze_until||new Date(t.snooze_until)<=new Date()));
+  const slots=[];
+  const mix=[byDeficit[0].p,byDeficit[1].p,byDeficit[0].p,3,byDeficit[2].p,4,5].slice(0,socialCount);
+  const themes=S.settings.themes_rotation||THEMES;
+  for(let i=0;i<socialCount;i++){
+    const pillar=mix[i];
+    const topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));
+    const sk=suggestSkeletonRotating(i);
+    slots.push({day:i%7,pillar,theme:themes[i%themes.length],kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
+  }
+  for(let b=0;b<blogPerWeek;b++)slots.push({day:1,pillar:2,theme:themes[b%themes.length],kind:'blog-task',title:'',needsTopic:true});
+  planDraft={week:iso(S.week),slots};
+  render();
+}
+window.startWizard=startWizard;
+function suggestSkeletonRotating(i){
+  const sk=[...S.skeletons].sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
+  return sk[i%sk.length]||null;
+}
+function renderWizard(){
+  return `<div class="card"><h3>Draft plan · approve, swap, or clear each slot</h3>
+  ${planDraft.slots.map((s,i)=>`
+    <div class="unit"><div class="row" style="flex-wrap:wrap">
+      <select style="width:110px" onchange="planDraft.slots[${i}].day=+this.value">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
+      <span class="pill p${s.pillar}">P${s.pillar}</span>
+      <span class="chip">${s.kind==='blog-task'?ic('pen')+' BLOG POST':s.theme}</span>
+      <input placeholder="${s.kind==='blog-task'?'Blog post topic...':'Topic / headline...'}" value="${esc(s.title)}" style="flex:1;min-width:200px" onchange="planDraft.slots[${i}].title=this.value">
+      ${s.kind==='social'?`<select style="width:170px" onchange="planDraft.slots[${i}].skeleton_id=this.value">${S.skeletons.map(k=>`<option value="${k.id}" ${k.id===s.skeleton_id?'selected':''}>${k.name}</option>`).join('')}</select>`:''}
+      <button class="btn ghost sm" onclick="planDraft.slots.splice(${i},1);render()">✕</button>
+    </div>${s.needsTopic&&!s.title?'<div class="small muted" style="margin-top:6px">Needs a topic: type one, or use Suggest below</div>':''}</div>`).join('')}
+  <div class="row" style="margin-top:14px;flex-wrap:wrap">
+    <button class="btn ghost" onclick="suggestTopics(this)">${ic('sparkle')} Suggest topics for empty slots</button>
+    <button class="btn ghost" onclick="planDraft.slots.push({day:0,pillar:1,theme:'habits',kind:'social',title:'',skeleton_id:'s1'});render()">+ Add slot</button>
+    <div class="spacer"></div>
+    <button class="btn" onclick="savePlan(this)">Save week plan</button>
+  </div></div>`;
+}
+async function suggestTopics(btn){
+  btn.innerHTML='<span class="spin"></span> Thinking...';btn.disabled=true;
+  try{
+    const empty=planDraft.slots.filter(s=>!s.title);
+    const used=S.topics.filter(t=>['used','denied'].includes(t.status)).map(t=>t.title).slice(0,40);
+    const ask=`Suggest one short social post topic for EACH of these slots for Juney & Byrd (life-admin brand: money for freelancers, habits, home organization, planning). Slots: ${empty.map((s,i)=>`#${i+1}: pillar ${s.pillar} (${PILLARS[s.pillar]}), theme ${s.theme}, type ${s.kind}`).join(' · ')}. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":["...","..."]} in slot order. Topics are short working titles, not captions.`;
+    const out=await claude(VOICE,ask,800);
+    const j=extractJSON(out);
+    let k=0;planDraft.slots.forEach(s=>{if(!s.title&&j.topics[k])s.title=j.topics[k++];});
+    render();
+  }catch(e){toast('Suggest failed: '+e.message);btn.disabled=false;btn.innerHTML=ic('sparkle')+' Suggest topics for empty slots';}
+}
+window.suggestTopics=suggestTopics;
+async function savePlan(btn){
+  btn.innerHTML='<span class="spin"></span> Saving...';btn.disabled=true;
+  const rows=[];
+  for(const s of planDraft.slots){
+    if(!s.title)continue;
+    let topic_id=s.topic_id;
+    if(!topic_id){
+      const {data}=await sb.from('jb_topics').insert({title:s.title,pillar:s.pillar,theme:s.theme,source:'wizard',status:'planned'}).select();
+      if(data){topic_id=data[0].id;S.topics.unshift(data[0]);}
+    }else{
+      await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
+    }
+    rows.push({week_start:planDraft.week,day:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com'}});
+  }
+  const {data,error}=await sb.from('jb_units').insert(rows).select();
+  if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
+  S.units.push(...data);planDraft=null;toast('Week planned! Now generate the copy packs.');
+  go('packs');
+}
+window.savePlan=savePlan;
+function renderWeekGrid(units){
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  return `<div class="card"><h3>Planned · ${units.length} items</h3>
+  <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
+  ${[...units].sort((a,b)=>a.day-b.day).map(u=>`<tr><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
+  </table>
+  <div class="row" style="margin-top:14px"><button class="btn" onclick="go('packs')">Open Copy Packs →</button>
+  <button class="btn ghost" onclick="if(confirm('Delete this whole week plan?'))deleteWeek('${iso(S.week)}')">Delete plan</button></div></div>`;
+}
+async function deleteWeek(ws){
+  await sb.from('jb_units').delete().eq('week_start',ws);
+  S.units=S.units.filter(u=>u.week_start!==ws);render();
+}
+window.deleteWeek=deleteWeek;
+</script>
+<script>
+/* ================= COPY PACKS ================= */
+let openUnit=null;
+function utmize(url,platform){
+  const u=S.settings.utm||{};
+  if(!u.enabled||!url)return url||'';
+  try{const x=new URL(url);x.searchParams.set('utm_source',(u.source_map||{})[platform]||platform);x.searchParams.set('utm_medium',u.medium||'social');return x.toString();}catch(e){return url;}
+}
+function vPacks(){
+  const units=weekUnits(S.week).sort((a,b)=>a.day-b.day);
+  const weeks=[0,1,2,3].map(i=>{const d=monday(new Date());d.setDate(d.getDate()+i*7);return d;});
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Copy Packs</h1><span class="sub">the batch-day workbench</span></div>
+  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===iso(S.week)?'on':''}" onclick="setWeek('${iso(w)}');go('packs')">wk of ${fmt(w)}</button>`).join('')}</div>
+  ${units.length?`<div class="row" style="margin-bottom:14px"><button class="btn" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><span class="muted small">runs Claude once per unit, in your voice</span></div>`:''}
+  ${units.length?units.map(u=>renderUnit(u)).join(''):'<div class="card"><p class="muted">Nothing planned this week. <a href="#" onclick="go(\'plan\');return false">Plan it →</a></p></div>'}`;
+}
+function renderUnit(u){
+  const open=openUnit===u.id;
+  const c=u.copy||{};
+  const si=STATUSES.indexOf(u.status);
+  return `<div class="unit ${open?'open':''}">
+    <div class="row" style="cursor:pointer;flex-wrap:wrap" onclick="openUnit=openUnit==='${u.id}'?null:'${u.id}';render()">
+      <b>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</b>
+      ${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}
+      <span class="chip">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][u.day]||''}</span>
+      <div class="spacer"></div>
+      <span class="small muted">${STATUS_LABEL[u.status]}</span><span>${open?'▴':'▾'}</span>
+    </div>
+    ${open?`
+    <div style="margin-top:14px">
+      <div class="statusflow" style="margin-bottom:12px">${STATUSES.map((st,i)=>`<span class="st ${i<si?'done':i===si?'cur':''}" onclick="updUnit('${u.id}',{status:'${st}'}).then(render)">${STATUS_LABEL[st]}</span>`).join('')}</div>
+      ${u.kind==='social'?`
+      <div class="row" style="margin-bottom:12px;flex-wrap:wrap">
+        ${PLATFORMS.map(p=>`<span class="plat ${(u.platforms||{})[p]?'on':''}" onclick="togglePlat('${u.id}','${p}')">${ic(PLAT_ICON[p])} ${p}</span>`).join('')}
+        <div class="spacer"></div>
+        <button class="btn sm" onclick="genCopy('${u.id}',this)">${c.caption?ic('refresh')+' Rewrite copy':ic('sparkle')+' Write copy'}</button>
+        <button class="btn ghost sm" onclick="copyText(buildImagePrompt('${u.skeleton_id}',S.units.find(x=>x.id==='${u.id}')),'Image prompt copied! Paste in AI Studio.')">${ic('image')} Image prompt</button>
+      </div>
+      ${c.caption?`
+      ${field('Caption (A)','caption',u)}
+      ${c.caption_b?field('Caption (B)','caption_b',u):''}
+      ${field('Pinterest title','pin_title',u)}
+      ${field('Pinterest alt text','alt_text',u)}
+      ${field('Source URL (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
+      ${field('TikTok caption','tiktok_caption',u)}
+      ${c.slide2_prompt?field('TikTok slide-2 prompt','slide2_prompt',u):''}
+      `:'<p class="muted small">No copy yet. Hit Write copy.</p>'}`
+      :`<p class="small muted">Blog task. Write it with Claude using the blog-writing skill, then it auto-appears in the Brain → Blog tab when published.</p>
+      <button class="btn ghost sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((u.title||'').replace(/'/g,''))} . Please use the J&B blog-writing skill and voice.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy handoff for Claude</button>`}
+      <div class="row" style="margin-top:10px"><button class="btn ghost sm" onclick="if(confirm('Delete this unit?'))delUnit('${u.id}')">Delete</button>
+      ${u.status==='published'?`<button class="btn mint sm" onclick="markWinner('${u.id}')">${ic('star')} Mark as winner</button>`:''}</div>
+    </div>`:''}
+  </div>`;
+}
+function field(label,key,u,forced){
+  const val=forced!==undefined?forced:(u.copy||{})[key]||'';
+  return `<div class="copyfield"><label>${label}</label><textarea onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
+}
+async function saveCopyField(id,key,val){
+  if(key==='source_url_utm')return;
+  const u=S.units.find(x=>x.id===id);
+  const c={...(u.copy||{})};c[key]=val;
+  await updUnit(id,{copy:c});
+}
+window.saveCopyField=saveCopyField;
+async function togglePlat(id,p){
+  const u=S.units.find(x=>x.id===id);
+  const pl={...(u.platforms||{})};pl[p]=!pl[p];
+  await updUnit(id,{platforms:pl});render();
+}
+window.togglePlat=togglePlat;
+async function delUnit(id){await sb.from('jb_units').delete().eq('id',id);S.units=S.units.filter(u=>u.id!==id);render();}
+window.delUnit=delUnit;
+async function markWinner(id){
+  const why=prompt('Why did this one win? (saves to the vault)')||'';
+  await sb.from('jb_winners').insert({unit_id:id,why,evergreen:confirm('Evergreen? (OK = yes, remind me to add it to CS recycling)')});
+  toast('Saved to winners vault!');loadAll().then(render);
+}
+window.markWinner=markWinner;
+async function genCopy(id,btn){
+  const u=S.units.find(x=>x.id===id);
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const kws=S.keywords.filter(k=>k.pillar===u.pillar);
+    const blogs=S.blog.filter(b=>b.status==='published').map(b=>b.title+' → '+b.url).join(' | ');
+    const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
+Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
+Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
+Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
+Reply as JSON ONLY:
+{"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
+"caption_b":"a second, different take on the caption",
+"pin_title":"Pinterest title, keyword-rich, under 90 chars",
+"alt_text":"plain literal description of a pin image about this topic, under 200 chars",
+"source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
+"tiktok_caption":"TikTok version: shorter, says juneybyrd.com in the text, 2-4 relevant hashtags, never mentions links",
+"slide2_prompt":"one sentence describing a simple text-checklist slide 2 image for the TikTok carousel"}`;
+    const out=await claude(VOICE,ask,1400);
+    const j=extractJSON(out);
+    const c={...(u.copy||{}),...j};
+    await updUnit(id,{copy:c,status:u.status==='idea'?'idea':u.status});
+    if(u.skeleton_id)await sb.from('jb_skeletons').update({last_used_at:new Date().toISOString()}).eq('id',u.skeleton_id);
+    render();toast('Copy pack written!');
+  }catch(e){toast('Copy failed: '+e.message);render();}
+}
+window.genCopy=genCopy;
+async function genAll(btn){
+  btn.innerHTML='<span class="spin"></span> Writing...';btn.disabled=true;
+  const units=weekUnits(S.week).filter(u=>u.kind==='social'&&!(u.copy||{}).caption);
+  for(const u of units){await genCopy(u.id,null);}
+  render();toast('All copy packs written!');
+}
+window.genAll=genAll;
+
+/* ================= SKELETONS ================= */
+function vSkel(){
+  const ideas=S.inbox.filter(i=>i.kind==='skeleton-idea');
+  const notes=S.inbox.filter(i=>i.kind!=='skeleton-idea');
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Skeletons</h1><span class="sub">${S.skeletons.length} locked recipes + your idea inbox</span></div>
+  <div class="grid g2">
+  ${S.skeletons.map(k=>`
+    <div class="card skel-card">
+      <div class="skel-prev">${SKEL_PREVIEWS[k.id]||''}</div>
+      <div style="flex:1">
+        <b>${esc(k.name)}</b>
+        <div class="small muted" style="margin:4px 0">${esc(k.best_for||'')}</div>
+        <div class="small muted">last used: ${k.last_used_at?fmt(k.last_used_at):'never'}</div>
+        <div class="row" style="margin-top:8px;flex-wrap:wrap">
+          <button class="btn sm" onclick="copyText(SKELETON_PROMPTS['${k.id}'].edit+SKELETON_PROMPTS['${k.id}'].body,'${esc(k.name)} prompt copied!')">Copy prompt</button>
+          <button class="btn ghost sm" onclick="modal('<h3 style=margin-bottom:10px>${esc(k.name)} · quirk fixes</h3><p class=small>${esc(k.quirks||'')}</p><br><button class=btn onclick=closeModal()>Close</button>')">Quirks</button>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Skeleton idea inbox ${ideas.filter(i=>i.status==='new').length?`<span class="pill p1">${ideas.filter(i=>i.status==='new').length} new</span>`:''}</h3>
+    <div class="row" style="margin-bottom:12px;flex-wrap:wrap">
+      <label class="btn" style="margin:0">${ic('camera')} Add a pin you like<input type="file" accept="image/*" style="display:none" onchange="uploadInboxImage(this)"></label>
+      <span class="small muted">Upload reference pins here. Claude checks this inbox too.</span>
+    </div>
+    <div class="grid g3">
+    ${ideas.length?ideas.map(i=>`
+      <div style="border:1.5px solid var(--line);border-radius:10px;overflow:hidden">
+        ${i.image_url?`<img src="${i.image_url}" style="width:100%;display:block">`:''}
+        <div style="padding:10px">
+          <div class="small">${esc(i.note||'')}</div>
+          <div class="small muted">${fmt(i.created_at)} · ${i.status}</div>
+          <div class="row" style="margin-top:6px">
+            <button class="btn ghost sm" onclick="copyText('New skeleton idea in the Post Picker inbox (id ${i.id}). Image: ${i.image_url||'none'}. Note: ${esc((i.note||'').replace(/'/g,''))}. Let\\'s discuss a new skeleton based on it.','Handoff copied! Paste to Claude.')">${ic('chat')} Discuss</button>
+            <button class="btn ghost sm" onclick="updInbox('${i.id}','archived')">Archive</button>
+          </div>
+        </div>
+      </div>`).join(''):'<p class="muted small">Empty. When you see a pin you love, drop it here.</p>'}
+    </div>
+    ${notes.length?`<h3 style="margin-top:18px">Notes to Claude</h3>${notes.map(n=>`<div class="alert">${esc(n.note)} <span class="small muted">· ${fmt(n.created_at)} · ${n.status}</span> ${n.status==='new'?`<button class="btn ghost sm" onclick="updInbox('${n.id}','seen')">dismiss</button>`:''}</div>`).join('')}`:''}
+  </div>`;
+}
+async function updInbox(id,status){await sb.from('jb_inbox').update({status}).eq('id',id);const i=S.inbox.find(x=>x.id===id);i.status=status;render();}
+window.updInbox=updInbox;
+</script>
+<script>
+/* ================= BRAIN ================= */
+function vBrain(){
+  const tabs=[['blog',ic('pen')+' Blog'],['topics',ic('bulb')+' Topics'],['winners',ic('star')+' Winners'],['keywords',ic('hash')+' Keywords'],['boards',ic('pin')+' Boards']];
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Brain</h1><span class="sub">everything the hub remembers</span></div>
+  <div class="tabbar">${tabs.map(([id,l])=>`<button class="${S.braintab===id?'on':''}" onclick="S.braintab='${id}';render()">${l}</button>`).join('')}</div>
+  <div id="braincontent">${({blog:brainBlog,topics:brainTopics,winners:brainWinners,keywords:brainKeywords,boards:brainBoards})[S.braintab]()}</div>`;
+}
+function brainBlog(){
+  return `<div class="card">
+  <div class="row" style="margin-bottom:12px"><h3 style="margin:0">Blog pipeline</h3><div class="spacer"></div><button class="btn ghost sm" onclick="syncWP(this)">${ic('refresh')} Sync from juneybyrd.com</button></div>
+  <table><tr><th>Post</th><th>Status</th><th>Published</th><th>Pins</th><th></th></tr>
+  ${S.blog.length?S.blog.map(b=>`<tr>
+    <td><b>${esc(b.title||b.topic||'')}</b>${b.url?`<br><a class="small muted" href="${b.url}" target="_blank">${b.url}</a>`:''}</td>
+    <td class="small">${b.status}</td>
+    <td class="small">${b.published_at?fmt(b.published_at):'—'}</td>
+    <td class="small">${b.pins_count||0}${b.last_pin_at?`<br><span class="muted">last ${fmt(b.last_pin_at)}</span>`:''}${b.status==='published'&&b.pins_count>0&&b.last_pin_at&&(Date.now()-new Date(b.last_pin_at))>30*864e5?'<br><span class="pill p1">needs fresh pin</span>':''}</td>
+    <td>${b.status==='published'?`<button class="btn sm" onclick="waterfall('${b.id}',this)">${ic('drop')} Waterfall</button>`:''}</td>
+  </tr>`).join(''):'<tr><td colspan="5" class="muted">No posts yet. Hit Sync.</td></tr>'}
+  </table>
+  <div class="row" style="margin-top:12px">
+    <input id="blog-idea" placeholder="New blog post idea..." style="flex:1">
+    <button class="btn ghost sm" onclick="addBlogIdea()">+ Idea</button>
+  </div></div>`;
+}
+async function syncWP(btn){
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const r=await fetch(WP_API);const posts=await r.json();
+    for(const p of posts){
+      const existing=S.blog.find(b=>b.wp_post_id===p.id);
+      if(existing){if(existing.status!=='published'&&existing.status!=='waterfalled'){await sb.from('jb_blog').update({status:'published',published_at:p.date,url:p.link,title:p.title.rendered}).eq('id',existing.id);}}
+      else{await sb.from('jb_blog').insert({wp_post_id:p.id,title:p.title.rendered,url:p.link,status:'published',published_at:p.date});}
+    }
+    const {data}=await sb.from('jb_blog').select('*').order('published_at',{ascending:false});
+    S.blog=data||[];toast('Synced '+posts.length+' published post(s)');render();
+  }catch(e){toast('WP sync failed: '+e.message);render();}
+}
+window.syncWP=syncWP;
+async function addBlogIdea(){
+  const t=$('#blog-idea').value.trim();if(!t)return;
+  const {data}=await sb.from('jb_blog').insert({topic:t,title:t,status:'idea'}).select();
+  if(data)S.blog.unshift(data[0]);render();
+}
+window.addBlogIdea=addBlogIdea;
+async function waterfall(id,btn){
+  const b=S.blog.find(x=>x.id===id);
+  btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
+  try{
+    const ask=`Blog post: "${b.title}" (${b.url}). Create the WATERFALL content pack for Juney & Byrd. Reply as JSON only:
+{"pin_topics":["3 different pin headline angles for this post"],
+"reel_idea":"one 30-second talking-or-text Reel concept",
+"carousel":["6 short slide texts for an IG carousel"],
+"fb_post":"a Facebook post, 60-100 words, links to the post",
+"email_seed":"2-3 sentence newsletter blurb pointing to the post"}`;
+    const out=await claude(VOICE,ask,1200);
+    const j=extractJSON(out);
+    modal(`<h3 style="margin-bottom:12px">Waterfall · ${esc(b.title)}</h3>
+      <div class="copyfield"><label>Pin angles</label><textarea>${esc(j.pin_topics.join('\n'))}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>
+      <div class="copyfield"><label>Reel idea</label><textarea>${esc(j.reel_idea)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>
+      <div class="copyfield"><label>Carousel slides</label><textarea>${esc(j.carousel.join('\n'))}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>
+      <div class="copyfield"><label>Facebook post</label><textarea>${esc(j.fb_post)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>
+      <div class="copyfield"><label>Email seed</label><textarea>${esc(j.email_seed)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>
+      <div class="row"><button class="btn" onclick="markWaterfalled('${b.id}')">Mark waterfalled</button><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast('Waterfall failed: '+e.message);}
+  btn.disabled=false;btn.innerHTML=ic('drop')+' Waterfall';
+}
+window.waterfall=waterfall;
+async function markWaterfalled(id){await sb.from('jb_blog').update({status:'waterfalled',waterfalled_at:new Date().toISOString()}).eq('id',id);const b=S.blog.find(x=>x.id===id);b.status='waterfalled';closeModal();render();}
+window.markWaterfalled=markWaterfalled;
+function brainTopics(){
+  const groups=[['idea',ic('bulb')+' Ideas'],['planned',ic('calendar')+' Planned'],['used',ic('check')+' Used'],['snoozed',ic('moon')+' Snoozed'],['denied',ic('ban')+' Never']];
+  return groups.map(([st,label])=>{
+    const rows=S.topics.filter(t=>t.status===st);
+    return `<div class="card" style="margin-bottom:14px"><h3>${label} · ${rows.length}</h3>
+    ${rows.length?rows.slice(0,40).map(t=>`<div class="row" style="padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+      <span style="flex:1;min-width:200px">${esc(t.title)}</span>
+      ${t.pillar?`<span class="pill p${t.pillar}">P${t.pillar}</span>`:''}
+      ${st==='snoozed'&&t.snooze_until?`<span class="small muted">until ${fmt(t.snooze_until)}</span>`:''}
+      ${st!=='denied'?`<button class="btn ghost sm" onclick="snoozeTopic('${t.id}')">${ic('moon')}</button>`:''}
+      ${st!=='denied'?`<button class="btn ghost sm" onclick="topicStatus('${t.id}','denied')">${ic('ban')}</button>`:`<button class="btn ghost sm" onclick="topicStatus('${t.id}','idea')">restore</button>`}
+    </div>`).join(''):'<p class="muted small">none</p>'}</div>`;
+  }).join('');
+}
+async function topicStatus(id,status){await sb.from('jb_topics').update({status}).eq('id',id);const t=S.topics.find(x=>x.id===id);t.status=status;render();}
+window.topicStatus=topicStatus;
+async function snoozeTopic(id){
+  const wks=+prompt('Snooze for how many weeks?','4')||4;
+  const until=new Date(Date.now()+wks*7*864e5);
+  await sb.from('jb_topics').update({status:'snoozed',snooze_until:iso(until)}).eq('id',id);
+  const t=S.topics.find(x=>x.id===id);t.status='snoozed';t.snooze_until=iso(until);render();
+}
+window.snoozeTopic=snoozeTopic;
+function brainWinners(){
+  return `<div class="card"><h3>Winners vault</h3>
+  ${S.winners.length?S.winners.map(w=>{const u=S.units.find(x=>x.id===w.unit_id)||{};return `<div class="alert good"><b>${esc(u.title||'(unit)')}</b> · ${esc(w.why||'')}
+  ${w.evergreen?(w.recycled?'<span class="pill p2">recycled</span>':`<span class="pill p1">add to CS recycling!</span> <button class="btn ghost sm" onclick="markRecycled('${w.id}')">done</button>`):''}</div>`;}).join(''):'<p class="muted small">No winners yet. Mark published units as winners from Copy Packs.</p>'}</div>`;
+}
+async function markRecycled(id){await sb.from('jb_winners').update({recycled:true}).eq('id',id);const w=S.winners.find(x=>x.id===id);w.recycled=true;render();}
+window.markRecycled=markRecycled;
+function brainKeywords(){
+  return `<div class="card"><h3>Keyword / hashtag banks</h3>
+  ${S.keywords.map(k=>`<div style="margin-bottom:12px"><span class="pill p${k.pillar||1}">P${k.pillar||'?'}</span> <b class="small">${k.platform}</b>
+  <textarea style="margin-top:6px" onchange="saveKeywords('${k.id}',this.value)">${esc((k.items||[]).join(', '))}</textarea></div>`).join('')}
+  <button class="btn ghost sm" onclick="addKeywordBank()">+ New bank</button></div>`;
+}
+async function saveKeywords(id,val){const items=val.split(',').map(s=>s.trim()).filter(Boolean);await sb.from('jb_keywords').update({items}).eq('id',id);const k=S.keywords.find(x=>x.id===id);k.items=items;toast('Saved');}
+window.saveKeywords=saveKeywords;
+async function addKeywordBank(){
+  const pillar=+prompt('Pillar (1-5)?','2')||2;const platform=prompt('Platform? pinterest / instagram / tiktok','pinterest')||'pinterest';
+  const {data}=await sb.from('jb_keywords').insert({pillar,platform,items:[]}).select();
+  if(data)S.keywords.push(data[0]);render();
+}
+window.addKeywordBank=addKeywordBank;
+function brainBoards(){
+  const boards=S.settings.boards||[{name:'The Entrepreneur Life!',theme:'business/money',status:'live'}];
+  return `<div class="card"><h3>Pinterest board strategy</h3>
+  <table><tr><th>Board</th><th>Theme</th><th>Status</th></tr>
+  ${boards.map(b=>`<tr><td>${esc(b.name)}</td><td>${esc(b.theme)}</td><td class="small">${b.status}</td></tr>`).join('')}</table>
+  <p class="small muted" style="margin-top:10px">Planned expansion as the product line grows: Habits & Routines · Home Organization · Budgeting Made Simple · Planning & Calendars. Edit in Settings → boards (JSON).</p></div>`;
+}
+
+/* ================= SEASONAL ================= */
+function vSeason(){
+  const today=new Date();
+  const rows=S.seasonal.map(ev=>{
+    let d=new Date(today.getFullYear(),ev.month-1,ev.day||1);
+    if(d<today)d=new Date(today.getFullYear()+1,ev.month-1,ev.day||1);
+    const days=Math.round((d-today)/864e5);
+    return {ev,d,days,inProduct:days<=ev.product_lead_days&&days>ev.content_lead_days,inContent:days<=ev.content_lead_days};
+  }).sort((a,b)=>a.days-b.days);
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Seasonal</h1><span class="sub">two horizons: product (build now) · content (post now)</span></div>
+  <div class="card"><table><tr><th>Moment</th><th>When</th><th>In</th><th>Horizon</th><th>Notes</th></tr>
+  ${rows.map(r=>`<tr style="${r.inContent?'background:#eef6f0':r.inProduct?'background:#fdf0ec':''}">
+    <td><b>${esc(r.ev.name)}</b> ${r.ev.category==='tax'?'<span class="pill p4">tax</span>':''}</td>
+    <td class="small">${fmt(r.d)}</td><td class="small">${r.days}d</td>
+    <td>${r.inContent?ic('pen')+' CONTENT NOW':r.inProduct?ic('tool')+' PRODUCT NOW':'<span class="muted small">quiet</span>'}</td>
+    <td class="small muted">${esc(r.ev.notes||'')}</td></tr>`).join('')}
+  </table></div>`;
+}
+
+/* ================= SETTINGS ================= */
+function vSet(){
+  const c=S.settings.cadence||{};
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Settings</h1></div>
+  <div class="grid g2">
+    <div class="card"><h3>Cadence targets (researched 2026 defaults, edit freely)</h3>
+      ${[['pinterest_fresh_per_day','Pinterest fresh pins / day'],['instagram_per_week','Instagram posts / week'],['facebook_per_week','Facebook posts / week'],['tiktok_per_week','TikTok posts / week'],['blog_per_month','Blog posts / month'],['stories_per_week','Stories / week']].map(([k,l])=>`
+      <div class="row" style="margin-bottom:8px"><span class="small" style="flex:1">${l}</span><input type="number" style="width:80px" value="${c[k]??''}" onchange="setCadence('${k}',+this.value)"></div>`).join('')}
+    </div>
+    <div class="card"><h3>Connections</h3>
+      <p class="small">Supabase: <b style="color:var(--good)">connected</b> (shared with Pin Planner)</p>
+      <p class="small">Anthropic key: <b style="color:${S.anthKey?'var(--good)':'var(--bad)'}">${S.anthKey?'saved':'MISSING — paste it below'}</b></p>
+      <div class="row" style="margin-top:8px"><input id="anth-key" type="password" placeholder="Anthropic API key (sk-ant-...)"><button class="btn sm" onclick="saveAnthKey()">Save</button></div>
+      <p class="small">WordPress: public API, no key needed</p>
+      <p class="small">ContentStudio sync: <b style="color:${S.settings.cs_key?'var(--warn)':'var(--bad)'}">${S.settings.cs_key?'key saved, wiring pending (Claude)':'needs your API key'}</b></p>
+      <div class="row" style="margin-top:8px"><input id="cs-key" type="password" placeholder="ContentStudio API key (app.contentstudio.io/juneybyrd/api)"><button class="btn sm" onclick="saveCSKey()">Save</button></div>
+      <p class="small muted" style="margin-top:8px">Voice prompt: ${esc(S.settings.voice_prompt_version||'v1')}</p>
+    </div>
+    <div class="card" style="grid-column:1/-1"><h3>UTM tagging</h3>
+      <label class="row small"><input type="checkbox" style="width:auto" ${(S.settings.utm||{}).enabled?'checked':''} onchange="toggleUTM(this.checked)"> Append utm_source / utm_medium to source URLs per platform</label>
+    </div>
+  </div>`;
+}
+async function setCadence(k,v){const c={...(S.settings.cadence||{})};c[k]=v;await saveSetting('cadence',c);toast('Saved');}
+window.setCadence=setCadence;
+async function toggleUTM(on){const u={...(S.settings.utm||{})};u.enabled=on;await saveSetting('utm',u);toast('Saved');}
+window.toggleUTM=toggleUTM;
+async function saveCSKey(){const v=$('#cs-key').value.trim();if(!v)return;await saveSetting('cs_key',v);toast('ContentStudio key saved. Claude wires the sync next session!');render();}
+window.saveCSKey=saveCSKey;
+async function saveAnthKey(){const v=$('#anth-key').value.trim();if(!v)return;await saveSetting('anth_key',v);S.anthKey=v;toast('Anthropic key saved. Copy buttons are live!');render();}
+window.saveAnthKey=saveAnthKey;
+
+/* ================= INIT ================= */
+(async function(){
+  $('#main').innerHTML='<div class="card" style="margin-top:40px;text-align:center"><p class="muted">Loading the brain...</p></div>';
+  try{await loadAll();}catch(e){$('#main').innerHTML=`<div class="card"><p><b>Could not load data.</b></p><p class="small muted">${esc(e.message)}. Did you run schema.sql in Supabase yet?</p></div>`;renderNav();return;}
+  render();
+})();
+</script>
+</body>
+</html>
