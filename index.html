@@ -34,8 +34,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--mint-d)}
 .brand img{width:100%;display:block}
 .brand small{display:block;font-family:'Nunito Sans';font-size:9px;letter-spacing:3px;color:var(--coral);text-transform:uppercase;margin-top:8px;font-weight:800}
 .ico{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
-.nav{margin-top:18px;display:flex;flex-direction:column;gap:3px}
-.nav button{display:flex;align-items:center;gap:11px;background:transparent;color:var(--muted);padding:10px 14px;border-radius:11px;font-size:14.5px;font-weight:700;text-align:left;width:100%}
+.nav{margin-top:14px;display:flex;flex-direction:column;gap:0}
+.nav button{display:flex;align-items:center;gap:11px;background:transparent;color:var(--muted);padding:6px 14px;border-radius:11px;font-size:14.5px;font-weight:700;text-align:left;width:100%}
 .nav button .ic{width:20px;text-align:center;font-size:16px}
 .nav button.on{background:var(--navy);color:#fff}
 .nav button:hover:not(.on){background:#f2f4f6;color:var(--navy)}
@@ -199,6 +199,7 @@ function weekStart(d){d=new Date(d);d.setDate(d.getDate()-d.getDay());d.setHours
 function monday(d){return weekStart(d);} /* legacy alias, same Sunday-start behavior */
 function iso(d){return d.toISOString().slice(0,10);}
 function fmt(d){return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function fmtRange(w){w=new Date(w);const e=new Date(w);e.setDate(e.getDate()+6);const sm=w.toLocaleDateString('en-US',{month:'short'});const em=e.toLocaleDateString('en-US',{month:'short'});return sm+' '+w.getDate()+'-'+(em===sm?'':em+' ')+e.getDate();}
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600);}
 function copyText(txt,msg){navigator.clipboard.writeText(txt).then(()=>toast(msg||'Copied!'));}
 window.copyText=copyText;
@@ -640,8 +641,8 @@ function renderTodo(){
   const horizon=new Date(Date.now()-7*864e5);
   const auto=S.units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step&&unitDate(a.u)>=horizon).sort((a,b)=>unitDate(a.u)-unitDate(b.u)).slice(0,8);
   el.innerHTML=`<h4>To-do</h4>
-  ${auto.map(a=>`<div class="titem" style="cursor:pointer" onclick="jumpUnit('${a.u.id}')">
-    <span class="pri hi"></span><span style="flex:1"><span class="small"><b>${esc(a.step)}</b></span><br><span class="small muted">${esc((a.u.title||'').slice(0,42))}${(a.u.title||'').length>42?'…':''}</span></span></div>`).join('')}
+  ${auto.map(a=>{const f=a.u.kind==='blog-task'?'Blog post':(WF_FORMATS[guessFormat(a.u)]||'Post');const d=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][a.u.day]||'';return `<div class="titem" style="cursor:pointer" onclick="jumpUnit('${a.u.id}')">
+    <span class="pri hi"></span><span style="flex:1"><span class="small"><b>${esc(a.step)}</b> <span class="muted">· ${f} · ${d}</span></span><br><span class="small muted">${esc((a.u.title||'').slice(0,42))}${(a.u.title||'').length>42?'…':''}</span></span></div>`;}).join('')}
   ${list.map(t=>`<div class="titem ${t.done?'done':''}">
     <input type="checkbox" ${t.done?'checked':''} onchange="toggleTodo('${t.id}')">
     <span class="pri ${t.pri}"></span><span style="flex:1">${esc(t.text)}</span>
@@ -769,7 +770,7 @@ function pickDay(format,blogId,topicId){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   modal(`<h3 style="margin-bottom:10px">Pick a day</h3>
   <div class="row" style="margin-bottom:14px">
-    <select id="pd-week" style="flex:1">${weeks.map((w,i)=>`<option value="${iso(w)}">${i===0?'This week':i===1?'Next week':'Wk of '+fmt(w)} (${iso(w)})</option>`).join('')}</select>
+    <select id="pd-week" style="flex:1">${weeks.map((w,i)=>`<option value="${iso(w)}">${i===0?'This week · ':i===1?'Next week · ':''}${fmtRange(w)}</option>`).join('')}</select>
     <select id="pd-day" style="width:110px">${days.map((d,i)=>`<option value="${i}" ${i===new Date().getDay()?'selected':''}>${d}</option>`).join('')}</select>
   </div>
   <div class="row"><button class="btn" onclick="pickDayGo('${format||''}','${blogId||''}','${topicId||''}')">Add to plan</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
@@ -824,11 +825,11 @@ function vDash(){
   const alerts=seasonalAlerts();
   const fuel=S.blog.filter(b=>b.status==='published').length;
   const pipe=STATUSES.map(st=>({st,n:social.filter(u=>u.status===st).length}));
-  const sorted=[...stats].sort((a,b)=>b.deficit-a.deficit);
+  const sorted=[...stats].sort((a,b)=>a.p-b.p);
   const {rows,excluded}=wfTree();
   const ideasFor=p=>S.topics.filter(t=>t.status==='idea'&&t.pillar===p&&(!t.snooze_until||new Date(t.snooze_until)<=new Date()));
   $('#main').innerHTML=`
-  <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${isNext?'next week · starts '+fmt(ws):'week of '+fmt(ws)}</span></div>
+  <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${isNext?'next week · '+fmtRange(ws):fmtRange(ws)}</span></div>
   <div class="card" style="margin-bottom:14px">
     <div class="row" style="flex-wrap:wrap;gap:14px">
       <b style="font-size:24px">${done}/${social.length}</b><span class="muted small">scheduled or published ${isNext?'next week':'this week'}</span>
@@ -918,7 +919,8 @@ function vPlan(){
   const units=weekUnits(S.week);
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Plan</h1><span class="sub">batch up to 4 weeks ahead</span></div>
-  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">wk of ${fmt(w)}${weekUnits(w).length?' ·'+weekUnits(w).length:''}</button>`).join('')}</div>
+  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?' ·'+weekUnits(w).length:''}</button>`).join('')}</div>
+  ${(()=>{const soc=units.filter(u=>u.kind==='social');const blogT=units.filter(u=>u.kind==='blog-task');const cad=S.settings.cadence||{};const socGoal=7;const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));const dn=soc.filter(u=>['scheduled','published'].includes(u.status)).length;const need=Math.max(0,socGoal-soc.length)+Math.max(0,blogGoal-blogT.length);return `<div class="card" style="margin-bottom:14px"><div class="row" style="flex-wrap:wrap;gap:18px"><span><b style="font-size:20px">${soc.length}/${socGoal}</b> <span class="small muted">social planned</span></span><span><b style="font-size:20px">${blogT.length}/${blogGoal}</b> <span class="small muted">blog</span></span><span><b style="font-size:20px">${dn}/${soc.length}</b> <span class="small muted">scheduled or published</span></span><div class="spacer"></div><span class="small" style="font-weight:800;color:${need?'var(--coral)':'var(--good)'}">${need?need+' still to plan':'plan is full'}</span></div></div>`;})()}
   ${units.length?renderWeekGrid(units):planDraft&&planDraft.week===wsIso?renderWizard():`
   <div class="card" style="text-align:center;padding:44px">
     <p class="muted">No plan for this week yet.</p><br>
@@ -1031,7 +1033,7 @@ function vPacks(){
   const weeks=[0,1,2,3].map(i=>{const d=monday(new Date());d.setDate(d.getDate()+i*7);return d;});
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Copy Packs</h1><span class="sub">the batch-day workbench</span></div>
-  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===iso(S.week)?'on':''}" onclick="setWeek('${iso(w)}');go('packs')">wk of ${fmt(w)}</button>`).join('')}</div>
+  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===iso(S.week)?'on':''}" onclick="setWeek('${iso(w)}');go('packs')">${fmtRange(w)}</button>`).join('')}</div>
   ${units.length?`<div class="row" style="margin-bottom:14px;flex-wrap:wrap"><button class="btn" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><span class="muted small">runs Claude once per unit, in your voice</span><div class="spacer"></div><button class="btn ghost" onclick="syncCS(this)">${ic('refresh')} Sync ContentStudio</button>${S.csSyncedAt?`<span class="muted small">synced ${new Date(S.csSyncedAt).toLocaleTimeString()}</span>`:''}</div>`:''}
   ${units.length?units.map(u=>renderUnit(u)).join(''):'<div class="card"><p class="muted">Nothing planned this week. <a href="#" onclick="go(\'plan\');return false">Plan it →</a></p></div>'}`;
 }
