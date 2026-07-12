@@ -755,12 +755,23 @@ window.wfMenu=function(blogId){
   modal(`<h3 style="margin-bottom:10px">${esc(b.title)}</h3>
   <p class="small muted" style="margin-bottom:10px">Waterfall settings for this post.</p>
   <p class="small muted" style="margin-bottom:6px">This post can feed:</p>
-  <div class="row" style="flex-wrap:wrap;gap:5px;margin-bottom:10px">${[1,2,3,4,5].map(p=>{const on=((wfState()[blogId]||{}).pillars||[]).includes(p);return `<span class="chip" style="${on?'background:var(--navy);color:#fff;border-color:var(--navy)':''}" onclick="wfTogglePillar('${blogId}',${p})">P${p} ${PILLARS[p]}</span>`;}).join('')}</div>
+  <div class="row" style="flex-wrap:wrap;gap:5px;margin-bottom:10px">${[1,2,3,4,5].map(p=>{const on=((wfState()[blogId]||{}).pillars||[]).includes(p);return `<span class="chip" style="${on?'background:var(--navy);color:#fff;border-color:var(--navy)':''}" onclick="wfTogglePillar('${blogId}',${p})">P${p} ${PILLARS[p]}</span>`;}).join('')}<button class="btn ghost sm" onclick="wfSuggestPillars('${blogId}',this)">${ic('sparkle')} Suggest</button></div>
   ${Object.keys(na).length?`<p class="small">N/A branches: ${Object.keys(na).map(k=>`${WF_FORMATS[k]||k} <a href="#" onclick="wfSet('${blogId}',ps=>{const x={...(ps.branch_na||{})};delete x['${k}'];ps.branch_na=x;});closeModal();return false">undo</a>`).join(' · ')}</p>`:''}
   <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="wfExclude('${blogId}',true)">Exclude this post from the waterfall</button>
   <button class="btn ghost" onclick="closeModal()">Close</button></div>`);
 };
 window.wfTogglePillar=function(id,p){wfSet(id,ps=>{const t=new Set(ps.pillars||[]);if(t.has(p))t.delete(p);else t.add(p);ps.pillars=[...t];}).then(()=>wfMenu(id));};
+window.wfSuggestPillars=async function(id,btn){
+  const b=S.blog.find(x=>String(x.id)===String(id));if(!b)return;
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const ask='Blog post title: "'+b.title+'". Which Juney & Byrd content pillars can this post feed? Pillars: 1 Pain hooks (relatable overwhelm and pain moments), 2 Plain-English help (how-to education), 3 Tools talking (product features: Hutch bookkeeping app, Stash savings app), 4 The maker (behind the scenes, Holly her own customer), 5 Ask the bestie (questions and engagement). Pick every pillar that genuinely fits, usually 2-3. Reply JSON only: {"pillars":[numbers]}';
+    const out=await claude(VOICE,ask,200);
+    const j=extractJSON(out);
+    await wfSet(id,ps=>{ps.pillars=[...new Set([...(ps.pillars||[]),...(j.pillars||[]).filter(p=>p>=1&&p<=5)])];});
+    wfMenu(id);
+  }catch(e){toast('Suggest failed: '+e.message);wfMenu(id);}
+};
 window.wfExcludedModal=function(){
   const st=wfState();
   const ex=S.blog.filter(b=>(st[b.id]||{}).excluded);
@@ -823,12 +834,18 @@ window.dashSuggest=dashSuggest;
 /* ---- start here: one computed priority ---- */
 function startHere(){
   const horizon=new Date(Date.now()-7*864e5);
-  const today=new Date();today.setHours(23,59,59,999);
+  const ws0=weekStart(new Date());
+  const wkEnd=new Date(ws0);wkEnd.setDate(wkEnd.getDate()+7);
+  const dayN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const soc=weekUnits(ws0).filter(u=>u.kind==='social');
+  if(soc.length<7){
+    const open=[0,1,2,3,4,5,6].filter(d=>!soc.some(u=>u.day===d)).slice(0,7-soc.length);
+    const hp=[...pillarStats().stats].sort((a,b)=>b.deficit-a.deficit)[0].p;
+    return {label:'Plan this week: '+(7-soc.length)+' slot'+(7-soc.length===1?'':'s')+' open ('+open.map(d=>dayN[d]).join(', ')+'). Pick a topic below, P'+hp+' is hungriest',act:'dashPickPillar('+hp+')'};
+  }
   const acts=S.units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step&&unitDate(a.u)>=horizon).sort((a,b)=>unitDate(a.u)-unitDate(b.u));
-  const due=acts.find(a=>unitDate(a.u)<=today);
-  if(due)return {label:due.step+': '+due.u.title,act:"jumpUnit('"+due.u.id+"')"};
-  const soc=weekUnits(weekStart(new Date())).filter(u=>u.kind==='social');
-  if(soc.length<7)return {label:'Plan this week: '+(7-soc.length)+' slot'+(7-soc.length===1?'':'s')+' still open',act:"go('plan')"};
+  const due=acts.find(a=>unitDate(a.u)<wkEnd);
+  if(due)return {label:due.step+' ('+dayN[due.u.day]+'): '+due.u.title,act:"jumpUnit('"+due.u.id+"')"};
   if(acts.length)return {label:acts[0].step+': '+acts[0].u.title,act:"jumpUnit('"+acts[0].u.id+"')"};
   const wt=wfTree();const gap=wt.rows.find(r=>r.gaps);
   if(gap){const br=gap.branches.find(x=>x.state==='gap'||x.state==='stale');return {label:'Waterfall: "'+gap.b.title+'" needs '+br.label,act:br.key==='email'?"wfEmail('"+gap.b.id+"')":"wfBranch('"+gap.b.id+"','"+br.key+"')"};}
@@ -945,7 +962,7 @@ function vPlan(){
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Plan</h1><span class="sub">batch up to 4 weeks ahead</span></div>
   <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?' ·'+weekUnits(w).length:''}</button>`).join('')}</div>
-  ${(()=>{const soc=units.filter(u=>u.kind==='social');const blogT=units.filter(u=>u.kind==='blog-task');const cad=S.settings.cadence||{};const socGoal=7;const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));const dn=soc.filter(u=>['scheduled','published'].includes(u.status)).length;const need=Math.max(0,socGoal-soc.length)+Math.max(0,blogGoal-blogT.length);return `<div class="card" style="margin-bottom:14px"><div class="row" style="flex-wrap:wrap;gap:18px"><span><b style="font-size:20px">${soc.length}/${socGoal}</b> <span class="small muted">social planned</span></span><span><b style="font-size:20px">${blogT.length}/${blogGoal}</b> <span class="small muted">blog</span></span><span><b style="font-size:20px">${dn}/${soc.length}</b> <span class="small muted">scheduled or published</span></span><div class="spacer"></div><span class="small" style="font-weight:800;color:${need?'var(--coral)':'var(--good)'}">${need?need+' still to plan':'plan is full'}</span></div></div>`;})()}
+  ${(()=>{const soc=units.filter(u=>u.kind==='social');const blogT=units.filter(u=>u.kind==='blog-task');const cad=S.settings.cadence||{};const socGoal=7;const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));const dn=soc.filter(u=>['scheduled','published'].includes(u.status)).length;const need=Math.max(0,socGoal-soc.length)+Math.max(0,blogGoal-blogT.length);return `<div class="card" style="margin-bottom:14px"><div class="row" style="flex-wrap:wrap;gap:18px"><span><b style="font-size:20px">${soc.length}/${socGoal}</b> <span class="small muted">social planned</span></span><span><b style="font-size:20px">${blogT.length}/${blogGoal}</b> <span class="small muted">blog</span></span><span><b style="font-size:20px">${dn}/${soc.length}</b> <span class="small muted">scheduled or published</span></span><div class="spacer"></div><span class="small" style="font-weight:800;color:${need?'var(--coral)':'var(--good)'};${need?'cursor:pointer':''}" ${need?`onclick="go('dash')"`:''}>${need?need+' still to plan (open: '+[0,1,2,3,4,5,6].filter(d=>!soc.some(u=>u.day===d)).slice(0,Math.max(0,socGoal-soc.length)).map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', ')+(blogT.length<blogGoal?' + blog post':'')+') → pick a topic on the dash':'plan is full'}</span></div></div>`;})()}
   ${units.length?renderWeekGrid(units):planDraft&&planDraft.week===wsIso?renderWizard():`
   <div class="card" style="text-align:center;padding:44px">
     <p class="muted">No plan for this week yet.</p><br>
