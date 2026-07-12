@@ -101,6 +101,15 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .skel-card{border:1.5px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:14px;align-items:flex-start}
 .skel-prev{width:76px;min-width:76px;aspect-ratio:2/3;border-radius:8px;position:relative;overflow:hidden;border:2px solid var(--line)}
 .unit{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff}
+.tiles2{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px}
+.tile2{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.tile2 .n{font-size:24px;font-weight:800}
+.tile2 .l{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:2px}
+.tile2 .d{font-size:11.5px;color:var(--good);font-weight:700;margin-top:3px}
+.bars{display:flex;align-items:flex-end;gap:2px;height:120px}
+.bar{flex:1;background:var(--coral);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.bar:hover::after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:11px;padding:3px 7px;border-radius:6px;white-space:nowrap;margin-bottom:4px;z-index:5}
+.axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px}
 .unit.open{border-color:var(--mint-d)}
 .plat{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;padding:3px 8px;border-radius:7px;background:#eef0f3;color:var(--muted);cursor:pointer}
 .plat.on{background:var(--mint);color:#204430}
@@ -400,12 +409,225 @@ function go(v){S.view=v;render();}
 window.go=go;
 function render(){renderNav();renderTodo();({dash:vDash,plan:vPlan,packs:vPacks,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();}
 
-/* ---------- NUMBERS (embedded HQ dashboard) ---------- */
+/* ---------- NUMBERS (native HQ dashboard, data from hutch-api worker) ---------- */
+const HUTCH_API='https://hutch-api.juneybyrd.workers.dev';
+const NUM={data:null,range:30,sec:'money',extra:[]};
+const DAY=864e5;
+const hqKey=()=>{try{return localStorage.getItem('jbhq_key')||''}catch(_){return ''}};
 function vNumbers(){
   $('#main').innerHTML=`
-  <div class="viewtitle"><h1>Numbers</h1><span class="sub">the HQ dashboard, live from hutch.juneybyrd.com</span><div class="spacer"></div><a class="btn ghost sm" href="https://hutch.juneybyrd.com/numbers" target="_blank" style="text-decoration:none">Open full page ↗</a></div>
-  <iframe src="https://hutch.juneybyrd.com/numbers" style="width:100%;height:calc(100vh - 120px);border:1.5px solid var(--line);border-radius:var(--r);background:#fff" title="J&B HQ Numbers"></iframe>`;
+  <div class="viewtitle"><h1>Numbers</h1><span class="sub">Juney &amp; Byrd HQ · metadata only, never book contents</span><div class="spacer"></div>
+  ${NUM.data?`<span class="small muted" id="num-stamp"></span> <button class="btn ghost sm" onclick="numLoad()">${ic('refresh')} Refresh</button>`:''}</div>
+  <div id="num-body"></div>`;
+  if(!hqKey()){renderNumGate();return}
+  NUM.data?renderNum():numLoad();
 }
+function renderNumGate(msg){
+  $('#num-body').innerHTML=`<div class="card" style="max-width:380px;margin:50px auto;text-align:center">
+    <h3 style="margin-bottom:4px">HQ</h3><p class="small muted">The numbers, for your eyes only.</p>
+    <input type="password" id="hq-key" placeholder="Admin key" autocomplete="off" style="margin:14px 0 10px" onkeydown="if(event.key==='Enter')numOpen()">
+    <button class="btn" style="width:100%" onclick="numOpen()">Open the books</button>
+    <p class="small" style="color:var(--coral);font-weight:700;min-height:16px;margin-top:8px">${msg||''}</p></div>`;
+}
+async function numFetch(k){
+  const r=await fetch(HUTCH_API+'/admin/stats',{headers:{'x-admin-key':k}});
+  if(r.status!==200)throw new Error('bad key or server trouble ('+r.status+')');
+  return r.json();
+}
+async function numOpen(){
+  const k=$('#hq-key').value.trim();if(!k)return;
+  try{NUM.data=await numFetch(k);try{localStorage.setItem('jbhq_key',k)}catch(_){}renderNum();}
+  catch(e){renderNumGate(String(e.message||e))}
+}
+async function numLoad(){
+  $('#num-body').innerHTML='<p class="muted small" style="padding:20px 4px">Opening the books…</p>';
+  try{NUM.data=await numFetch(hqKey());vNumbers();}
+  catch(e){try{localStorage.removeItem('jbhq_key')}catch(_){}renderNumGate(String(e.message||e))}
+}
+window.numOpen=numOpen;window.numLoad=numLoad;
+const numInRange=t=>NUM.range===0?t>0:(t>0&&t>Date.now()-NUM.range*DAY);
+const numCnt=(arr,f)=>arr.filter(f).length;
+const numPct=(a,b)=>b?Math.round(a/b*100)+'%':'0%';
+const fmt$=c=>{const v=Math.round(c/100);const t='$'+Math.abs(v).toLocaleString('en-US');return v<0?'('+t+')':t;};
+const tile2=t=>`<div class="tile2"><div class="n">${t.n}</div><div class="l">${t.l}</div><div class="d">${t.d||''}</div></div>`;
+function numKnownListings(){
+  const set=new Set();
+  for(const w of (NUM.data&&NUM.data.etsy||[]))for(const l of (w.listings||[]))set.add(l.name);
+  for(const n of NUM.extra)set.add(n);
+  return [...set];
+}
+function renderNum(){
+  const D=NUM.data,H=D.products.hutch,A=H.accounts,S2=D.services||{},E=D.etsy||[];
+  const P=S2.paddle,M=S2.mailerlite,R=S2.resend,W=S2.wordpress;
+  const eIn=E.filter(w=>numInRange(Date.parse(w.week)));
+  const eRev=eIn.reduce((a,w)=>a+w.revenueCents,0);
+  const rev=P?P.tx.filter(x=>numInRange(x.t)).reduce((a,x)=>a+x.amt,0):null;
+  const optins=M?(M.groups.find(g=>/Hutch App/i.test(g.name))||{}).n:null;
+  const wIn=(W&&W.days)?W.days.filter(x=>numInRange(Date.parse(x.d))):null;
+  const st=$('#num-stamp');if(st)st.textContent='updated '+new Date(D.generatedAt).toLocaleString();
+  const SECS=[['money','Money'],['hutch','Hutch'],['etsy','Etsy'],['aud','Audience'],['ops','Ops']];
+  let body=`
+  <div class="row" style="margin-bottom:12px">${[7,30,90,0].map(d=>`<span class="chip ${NUM.range===d?'on':''}" onclick="NUM.range=${d};renderNum()" style="${NUM.range===d?'background:var(--navy);color:#fff;border-color:var(--navy)':''}">${d===0?'All time':d+' days'}</span>`).join('')}</div>
+  <div class="card" style="border-color:var(--navy);margin-bottom:14px"><h3>All of Juney &amp; Byrd</h3><div class="tiles2">${[
+    {n:fmt$((P?rev:0)+eRev),l:'Revenue in period',d:(P?'Paddle':'Paddle unreachable')+' + Etsy, gross'},
+    {n:P?fmt$(P.mrrCents):'–',l:'MRR',d:'monthly run rate'},
+    {n:P?(P.active+P.pastDue):numCnt(A,a=>['active','trialing','past_due'].includes(a.s)),l:'Paying subscribers',d:'Hutch Plus'},
+    {n:A.length,l:'App accounts',d:numCnt(A,a=>a.t&&a.cu>Date.now()&&!a.s)+' in trial now'},
+    {n:wIn?wIn.reduce((a,x)=>a+x.v,0).toLocaleString():'–',l:'Site views',d:'juneybyrd.com'},
+    {n:optins!=null?optins:'–',l:'Email opt-ins',d:'app list'}
+  ].map(tile2).join('')}</div></div>
+  <div class="tabbar">${SECS.map(([id,l])=>`<button class="${NUM.sec===id?'on':''}" onclick="NUM.sec='${id}';renderNum()">${l}</button>`).join('')}</div>`;
+  if(NUM.sec==='money'){
+    body+=`<div class="card"><h3>Paddle, subscriptions · <a href="https://vendors.paddle.com/overview" target="_blank" rel="noopener">open dashboard</a></h3>
+    ${P?`<div class="tiles2">${[{n:P.active,l:'Active subs'},{n:P.pastDue,l:'Past due'},{n:P.canceled,l:'Canceled'},{n:fmt$(P.mrrCents),l:'MRR'},{n:fmt$(rev),l:'Revenue in period'},{n:P.tx.length,l:'Recent transactions',d:'last 200 fetched'}].map(tile2).join('')}</div><p class="small muted" style="margin-top:8px">Numbers refresh at most every 15 minutes.</p>`
+    :`<p class="muted small">Couldn't reach Paddle right now, use the dashboard link.</p>`}</div>
+    <div class="card"><h3>Etsy, shop money (from your weekly log)</h3><div class="tiles2">${[
+      {n:fmt$(eRev),l:'Etsy revenue in period'},{n:eIn.reduce((a,w)=>a+w.orders,0),l:'Etsy orders'},{n:E.length,l:'Weeks logged',d:'all time'}
+    ].map(tile2).join('')}</div></div>`;
+  }
+  if(NUM.sec==='hutch'){
+    const span=NUM.range===0?Math.max(7,Math.ceil((Date.now()-Math.min(...A.map(a=>a.c).filter(Boolean),Date.now()))/DAY)):NUM.range;
+    const weekly=span>120,bucket=weekly?7*DAY:DAY,nb=Math.ceil(span*DAY/bucket),start=Date.now()-nb*bucket;
+    const counts=new Array(nb).fill(0);
+    for(const a of A){if(a.c>start){const i=Math.min(nb-1,Math.floor((a.c-start)/bucket));counts[i]++;}}
+    const max=Math.max(1,...counts);
+    const f=t=>new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    body+=`<div class="card"><h3>Hutch, the app</h3><div class="tiles2">${[
+      {n:A.length,l:'Accounts, total',d:numCnt(A,a=>numInRange(a.c))+' new in period'},
+      {n:H.vaults,l:'Vaults with books',d:'sync in use'},
+      {n:numCnt(A,a=>a.t&&a.cu>Date.now()&&!a.s),l:'Active trials',d:'14-day Plus, no card'},
+      {n:numCnt(A,a=>a.cl>0),l:'Local claims, total',d:numCnt(A,a=>numInRange(a.cl))+' in period'},
+      {n:numCnt(A,a=>['active','trialing','past_due'].includes(a.s)),l:'Paying Plus subs',d:'live from Paddle webhooks'},
+      {n:numCnt(A,a=>a.m),l:'Marketing opt-ins',d:numPct(numCnt(A,a=>a.m),A.length)+' of accounts'},
+      {n:A.reduce((s,a)=>s+a.r.filter(t=>numInRange(t)).length,0),l:'Reminders sent',d:'in period'}
+    ].map(tile2).join('')}</div></div>
+    <div class="card"><h3>Sign-ups per ${weekly?'week':'day'}</h3>
+      <div class="bars">${counts.map((c,i)=>`<div class="bar" style="height:${Math.round(c/max*100)}%" data-t="${c} · ${f(start+i*bucket)}"></div>`).join('')}</div>
+      <div class="axis"><span>${f(start)}</span><span>today</span></div></div>`;
+  }
+  if(NUM.sec==='etsy'){
+    const agg={};
+    for(const w of eIn)for(const l of (w.listings||[])){agg[l.name]=agg[l.name]||{views:0,orders:0};agg[l.name].views+=l.views;agg[l.name].orders+=l.orders;}
+    const rows=Object.entries(agg).sort((a,b)=>b[1].views-a[1].views);
+    const newest=E.length?Date.parse(E[E.length-1].week):0;
+    const names=numKnownListings();
+    body+=`<div class="card"><h3>Shop totals · <a href="https://www.etsy.com/your/shops/me/stats" target="_blank" rel="noopener">open Etsy stats</a></h3>
+      <div class="tiles2">${[
+        {n:eIn.reduce((a,w)=>a+w.visits,0).toLocaleString(),l:'Shop visits in period'},
+        {n:eIn.reduce((a,w)=>a+w.orders,0),l:'Orders'},{n:fmt$(eRev),l:'Revenue'},{n:eIn.length,l:'Weeks in period'}
+      ].map(tile2).join('')}</div>
+      ${(Date.now()-newest>8*DAY)?`<p class="small" style="color:var(--coral);font-weight:800;margin-top:10px">Time to log last week's numbers!</p>`:''}</div>
+    <div class="card"><h3>By listing, in this period</h3>
+      ${rows.length?`<table><tr><th>Listing</th><th style="text-align:right">Views</th><th style="text-align:right">Orders</th><th style="text-align:right">Conversion</th></tr>${rows.map(([n,v])=>`<tr><td>${esc(n)}</td><td style="text-align:right;font-weight:700">${v.views.toLocaleString()}</td><td style="text-align:right;font-weight:700">${v.orders}</td><td style="text-align:right;font-weight:700">${v.views?(v.orders/v.views*100).toFixed(1)+'%':'–'}</td></tr>`).join('')}</table>`
+      :`<p class="muted small">No per-listing data yet. Add your listings in the log below and they'll show here.</p>`}</div>
+    <div class="card"><h3>Log a week (the Sunday ritual)</h3>
+      <div class="row" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:12px">
+        <label class="small muted" style="font-weight:700">Week ending (Saturday)<input type="date" id="num-ew" value="${(()=>{const d=new Date();d.setDate(d.getDate()-((d.getDay()+1)%7));return d.toISOString().slice(0,10)})()}" style="margin-top:4px"></label>
+        <label class="small muted" style="font-weight:700">Shop visits<input type="number" id="num-ev" min="0" placeholder="0" style="width:110px;margin-top:4px"></label>
+        <label class="small muted" style="font-weight:700">Orders<input type="number" id="num-eo" min="0" placeholder="0" style="width:100px;margin-top:4px"></label>
+        <label class="small muted" style="font-weight:700">Revenue $<input type="number" id="num-er" min="0" step="0.01" placeholder="0.00" style="width:120px;margin-top:4px"></label>
+      </div>
+      ${names.length?names.map((n,i)=>`<div class="row" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:8px">
+        <span style="min-width:180px;font-weight:800;font-size:13.5px">${esc(n)}</span>
+        <label class="small muted" style="font-weight:700">Views<input type="number" min="0" placeholder="0" id="num-lv${i}" style="width:100px;margin-top:4px"></label>
+        <label class="small muted" style="font-weight:700">Orders<input type="number" min="0" placeholder="0" id="num-lo${i}" style="width:100px;margin-top:4px"></label></div>`).join('')
+      :`<p class="muted small" style="margin-bottom:10px">No listings yet. Tap "Add a listing" and name it (e.g. Hutch Local, Stash).</p>`}
+      <div class="row">
+        <button class="btn ghost sm" onclick="const n=prompt('Listing name (short, e.g. Hutch Local):');if(n&&n.trim()){NUM.extra.push(n.trim().slice(0,60));renderNum();}">＋ Add a listing</button>
+        <button class="btn sm" onclick="numSaveWeek(this)">Save week</button>
+      </div>
+      <p class="small muted" style="margin-top:10px">Per-listing views and orders come from Etsy Stats → Listings. Etsy has no export for these, your weekly minute here is the only record.</p>
+      ${E.length?`<p class="small" style="margin-top:8px">Recent: ${E.slice(-4).reverse().map(w=>`<b>${w.week}</b> (${w.visits} visits, ${w.orders} orders, ${fmt$(w.revenueCents)})`).join(' · ')}</p>`:''}
+    </div>`;
+  }
+  if(NUM.sec==='aud'){
+    body+=`<div class="card"><h3>MailerLite, email lists · <a href="https://dashboard.mailerlite.com/" target="_blank" rel="noopener">open dashboard</a></h3>
+      <p class="small" style="line-height:2">${M?M.groups.map(g=>`<b>${g.n.toLocaleString()}</b> · ${esc(g.name)}`).join('<br>')+'<br><span class="muted" style="font-size:12px">Internal test emails excluded.</span>':"Couldn't reach MailerLite right now, use the dashboard link."}</p></div>
+    <div class="card"><h3>WordPress, juneybyrd.com traffic · <a href="https://wordpress.com/stats/day/juneybyrd.com" target="_blank" rel="noopener">open stats</a></h3>
+      ${(W&&W.days&&W.days.length)?`<div class="tiles2">${[
+        {n:wIn.reduce((a,x)=>a+x.v,0).toLocaleString(),l:'Views in period'},
+        {n:wIn.reduce((a,x)=>a+x.u,0).toLocaleString(),l:'Visitors in period'},
+        {n:W.days.slice(-7).reduce((a,x)=>a+x.v,0).toLocaleString(),l:'Views, last 7 days',d:'regardless of range'}
+      ].map(tile2).join('')}</div>`:`<p class="muted small">Not connected or unreachable. The stats link above always works.</p>`}</div>`;
+  }
+  if(NUM.sec==='ops'){
+    let resend='<p class="muted small">Couldn\'t reach Resend right now, use the dashboard link.</p>';
+    if(R){const inR=R.emails.filter(e=>numInRange(e.t));const d=inR.filter(e=>/delivered/i.test(e.s)).length;const bad=inR.filter(e=>/bounce|complain/i.test(e.s)).length;
+      resend=`<div class="tiles2">${[{n:inR.length,l:'Emails sent in period',d:'test emails excluded'},{n:d,l:'Delivered'},{n:bad,l:'Bounces + complaints',d:bad?'peek at Resend':'clean'}].map(tile2).join('')}</div>`;}
+    body+=`<div class="card"><h3>Resend, transactional email · <a href="https://resend.com/emails" target="_blank" rel="noopener">open dashboard</a></h3>${resend}</div>
+    <div class="card"><h3>Link-only dashboards</h3><p class="small" style="line-height:2">
+      <a href="https://dash.cloudflare.com/9ecffd73d8881fba892168a4325daa8e/workers/services/view/hutch-api/production/metrics" target="_blank" rel="noopener">Cloudflare</a> · API traffic and errors<br>
+      <a href="https://github.com/hollsfinds/hutch-backup" target="_blank" rel="noopener">GitHub</a> · private code backup (hutch-backup)</p></div>`;
+  }
+  $('#num-body').innerHTML=body;
+  const st2=$('#num-stamp');if(st2)st2.textContent='updated '+new Date(D.generatedAt).toLocaleString();
+}
+window.renderNum=renderNum;window.NUM=NUM;
+async function numSaveWeek(btn){
+  const week=$('#num-ew').value;
+  if(!week){toast('Pick the Saturday the week ended.');return}
+  btn.disabled=true;btn.textContent='Saving…';
+  try{
+    const names=numKnownListings();
+    const listings=names.map((n,i)=>({name:n,views:Number(($('#num-lv'+i)||{}).value)||0,orders:Number(($('#num-lo'+i)||{}).value)||0})).filter(x=>x.views>0||x.orders>0);
+    const body={week,visits:Number($('#num-ev').value)||0,orders:Number($('#num-eo').value)||0,revenueCents:Math.round((Number($('#num-er').value)||0)*100),listings};
+    const r=await fetch(HUTCH_API+'/admin/etsy',{method:'POST',headers:{'x-admin-key':hqKey(),'content-type':'application/json'},body:JSON.stringify(body)});
+    if(r.status!==200)throw new Error('save failed ('+r.status+')');
+    NUM.data=await numFetch(hqKey());toast('Week saved!');renderNum();
+  }catch(e){toast(String(e.message||e))}
+  btn.disabled=false;btn.textContent='Save week';
+}
+window.numSaveWeek=numSaveWeek;
+
+/* ---------- CONTENTSTUDIO SYNC (through the hutch-api /cs relay) ---------- */
+const CS_WS='6a52908a12cc32366f04d676';
+async function csCall(path,method='GET',body=null){
+  if(!S.settings.cs_key)throw new Error('No ContentStudio key in Settings');
+  const r=await fetch(HUTCH_API+'/cs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:S.settings.cs_key,path,method,body})});
+  const j=await r.json().catch(()=>({}));
+  if(r.status>=400)throw new Error('CS '+r.status+(j.message?': '+j.message:''));
+  return j;
+}
+const normTxt=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+const CS_TO_UNIT={draft:'draft_staged',under_review:'draft_staged',failed:'draft_staged',queued:'scheduled',scheduled:'scheduled',partially_failed:'scheduled',published:'published'};
+async function syncCS(btn){
+  const lbl=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Syncing…'}
+  try{
+    const from=new Date(Date.now()-45*DAY).toISOString().slice(0,10);
+    const to=new Date(Date.now()+45*DAY).toISOString().slice(0,10);
+    let posts=[],page=1,last=1;
+    do{
+      const j=await csCall(`/workspaces/${CS_WS}/posts?per_page=50&page=${page}&date_from=${from}&date_to=${to}`);
+      posts=posts.concat(j.data||[]);last=j.last_page||1;page++;
+    }while(page<=last&&page<=6);
+    S.csPosts=posts;S.csSyncedAt=Date.now();
+    let updated=0;
+    for(const u of S.units.filter(x=>x.kind==='social')){
+      const c=u.copy||{};
+      let p=c.cs_post_id?posts.find(x=>x.id===c.cs_post_id):null;
+      if(!p){
+        const t1=normTxt(c.pin_title),t2=normTxt(c.caption).slice(0,60);
+        p=posts.find(x=>{
+          const pt=normTxt(x.pinterest_options&&x.pinterest_options.title);
+          const tx=normTxt(x.common&&x.common.content&&x.common.content.text).slice(0,60);
+          return (t1&&pt&&pt===t1)||(t2&&tx&&tx===t2);
+        });
+      }
+      if(!p)continue;
+      const want=CS_TO_UNIT[p.status]||null;
+      const patch={};
+      if(c.cs_post_id!==p.id||c.cs_status!==p.status)patch.copy={...c,cs_post_id:p.id,cs_status:p.status,cs_url:p.post_url};
+      if(want&&STATUSES.indexOf(want)>STATUSES.indexOf(u.status))patch.status=want;
+      if(Object.keys(patch).length){await updUnit(u.id,patch);updated++}
+    }
+    const drafts=posts.filter(p=>p.status==='draft').length,sched=posts.filter(p=>['scheduled','queued'].includes(p.status)).length;
+    toast(`ContentStudio synced: ${drafts} drafts + ${sched} scheduled in planner · ${updated} unit${updated===1?'':'s'} updated`);
+  }catch(e){toast('CS sync failed: '+(e.message||e))}
+  if(btn){btn.disabled=false;btn.textContent=lbl}
+  render();
+}
+window.syncCS=syncCS;
 
 /* ---------- SIDEBAR TO-DO ---------- */
 function todos(){return S.settings.sidebar_todos||[];}
@@ -643,7 +865,7 @@ function vPacks(){
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Copy Packs</h1><span class="sub">the batch-day workbench</span></div>
   <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===iso(S.week)?'on':''}" onclick="setWeek('${iso(w)}');go('packs')">wk of ${fmt(w)}</button>`).join('')}</div>
-  ${units.length?`<div class="row" style="margin-bottom:14px"><button class="btn" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><span class="muted small">runs Claude once per unit, in your voice</span></div>`:''}
+  ${units.length?`<div class="row" style="margin-bottom:14px;flex-wrap:wrap"><button class="btn" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><span class="muted small">runs Claude once per unit, in your voice</span><div class="spacer"></div><button class="btn ghost" onclick="syncCS(this)">${ic('refresh')} Sync ContentStudio</button>${S.csSyncedAt?`<span class="muted small">synced ${new Date(S.csSyncedAt).toLocaleTimeString()}</span>`:''}</div>`:''}
   ${units.length?units.map(u=>renderUnit(u)).join(''):'<div class="card"><p class="muted">Nothing planned this week. <a href="#" onclick="go(\'plan\');return false">Plan it →</a></p></div>'}`;
 }
 function renderUnit(u){
@@ -655,6 +877,7 @@ function renderUnit(u){
       <b>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</b>
       ${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}
       <span class="chip">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][u.day]||''}</span>
+      ${c.cs_status?`<a class="chip" href="${esc(c.cs_url||'#')}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none;color:${c.cs_status==='published'?'var(--good)':c.cs_status==='draft'?'var(--warn)':'var(--navy)'}">CS: ${esc(c.cs_status)}</a>`:''}
       <div class="spacer"></div>
       <span class="small muted">${STATUS_LABEL[u.status]}</span><span>${open?'▴':'▾'}</span>
     </div>
@@ -817,7 +1040,7 @@ function vInfo(){
     <h3 style="margin-top:20px">Plan</h3>
     <p class="small" style="line-height:1.7">Batch day starts here. Pick a week (up to 4 ahead), hit Plan This Week, and the wizard drafts slots using your pillar deficits, theme rotation, and least-recently-used skeletons. Suggest fills empty slots with Claude-written topics that avoid everything in your used/denied ledger. Approve, swap, save. Blog-writing tasks appear as slots too, because no blog fuel = no waterfall.</p>
     <h3 style="margin-top:20px">Copy Packs</h3>
-    <p class="small" style="line-height:1.7">The workbench. Each unit fans out to all 4 platforms. Write Copy (or Write ALL) generates: two caption options, Pinterest title + alt text, the source URL with tracking, a TikTok-safe caption, and a slide-2 prompt for TikTok carousels. Image Prompt hands you the skeleton prompt pre-filled: paste it into ContentStudio AI Studio. Tap the status chips as each unit moves: Image made → Draft staged → Caption added → Scheduled → Published. Mark published hits as Winners.</p>
+    <p class="small" style="line-height:1.7">The workbench. Each unit fans out to all 4 platforms. Write Copy (or Write ALL) generates: two caption options, Pinterest title + alt text, the source URL with tracking, a TikTok-safe caption, and a slide-2 prompt for TikTok carousels. Image Prompt hands you the skeleton prompt pre-filled: paste it into ContentStudio AI Studio. Tap the status chips as each unit moves: Image made → Draft staged → Caption added → Scheduled → Published. Mark published hits as Winners. <b>Sync ContentStudio</b> pulls your real planner: it matches CS posts to units by Pinterest title or caption, stamps a CS chip on each match (click it to open the post in CS), and bumps statuses forward automatically — a draft in CS marks the unit Draft staged, scheduled marks Scheduled, published marks Published. It never moves a status backward.</p>
     <h3 style="margin-top:20px">Skeletons</h3>
     <p class="small" style="line-height:1.7">Your locked pin recipes. Variety comes from rotating skeletons, not rewording. Copy Prompt grabs the full AI Studio prompt; Quirks lists the one-line fixes when the AI misbehaves. The Idea Inbox below is where you drop pins you like from around the web: Claude reads that inbox and turns favorites into new skeletons with you.</p>
     <h3 style="margin-top:20px">Brain</h3>
@@ -826,6 +1049,8 @@ function vInfo(){
     <p class="small" style="line-height:1.7">The year at a glance, two horizons per moment: the PRODUCT window (build the planner/tracker months before the season) and the CONTENT window (post about it weeks before). Life-admin seasons first, tax dates as one slice.</p>
     <h3 style="margin-top:20px">Settings</h3>
     <p class="small" style="line-height:1.7">Cadence targets (how many posts per platform the wizard plans for), your API keys, and UTM tagging. Sidebar to-do list and sidebar width live right in the sidebar itself.</p>
+    <h3 style="margin-top:20px">Numbers</h3>
+    <p class="small" style="line-height:1.7">The whole-business HQ, built right in: revenue, MRR, subscribers, Hutch signups chart, your Etsy weekly log (the Sunday ritual, with per-listing views), email lists, site traffic, and ops health. It reads live from the same secure feed as before; enter your admin key once and this browser remembers it. Data is metadata only, never customer book contents.</p>
     <h3 style="margin-top:20px">The weekly rhythm</h3>
     <p class="small" style="line-height:1.7">1. Batch day: open Plan → wizard → approve topics → Save. 2. Hit Write ALL missing copy. 3. For each unit: copy the image prompt → AI Studio → generate → stage the draft in ContentStudio → paste the caption + Pinterest title + source URL → tap the status chip. 4. During the week: capture ideas the second they hit. 5. When something performs: mark it a Winner. That's it. The tool remembers the rest.</p>
   </div>`;
@@ -989,7 +1214,7 @@ function vSet(){
       <p class="small">Anthropic key: <b style="color:${S.anthKey?'var(--good)':'var(--bad)'}">${S.anthKey?'saved':'MISSING — paste it below'}</b></p>
       <div class="row" style="margin-top:8px"><input id="anth-key" type="password" placeholder="Anthropic API key (sk-ant-...)"><button class="btn sm" onclick="saveAnthKey()">Save</button></div>
       <p class="small">WordPress: public API, no key needed</p>
-      <p class="small">ContentStudio sync: <b style="color:${S.settings.cs_key?'var(--warn)':'var(--bad)'}">${S.settings.cs_key?'key saved, wiring pending (Claude)':'needs your API key'}</b></p>
+      <p class="small">ContentStudio sync: <b style="color:${S.settings.cs_key?'var(--good)':'var(--bad)'}">${S.settings.cs_key?'wired — sync from Copy Packs':'needs your API key'}</b></p>
       <div class="row" style="margin-top:8px"><input id="cs-key" type="password" placeholder="ContentStudio API key (app.contentstudio.io/juneybyrd/api)"><button class="btn sm" onclick="saveCSKey()">Save</button></div>
       <p class="small muted" style="margin-top:8px">Voice prompt: ${esc(S.settings.voice_prompt_version||'v1')}</p>
     </div>
@@ -1002,7 +1227,7 @@ async function setCadence(k,v){const c={...(S.settings.cadence||{})};c[k]=v;awai
 window.setCadence=setCadence;
 async function toggleUTM(on){const u={...(S.settings.utm||{})};u.enabled=on;await saveSetting('utm',u);toast('Saved');}
 window.toggleUTM=toggleUTM;
-async function saveCSKey(){const v=$('#cs-key').value.trim();if(!v)return;await saveSetting('cs_key',v);toast('ContentStudio key saved. Claude wires the sync next session!');render();}
+async function saveCSKey(){const v=$('#cs-key').value.trim();if(!v)return;await saveSetting('cs_key',v);toast('ContentStudio key saved. Sync lives in Copy Packs!');render();}
 window.saveCSKey=saveCSKey;
 async function saveAnthKey(){const v=$('#anth-key').value.trim();if(!v)return;await saveSetting('anth_key',v);S.anthKey=v;toast('Anthropic key saved. Copy buttons are live!');render();}
 window.saveAnthKey=saveAnthKey;
