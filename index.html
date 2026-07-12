@@ -195,7 +195,8 @@ info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
 chart:'<path d="M12 20V10M18 20V4M6 20v-4"/>'};
 const ic=n=>`<svg class="ico" viewBox="0 0 24 24">${ICON_PATHS[n]||''}</svg>`;
 const PLAT_ICON={pinterest:'pin',instagram:'camera',facebook:'users',tiktok:'music'};
-function monday(d){d=new Date(d);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);d.setHours(0,0,0,0);return d;}
+function weekStart(d){d=new Date(d);d.setDate(d.getDate()-d.getDay());d.setHours(0,0,0,0);return d;} /* weeks run Sunday to Saturday */
+const monday=weekStart; /* legacy alias, same Sunday-start behavior */
 function iso(d){return d.toISOString().slice(0,10);}
 function fmt(d){return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600);}
@@ -666,44 +667,66 @@ function initResizer(){
 
 /* ================= DASHBOARD ================= */
 function weekUnits(ws){return S.units.filter(u=>u.week_start===iso(ws));}
+function nextStepFor(u){
+  if(['scheduled','published'].includes(u.status))return null;
+  if(u.kind==='blog-task')return 'Draft the blog post (handoff button is inside)';
+  const c=u.copy||{};
+  if(u.status==='idea')return (c.caption||c.pin_title)?'Make the image (prompt is ready)':'Write the copy';
+  if(u.status==='image_made')return 'Stage the draft in ContentStudio';
+  if(u.status==='draft_staged')return 'Add the caption in ContentStudio';
+  if(u.status==='caption_added')return 'Schedule it in ContentStudio';
+  return null;
+}
+function jumpUnit(id){const u=S.units.find(x=>x.id===id);if(!u)return;S.week=new Date(u.week_start+'T00:00:00');openUnit=id;go('packs');}
+window.jumpUnit=jumpUnit;
 function vDash(){
-  const ws=monday(new Date());
-  const units=weekUnits(ws);
+  const thisWs=weekStart(new Date());
+  let ws=thisWs,units=weekUnits(ws);
+  const nxt=new Date(thisWs);nxt.setDate(nxt.getDate()+7);
+  if(!units.length&&weekUnits(nxt).length){ws=nxt;units=weekUnits(ws);}
+  const isNext=iso(ws)!==iso(thisWs);
   const social=units.filter(u=>u.kind==='social');
   const done=social.filter(u=>['scheduled','published'].includes(u.status)).length;
   const {stats,promoShare}=pillarStats();
   const alerts=seasonalAlerts();
   const fuel=S.blog.filter(b=>b.status==='published').length;
   const blogTasks=units.filter(u=>u.kind==='blog-task');
-  const needsCaption=S.units.filter(u=>u.kind==='social'&&['image_made','draft_staged'].includes(u.status));
-  let todo=[];
-  if(!units.length)todo.push(`No plan for this week yet. <b>→ Plan My Week</b>`);
-  needsCaption.slice(0,3).forEach(u=>todo.push(`"${esc(u.title)}" needs its caption / draft finished`));
-  blogTasks.filter(b=>b.status==='idea').forEach(b=>todo.push(`Blog to write: <b>${esc(b.title)}</b>`));
-  if(fuel===0)todo.push(`<b>Blog fuel empty:</b> no published posts left to waterfall. Social runs on fumes without blog content!`);
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const todayIdx=new Date().getDay();
+  const dayLabel=d=>{if(isNext)return dayNames[d]||'';if(d===todayIdx)return 'Today';if(d===todayIdx+1)return 'Tomorrow';return dayNames[d]||'';};
+  const pipe=STATUSES.map(st=>({st,n:social.filter(u=>u.status===st).length}));
+  const actions=units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step).sort((a,b)=>a.u.day-b.u.day);
+  const SHOW=6;
   $('#main').innerHTML=`
-  <div class="viewtitle"><h1>Dashboard</h1><span class="sub">week of ${fmt(ws)}</span></div>
+  <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${isNext?'next week · starts '+fmt(ws):'week of '+fmt(ws)}</span></div>
   <div class="grid g2">
+    <div class="card" style="grid-column:1/-1">
+      <h3>Do this next</h3>
+      ${units.length?'':`<div class="alert">No plan for this week yet.</div><button class="btn" onclick="go('plan')">Plan My Week</button>`}
+      ${actions.slice(0,SHOW).map((a,i)=>`<div class="alert" style="cursor:pointer" onclick="jumpUnit('${a.u.id}')">
+        <b>${i+1}.</b> <span class="chip" style="cursor:pointer">${dayLabel(a.u.day)}</span> ${a.u.kind==='blog-task'?ic('pen')+' ':''}<b>${esc(a.u.title)}</b><br>
+        <span class="small" style="color:var(--coral);font-weight:800">&rarr; ${a.step}</span></div>`).join('')}
+      ${actions.length>SHOW?`<div class="small muted" style="margin-top:4px">+ ${actions.length-SHOW} more waiting &middot; <a href="#" onclick="go('packs');return false">open the workbench &rarr;</a></div>`:''}
+      ${units.length&&!actions.length?'<div class="alert good">Everything is scheduled or published. Look at you!</div>':''}
+      ${fuel===0?`<div class="alert bad"><b>Blog fuel empty:</b> no published posts left to waterfall. Social runs on fumes without blog content!</div>`:fuel===1?`<div class="alert"><b>Blog fuel low:</b> only 1 published post to waterfall from. ${blogTasks.length?'Good news: a blog task is already in this week\'s plan.':''}</div>`:''}
+    </div>
     <div class="card">
-      <h3>This week</h3>
+      <h3>${isNext?'Next week &middot; starts '+fmt(ws):'This week'}</h3>
       ${units.length?`<div class="row"><b style="font-size:26px">${done}/${social.length}</b><span class="muted small">social units scheduled or published</span></div>
       <div class="meter"><i style="width:${social.length?Math.round(done/social.length*100):0}%"></i></div>
-      <div style="margin-top:10px" class="small muted">${blogTasks.length} blog task${blogTasks.length===1?'':'s'} · <a href="#" onclick="go('packs');return false">open the workbench →</a></div>`
+      <div class="statusflow" style="margin-top:12px">${pipe.map(p=>`<span class="st ${p.n?'cur':''}" style="cursor:default">${STATUS_LABEL[p.st]} &middot; ${p.n}</span>`).join('')}</div>
+      <div style="margin-top:10px" class="small muted">${blogTasks.length} blog task${blogTasks.length===1?'':'s'} &middot; <a href="#" onclick="go('packs');return false">open the workbench &rarr;</a></div>`
       :`<p class="muted">Nothing planned yet.</p><br><button class="btn" onclick="go('plan')">Plan My Week</button>`}
     </div>
     <div class="card">
-      <h3>What needs me today</h3>
-      ${todo.length?todo.map(t=>`<div class="alert">${t}</div>`).join(''):'<div class="alert good">Nothing urgent. Look at you!</div>'}
-    </div>
-    <div class="card">
-      <h3>Pillar balance (last 14 days)</h3>
-      ${stats.map(s=>`<div class="small" style="margin-bottom:7px"><span class="pill p${s.p}">P${s.p}</span> ${PILLARS[s.p]} <span class="muted">· ${(s.actual*100).toFixed(0)}% vs ${(s.target*100).toFixed(0)}% target${s.deficit>0.08?' · <b style="color:var(--coral)">feed me</b>':''}</span>
-      <div class="meter"><i class="${s.actual>s.target*1.5?'over':''}" style="width:${Math.min(100,s.actual/(s.target||.2)*50)}%"></i></div></div>`).join('')}
-      <div class="small muted" style="margin-top:8px">Promo share: ${(promoShare*100).toFixed(0)}% (target ≤ 20%)</div>
-    </div>
-    <div class="card">
       <h3>Seasonal radar</h3>
-      ${alerts.length?alerts.slice(0,5).map(a=>`<div class="alert ${a.horizon==='product'?'prod':''}"><b>${esc(a.ev.name)}</b> · in ${a.days} days<br><span class="small muted">${a.horizon==='product'?ic('tool')+' PRODUCT window: build/plan the product now':ic('pen')+' CONTENT window: create posts now'}${a.ev.notes?' · '+esc(a.ev.notes):''}</span></div>`).join(''):'<p class="muted small">Nothing on the radar.</p>'}
+      ${alerts.length?alerts.slice(0,5).map(a=>`<div class="alert ${a.horizon==='product'?'prod':''}"><b>${esc(a.ev.name)}</b> &middot; in ${a.days} days<br><span class="small muted">${a.horizon==='product'?ic('tool')+' PRODUCT window: build/plan the product now':ic('pen')+' CONTENT window: create posts now'}${a.ev.notes?' &middot; '+esc(a.ev.notes):''}</span></div>`).join(''):'<p class="muted small">Nothing on the radar.</p>'}
+    </div>
+    <div class="card" style="grid-column:1/-1">
+      <h3>Pillar balance (last 14 days)</h3>
+      ${stats.map(s=>`<div class="small" style="margin-bottom:7px"><span class="pill p${s.p}">P${s.p}</span> ${PILLARS[s.p]} <span class="muted">&middot; ${(s.actual*100).toFixed(0)}% vs ${(s.target*100).toFixed(0)}% target${s.deficit>0.08?' &middot; <b style="color:var(--coral)">feed me</b>':''}</span>
+      <div class="meter"><i class="${s.actual>s.target*1.5?'over':''}" style="width:${Math.min(100,s.actual/(s.target||.2)*50)}%"></i></div></div>`).join('')}
+      <div class="small muted" style="margin-top:8px">Promo share: ${(promoShare*100).toFixed(0)}% (target &le; 20%)</div>
     </div>
     <div class="card" style="grid-column:1/-1">
       <h3>Quick capture</h3>
@@ -789,7 +812,7 @@ function renderWizard(){
   return `<div class="card"><h3>Draft plan · approve, swap, or clear each slot</h3>
   ${planDraft.slots.map((s,i)=>`
     <div class="unit"><div class="row" style="flex-wrap:wrap">
-      <select style="width:110px" onchange="planDraft.slots[${i}].day=+this.value">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
+      <select style="width:110px" onchange="planDraft.slots[${i}].day=+this.value">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
       <span class="pill p${s.pillar}">P${s.pillar}</span>
       <span class="chip">${s.kind==='blog-task'?ic('pen')+' BLOG POST':s.theme}</span>
       <input placeholder="${s.kind==='blog-task'?'Blog post topic...':'Topic / headline...'}" value="${esc(s.title)}" style="flex:1;min-width:200px" onchange="planDraft.slots[${i}].title=this.value">
@@ -837,7 +860,7 @@ async function savePlan(btn){
 }
 window.savePlan=savePlan;
 function renderWeekGrid(units){
-  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   return `<div class="card"><h3>Planned · ${units.length} items</h3>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${[...units].sort((a,b)=>a.day-b.day).map(u=>`<tr><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
@@ -876,7 +899,7 @@ function renderUnit(u){
     <div class="row" style="cursor:pointer;flex-wrap:wrap" onclick="openUnit=openUnit==='${u.id}'?null:'${u.id}';render()">
       <b>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</b>
       ${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}
-      <span class="chip">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][u.day]||''}</span>
+      <span class="chip">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][u.day]||''}</span>
       ${c.cs_status?`<a class="chip" href="${esc(c.cs_url||'#')}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="text-decoration:none;color:${c.cs_status==='published'?'var(--good)':c.cs_status==='draft'?'var(--warn)':'var(--navy)'}">CS: ${esc(c.cs_status)}</a>`:''}
       <div class="spacer"></div>
       <span class="small muted">${STATUS_LABEL[u.status]}</span><span>${open?'▴':'▾'}</span>
@@ -1036,7 +1059,7 @@ function vInfo(){
     <p class="small" style="line-height:1.7">This tool is the hub and brain of all J&amp;B social content. The flow, start to finish:
     <b>blog posts are the fuel</b> → the <b>Plan</b> wizard turns topics into a week (or a month) of content units → <b>Copy Packs</b> writes every caption, title, and image prompt → you generate images in ContentStudio's AI Studio and stage drafts → statuses track it all → winners get recycled. The Brain remembers everything so nothing repeats and nothing gets lost.</p>
     <h3 style="margin-top:20px">Dashboard</h3>
-    <p class="small" style="line-height:1.7">Your daily home. Shows this week's progress, what needs you today, pillar balance meters (feed the starving pillars), the seasonal radar (product windows ~2-3 months out, content windows ~3 weeks out), and Quick Capture: type any idea or note the moment it hits, from your phone or desk. Ideas land in the Brain; notes land in Claude's inbox.</p>
+    <p class="small" style="line-height:1.7">Your daily home. Weeks run Sunday to Saturday. <b>Do this next</b> is the boss: a numbered, deadline-ordered list where every line names the exact next step for that post (write copy, make image, stage, caption, schedule) and clicking a line jumps straight to that unit in Copy Packs. The week card shows progress plus a pipeline strip (counts per status) so you can spot where posts are stuck at a glance. If this week is empty but next week is planned, the dashboard automatically shows next week. Below that: pillar balance meters (feed the starving pillars), the seasonal radar (product windows ~2-3 months out, content windows ~3 weeks out), and Quick Capture: type any idea or note the moment it hits, from your phone or desk. Ideas land in the Brain; notes land in Claude's inbox.</p>
     <h3 style="margin-top:20px">Plan</h3>
     <p class="small" style="line-height:1.7">Batch day starts here. Pick a week (up to 4 ahead), hit Plan This Week, and the wizard drafts slots using your pillar deficits, theme rotation, and least-recently-used skeletons. Suggest fills empty slots with Claude-written topics that avoid everything in your used/denied ledger. Approve, swap, save. Blog-writing tasks appear as slots too, because no blog fuel = no waterfall.</p>
     <h3 style="margin-top:20px">Copy Packs</h3>
