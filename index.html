@@ -196,7 +196,7 @@ chart:'<path d="M12 20V10M18 20V4M6 20v-4"/>'};
 const ic=n=>`<svg class="ico" viewBox="0 0 24 24">${ICON_PATHS[n]||''}</svg>`;
 const PLAT_ICON={pinterest:'pin',instagram:'camera',facebook:'users',tiktok:'music'};
 function weekStart(d){d=new Date(d);d.setDate(d.getDate()-d.getDay());d.setHours(0,0,0,0);return d;} /* weeks run Sunday to Saturday */
-const monday=weekStart; /* legacy alias, same Sunday-start behavior */
+function monday(d){return weekStart(d);} /* legacy alias, same Sunday-start behavior */
 function iso(d){return d.toISOString().slice(0,10);}
 function fmt(d){return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600);}
