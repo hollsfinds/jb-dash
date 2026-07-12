@@ -94,6 +94,18 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .statusflow .st{font-size:11px;font-weight:800;padding:4px 9px;border-radius:8px;background:#eef0f3;color:var(--muted);cursor:pointer}
 .statusflow .st.done{background:var(--mint);color:#204430}
 .statusflow .st.cur{background:var(--navy);color:#fff}
+.tallies{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.tally{background:#fff;border-radius:16px;padding:16px;box-shadow:0 1px 4px rgba(34,58,78,.06);cursor:pointer;border-top:5px solid var(--mint-d)}
+.tally.short{border-top-color:var(--coral)}
+.tnum{font-size:34px;font-weight:800;line-height:1}
+.tnum .of{font-size:16px;color:var(--muted);font-weight:700}
+.tlabel{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.tfix{font-size:11px;font-weight:800;color:var(--coral);margin-top:8px}
+.stagebar{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;display:flex;flex-wrap:wrap;gap:4px}
+.stagebar .st{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:#eef0f3;color:var(--muted)}
+.stagebar .st.on{background:var(--navy);color:#fff}
+.rbtn{display:inline-block;background:#fff;color:var(--navy);border:1.5px solid var(--line);border-radius:8px;padding:4px 9px;font-weight:800;font-size:10.5px;margin-top:8px;cursor:pointer}
+@media(max-width:900px){.tallies{grid-template-columns:repeat(2,1fr)}}
 .tabbar{display:flex;gap:2px;margin-bottom:16px;flex-wrap:wrap;border-bottom:2px solid var(--line)}
 .tabbar button{background:transparent;border:none;border-bottom:3px solid transparent;border-radius:8px 8px 0 0;color:var(--muted);padding:9px 18px;font-size:13.5px;margin-bottom:-2px}
 .tabbar button.on{color:var(--navy);border-bottom-color:var(--coral);background:#fbf4f1}
@@ -402,7 +414,7 @@ function buildImagePrompt(skelId,unit){
 </script>
 <script>
 /* ================= NAV / ROUTER ================= */
-const VIEWS=[['dash','home','Dashboard'],['plan','calendar','Plan'],['packs','pen','Copy Packs'],['skel','grid','Skeletons'],['brain','brain','Brain'],['season','leaf','Seasonal'],['numbers','chart','Numbers'],['info','info','Info'],['set','gear','Settings']];
+const VIEWS=[['dash','home','Dashboard'],['plan','calendar','Plan'],['packs','pen','Copy Packs'],['wfall','drop','Waterfall'],['skel','grid','Skeletons'],['brain','brain','Brain'],['season','leaf','Seasonal'],['numbers','chart','Numbers'],['info','info','Info'],['set','gear','Settings']];
 function renderNav(){
   const newInbox=S.inbox.filter(i=>i.status==='new').length;
   $('#nav').innerHTML=VIEWS.map(([id,icn,label])=>
@@ -410,7 +422,7 @@ function renderNav(){
 }
 function go(v){S.view=v;render();}
 window.go=go;
-function render(){renderNav();renderTodo();({dash:vDash,plan:vPlan,packs:vPacks,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();}
+function render(){renderNav();renderTodo();({dash:vDash,plan:vPlan,packs:vPacks,wfall:vWaterfall,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();}
 
 /* ---------- NUMBERS (native HQ dashboard, data from hutch-api worker) ---------- */
 const HUTCH_API='https://hutch-api.juneybyrd.workers.dev';
@@ -858,7 +870,29 @@ function startHere(){
   if(hungry&&hungry.deficit>0.08)return {label:'Feed P'+hungry.p+' ('+PILLARS[hungry.p]+'): pick a topic for it',act:'dashPickPillar('+hungry.p+')'};
   return {label:'All caught up. Look at you!',act:''};
 }
+/* ---- blog research (market questions -> blog ideas) ---- */
+async function dashResearch(btn){
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const have=S.blog.map(b=>b.title||b.topic||'').filter(Boolean).slice(0,20);
+    const ask=`Research the questions Juney & Byrd's target market is asking online RIGHT NOW. Market: freelancers, sole proprietors, solopreneurs whose business and personal money commingle. Search for their real questions and pain points (tax set-aside panic, quarterly taxes, bookkeeping dread, mixed accounts, "am I actually making money", first-year overwhelm, home organization for busy self-employed women). Then propose 5 blog post ideas that ANSWER the most acute/searched questions. Avoid these existing posts: ${have.join('; ')||'none'}. Reply as JSON only: {"ideas":[{"title":"blog post working title","question":"the real market question it answers","pillars":[1,2]}]}. Pillars: 1 Pain hooks, 2 Plain-English help, 3 Tools talking (Hutch/Stash or other tools worth suggesting), 4 The maker, 5 Ask the bestie.`;
+    const out=await claude(VOICE,ask,2000,true);
+    const j=extractJSON(out);
+    const ideas=(j.ideas||[]).slice(0,5);
+    for(const it of ideas){
+      const {data}=await sb.from('jb_blog').insert({topic:it.question||it.title,title:it.title,status:'idea'}).select();
+      if(data)S.blog.unshift(data[0]);
+    }
+    modal(`<h3 style="margin-bottom:10px">Research done: ${ideas.length} blog ideas banked</h3>
+    ${ideas.map(it=>`<div class="alert" style="margin-bottom:8px"><b>${esc(it.title)}</b><br><span class="small muted">answers: "${esc(it.question||'')}" · feeds ${(it.pillars||[]).map(p=>'P'+p).join(', ')}</span></div>`).join('')}
+    <p class="small muted">Saved to Brain → Blog as ideas.</p>
+    <div class="row" style="margin-top:10px"><button class="btn" onclick="closeModal();S.braintab='blog';go('brain')">Open blog list</button><button class="btn ghost" onclick="closeModal();render()">Close</button></div>`);
+  }catch(e){toast('Research failed: '+e.message);render();}
+}
+window.dashResearch=dashResearch;
 /* ---- the dashboard ---- */
+let dashSocOpen=false;
+window.dashToggleSoc=function(){dashSocOpen=!dashSocOpen;render();};
 function vDash(){
   const thisWs=weekStart(new Date());
   let ws=thisWs,units=weekUnits(ws);
@@ -866,70 +900,101 @@ function vDash(){
   if(!units.length&&weekUnits(nxt).length){ws=nxt;units=weekUnits(ws);}
   const isNext=iso(ws)!==iso(thisWs);
   const social=units.filter(u=>u.kind==='social');
-  const done=social.filter(u=>['scheduled','published'].includes(u.status)).length;
-  const {stats}=pillarStats();
+  const blogTasks=units.filter(u=>u.kind==='blog-task');
   const alerts=seasonalAlerts();
-  const fuel=S.blog.filter(b=>b.status==='published').length;
-  const pipe=STATUSES.map(st=>({st,n:social.filter(u=>u.status===st).length}));
-  const sorted=pillarWeek();
-  const {rows,excluded}=wfTree();
+  const cad=S.settings.cadence||{};
+  const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));
+  const blogsPub=blogTasks.filter(u=>u.status==='published').length+S.blog.filter(b=>b.status==='published'&&b.published_at&&new Date(b.published_at)>=ws).length;
+  const pw=pillarWeek();
+  const slotsFilled=pw.reduce((a,s)=>a+Math.min(s.done,s.goal),0);
+  const hungry=pw.filter(s=>s.done<s.goal).map(s=>'P'+s.p);
+  const hasCopy=u=>{const c=u.copy||{};return !!(c.caption||c.pin_title);};
+  const started=social.filter(u=>u.status!=='idea'||hasCopy(u)).length;
+  const pub=social.filter(u=>u.status==='published').length;
+  const stages=[
+    ['Idea',social.filter(u=>u.status==='idea'&&!hasCopy(u)).length],
+    ['Copy',social.filter(u=>u.status==='idea'&&hasCopy(u)).length],
+    ['Image',social.filter(u=>u.status==='image_made').length],
+    ['Staged',social.filter(u=>u.status==='draft_staged').length],
+    ['Caption',social.filter(u=>u.status==='caption_added').length],
+    ['Sched',social.filter(u=>u.status==='scheduled').length]];
+  const horizon=new Date(Date.now()-7*864e5);
+  const acts=S.units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step&&unitDate(a.u)>=horizon).sort((a,b)=>unitDate(a.u)-unitDate(b.u));
+  const blogAct=blogTasks.find(u=>u.status!=='published');
+  const hp=[...pw].sort((a,b)=>(b.goal-b.done)-(a.goal-a.done))[0].p;
   const ideasFor=p=>S.topics.filter(t=>t.status==='idea'&&t.pillar===p&&(!t.snooze_until||new Date(t.snooze_until)<=new Date()));
+  const tally=(num,goal,label,fixHtml,extra,onclick)=>`
+    <div class="tally ${num<goal?'short':''}" ${onclick?`onclick="${onclick}"`:''}>
+      <div class="tnum">${num}<span class="of">/${goal}</span></div>
+      <div class="tlabel">${label}</div>
+      <div class="meter"><i class="${num<goal?'low':''}" style="width:${Math.min(100,Math.max(4,(num/(goal||1))*100))}%"></i></div>
+      ${fixHtml||''}${extra||''}
+    </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${isNext?'next week · '+fmtRange(ws):fmtRange(ws)}</span></div>
-  <div class="card" style="margin-bottom:14px">
-    <div class="row" style="flex-wrap:wrap;gap:14px">
-      <b style="font-size:24px">${done}/7</b><span class="muted small">done vs weekly goal · ${social.length} planned${isNext?' (next week)':''}</span>
-      <div class="statusflow">${pipe.map(p=>`<span class="st ${p.n?'cur':''}" style="cursor:default">${STATUS_LABEL[p.st]} · ${p.n}</span>`).join('')}</div>
-      <div class="spacer"></div>
-      <span class="small ${fuel<=1?'':'muted'}" style="${fuel===0?'color:var(--bad);font-weight:800':fuel===1?'color:var(--coral);font-weight:800':''}">Blog fuel: ${fuel} post${fuel===1?'':'s'}</span>
-      <a class="small" href="#" onclick="go('packs');return false">workbench →</a>
-    </div>
-    ${(()=>{const sh=startHere();return `<div class="alert ${sh.act?'':'good'}" style="margin-top:10px${sh.act?';cursor:pointer':''}" ${sh.act?`onclick="${sh.act}"`:''}><b>Start here →</b> ${esc(sh.label)}</div>`;})()}
+  <div class="tallies">
+    ${tally(blogsPub,blogGoal,'Blogs published · wk',
+      blogAct?`<div class="tfix">→ ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,32))}</div>`:`<div class="tfix">→ plan a blog post</div>`,
+      `<span class="rbtn" onclick="event.stopPropagation();dashResearch(this)">${ic('sparkle')} Run blog research</span>`,
+      blogAct?`jumpUnit('${blogAct.id}')`:`go('plan')`)}
+    ${tally(slotsFilled,7,'Pillar slots filled',
+      hungry.length?`<div class="tfix">→ ${hungry.join(' + ')} ${hungry.length===1?'is':'are'} hungry</div>`:'',
+      '',`dashPickPillar(${hp})`)}
+    ${tally(started,7,'Socials started · wk',
+      dashSocOpen?`<div class="stagebar">${stages.map(([l,n])=>`<span class="st ${n?'on':''}">${l} ${n}</span>`).join('')}</div>`:`<div class="tfix" style="color:var(--muted)">▾ stages</div>`,
+      '',`dashToggleSoc()`)}
+    ${tally(pub,7,'Socials published · wk',
+      acts.length?`<div class="tfix">→ ${esc(acts[0].step)}</div>`:'',
+      '',acts.length?`jumpUnit('${acts[0].u.id}')`:'')}
+  </div>
+  ${(()=>{const sh=startHere();return `<div class="alert ${sh.act?'':'good'}" style="margin-bottom:16px${sh.act?';cursor:pointer':''}" ${sh.act?`onclick="${sh.act}"`:''}><b>Start here →</b> ${esc(sh.label)}</div>`;})()}
+  <div class="card">
+    <h3>Feed the pillars</h3>
+    ${pw.map(s=>`<div style="margin-bottom:9px">
+      <div class="row" style="cursor:pointer" onclick="dashPickPillar(${s.p})">
+        <span class="pill p${s.p}">P${s.p}</span> <span class="small" style="flex:1">${PILLARS[s.p]}</span>
+        <span class="small muted"><b style="color:var(--navy)">${s.done}</b>/${s.goal} posts</span>
+        ${s.done<s.goal?'<b class="small" style="color:var(--coral)">feed me</b>':''}
+        <span class="small">${dashPillar===s.p?'▴':'▾'}</span>
+      </div>
+      <div class="meter"><i class="${s.done>s.goal?'over':''}" style="width:${Math.min(100,(s.done/(s.goal||1))*100)}%"></i></div>
+      ${dashPillar===s.p?`
+      <div style="margin:8px 0 4px 8px;padding-left:10px;border-left:3px solid var(--line)">
+        ${ideasFor(s.p).slice(0,6).map(t=>`<div class="row" style="padding:4px 0"><span class="small" style="flex:1">${esc(t.title)}</span><button class="btn ghost sm" onclick="pickDay('','','${t.id}')">→ plan it</button></div>`).join('')||'<p class="small muted" style="padding:4px 0">No topic ideas banked for this pillar yet.</p>'}
+        <button class="btn ghost sm" style="margin-top:6px" onclick="dashSuggest(${s.p},this)">${ic('sparkle')} Suggest 5 topics</button>
+      </div>`:''}
+    </div>`).join('')}
   </div>
   <div class="grid g2">
     <div class="card">
-      <h3>Feed the pillars</h3>
-      <p class="small muted" style="margin-bottom:10px">This week's posts per pillar (planned counts) vs goal. Click a pillar to pick a topic for it.</p>
-      ${sorted.map(s=>`<div style="margin-bottom:9px">
-        <div class="row" style="cursor:pointer" onclick="dashPickPillar(${s.p})">
-          <span class="pill p${s.p}">P${s.p}</span> <span class="small" style="flex:1">${PILLARS[s.p]}</span>
-          <span class="small muted"><b style="color:var(--navy)">${s.done}</b>/${s.goal} posts</span>
-          ${s.done<s.goal?'<b class="small" style="color:var(--coral)">feed me</b>':''}
-          <span class="small">${dashPillar===s.p?'▴':'▾'}</span>
-        </div>
-        <div class="meter"><i class="${s.done>s.goal?'over':''}" style="width:${Math.min(100,(s.done/(s.goal||1))*100)}%"></i></div>
-        ${dashPillar===s.p?`
-        <div style="margin:8px 0 4px 8px;padding-left:10px;border-left:3px solid var(--line)">
-          ${ideasFor(s.p).slice(0,6).map(t=>`<div class="row" style="padding:4px 0"><span class="small" style="flex:1">${esc(t.title)}</span><button class="btn ghost sm" onclick="pickDay('','','${t.id}')">→ plan it</button></div>`).join('')||'<p class="small muted" style="padding:4px 0">No topic ideas banked for this pillar yet.</p>'}
-          <button class="btn ghost sm" style="margin-top:6px" onclick="dashSuggest(${s.p},this)">${ic('sparkle')} Suggest 5 topics</button>
-        </div>`:''}
-      </div>`).join('')}
-    </div>
-    <div class="card">
-      <div class="row"><h3 style="margin:0">The waterfall</h3><div class="spacer"></div>${excluded.length?`<a class="small muted" href="#" onclick="wfExcludedModal();return false">${excluded.length} excluded</a>`:''}</div>
-      <p class="small muted" style="margin:6px 0 10px">Every published post and what's been squeezed out of it. Click a red branch to create it or mark it N/A.</p>
-      ${rows.length?rows.map(r=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
-        <div class="row"><b class="small" style="flex:1;${r.gaps?'':'opacity:.55'}">${esc(r.b.title)}</b><span class="small muted">${r.b.published_at?fmt(r.b.published_at):''}</span><span class="x" style="cursor:pointer" onclick="wfMenu('${r.b.id}')">⋯</span></div>
-        ${(r.tags.length||Object.keys(r.fed).length)?`<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:5px">${[1,2,3,4,5].filter(p=>r.tags.includes(p)||r.fed[p]).map(p=>`<span class="pill p${p}" style="${r.fed[p]?'':'opacity:.4'}">P${p}${r.fed[p]?' ×'+r.fed[p]:''}</span>`).join('')}<span class="small muted" style="margin-left:4px">fed so far</span></div>`:''}
-        <div class="row" style="flex-wrap:wrap;gap:5px;margin-top:6px">
-          ${r.branches.map(br=>`<span class="chip" style="${wfChipStyle(br.state)}" ${br.state==='gap'||br.state==='stale'?(br.key==='email'?`onclick="wfEmail('${r.b.id}')"`:`onclick="wfBranch('${r.b.id}','${br.key}')"`):br.key==='email'?`onclick="wfEmail('${r.b.id}')"`:''}>${br.label}${br.state==='stale'?' · fresh pin due':''}</span>`).join('')}
-        </div>
-      </div>`).join(''):'<p class="muted small">No published posts yet. The tree grows from the blog: hit Sync in Brain → Blog.</p>'}
-    </div>
-    <div class="card">
       <h3>Seasonal radar</h3>
-      ${alerts.length?alerts.slice(0,5).map(a=>`<div class="alert ${a.horizon==='product'?'prod':''}"><b>${esc(a.ev.name)}</b> · in ${a.days} days<br><span class="small muted">${a.horizon==='product'?ic('tool')+' PRODUCT window: build/plan the product now':ic('pen')+' CONTENT window: create posts now'}${a.ev.notes?' · '+esc(a.ev.notes):''}</span></div>`).join(''):'<p class="muted small">Nothing on the radar.</p>'}
+      ${alerts.length?alerts.slice(0,3).map(a=>`<div class="alert ${a.horizon==='product'?'prod':''}"><b>${esc(a.ev.name)}</b> · ${a.days} days · ${a.horizon} window</div>`).join(''):'<p class="muted small">Nothing on the radar.</p>'}
     </div>
     <div class="card">
       <h3>Quick capture</h3>
       <div class="row" style="flex-wrap:wrap">
-        <input id="qc-text" placeholder="Idea, topic, or a note to Claude..." style="flex:2;min-width:180px">
-        <select id="qc-pillar" style="width:140px"><option value="">Pillar?</option>${Object.entries(PILLARS).map(([k,v])=>`<option value="${k}">P${k} ${v}</option>`).join('')}</select>
-        <select id="qc-kind" style="width:150px"><option value="topic">Topic idea</option><option value="note-to-claude">Note to Claude</option></select>
+        <input id="qc-text" placeholder="Idea, topic, or a note to Claude..." style="flex:2;min-width:160px">
+        <select id="qc-pillar" style="width:130px"><option value="">Pillar?</option>${Object.entries(PILLARS).map(([k,v])=>`<option value="${k}">P${k} ${v}</option>`).join('')}</select>
+        <select id="qc-kind" style="width:140px"><option value="topic">Topic idea</option><option value="note-to-claude">Note to Claude</option></select>
         <button class="btn" onclick="quickCapture()">Save</button>
         <label class="btn ghost" style="margin:0">${ic('camera')} Image<input type="file" accept="image/*" style="display:none" onchange="uploadInboxImage(this)"></label>
       </div>
     </div>
+  </div>`;
+}
+/* ---- waterfall tab ---- */
+function vWaterfall(){
+  const {rows,excluded}=wfTree();
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Waterfall</h1><span class="sub">every post, squeezed</span>${excluded.length?`<div class="spacer"></div><a class="small muted" href="#" onclick="wfExcludedModal();return false">${excluded.length} excluded</a>`:''}</div>
+  <div class="card">
+    ${rows.length?rows.map(r=>`<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div class="row"><b class="small" style="flex:1;${r.gaps?'':'opacity:.55'}">${esc(r.b.title)}</b><span class="small muted">${r.b.published_at?fmt(r.b.published_at):''}</span><span class="x" style="cursor:pointer" onclick="wfMenu('${r.b.id}')">⋯</span></div>
+      ${(r.tags.length||Object.keys(r.fed).length)?`<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:5px">${[1,2,3,4,5].filter(p=>r.tags.includes(p)||r.fed[p]).map(p=>`<span class="pill p${p}" style="${r.fed[p]?'':'opacity:.4'}">P${p}${r.fed[p]?' ×'+r.fed[p]:''}</span>`).join('')}<span class="small muted" style="margin-left:4px">fed so far</span></div>`:''}
+      <div class="row" style="flex-wrap:wrap;gap:5px;margin-top:6px">
+        ${r.branches.map(br=>`<span class="chip" style="${wfChipStyle(br.state)}" ${br.state==='gap'||br.state==='stale'?(br.key==='email'?`onclick="wfEmail('${r.b.id}')"`:`onclick="wfBranch('${r.b.id}','${br.key}')"`):br.key==='email'?`onclick="wfEmail('${r.b.id}')"`:''}>${br.label}${br.state==='stale'?' · fresh pin due':''}</span>`).join('')}
+      </div>
+    </div>`).join(''):'<p class="muted small">No published posts yet. The tree grows from the blog: hit Sync in Brain → Blog.</p>'}
   </div>`;
 }
 async function quickCapture(){
