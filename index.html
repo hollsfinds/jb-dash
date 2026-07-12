@@ -878,7 +878,7 @@ function vDash(){
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${isNext?'next week · '+fmtRange(ws):fmtRange(ws)}</span></div>
   <div class="card" style="margin-bottom:14px">
     <div class="row" style="flex-wrap:wrap;gap:14px">
-      <b style="font-size:24px">${done}/${social.length}</b><span class="muted small">scheduled or published ${isNext?'next week':'this week'}</span>
+      <b style="font-size:24px">${done}/7</b><span class="muted small">done vs weekly goal · ${social.length} planned${isNext?' (next week)':''}</span>
       <div class="statusflow">${pipe.map(p=>`<span class="st ${p.n?'cur':''}" style="cursor:default">${STATUS_LABEL[p.st]} · ${p.n}</span>`).join('')}</div>
       <div class="spacer"></div>
       <span class="small ${fuel<=1?'':'muted'}" style="${fuel===0?'color:var(--bad);font-weight:800':fuel===1?'color:var(--coral);font-weight:800':''}">Blog fuel: ${fuel} post${fuel===1?'':'s'}</span>
