@@ -674,7 +674,7 @@ function initResizer(){
 /* ================= DASHBOARD ================= */
 function weekUnits(ws){return S.units.filter(u=>u.week_start===iso(ws));}
 /* ================= v1.5 DASH: pillars + waterfall ================= */
-const WF_FORMATS={pin:'Pin',reel:'Reel',carousel:'Carousel',fb:'FB post',tiktok:'TikTok'};
+const WF_FORMATS={pin:'Pin',reel:'IG Reel',carousel:'IG Carousel',fb:'FB post',tiktok:'TikTok'};
 function wfState(){return S.settings.wf_state||{};}
 function unitDate(u){const d=new Date(u.week_start+'T00:00:00');d.setDate(d.getDate()+(u.day||0));return d;}
 function nextStepFor(u){
