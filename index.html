@@ -831,6 +831,11 @@ async function dashSuggest(p,btn){
   }catch(e){toast('Suggest failed: '+e.message);render();}
 }
 window.dashSuggest=dashSuggest;
+function pillarWeek(){
+  const targets=S.settings.pillar_targets||{p1:.25,p2:.25,p3:.2,p4:.1,p5:.2};
+  const soc=weekUnits(weekStart(new Date())).filter(u=>u.kind==='social');
+  return [1,2,3,4,5].map(p=>({p,goal:Math.max(1,Math.round((targets['p'+p]||.2)*7)),done:soc.filter(u=>u.pillar===p).length}));
+}
 /* ---- start here: one computed priority ---- */
 function startHere(){
   const horizon=new Date(Date.now()-7*864e5);
@@ -840,7 +845,7 @@ function startHere(){
   const soc=weekUnits(ws0).filter(u=>u.kind==='social');
   if(soc.length<7){
     const open=[0,1,2,3,4,5,6].filter(d=>!soc.some(u=>u.day===d)).slice(0,7-soc.length);
-    const hp=[...pillarStats().stats].sort((a,b)=>b.deficit-a.deficit)[0].p;
+    const hp=[...pillarWeek()].sort((a,b)=>(b.goal-b.done)-(a.goal-a.done))[0].p;
     return {label:'Plan this week: '+(7-soc.length)+' slot'+(7-soc.length===1?'':'s')+' open ('+open.map(d=>dayN[d]).join(', ')+'). Pick a topic below, P'+hp+' is hungriest',act:'dashPickPillar('+hp+')'};
   }
   const acts=S.units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step&&unitDate(a.u)>=horizon).sort((a,b)=>unitDate(a.u)-unitDate(b.u));
@@ -866,7 +871,7 @@ function vDash(){
   const alerts=seasonalAlerts();
   const fuel=S.blog.filter(b=>b.status==='published').length;
   const pipe=STATUSES.map(st=>({st,n:social.filter(u=>u.status===st).length}));
-  const sorted=[...stats].sort((a,b)=>a.p-b.p);
+  const sorted=pillarWeek();
   const {rows,excluded}=wfTree();
   const ideasFor=p=>S.topics.filter(t=>t.status==='idea'&&t.pillar===p&&(!t.snooze_until||new Date(t.snooze_until)<=new Date()));
   $('#main').innerHTML=`
@@ -884,15 +889,15 @@ function vDash(){
   <div class="grid g2">
     <div class="card">
       <h3>Feed the pillars</h3>
-      <p class="small muted" style="margin-bottom:10px">Planned content counts as fed. Click a pillar to pick a topic for it.</p>
+      <p class="small muted" style="margin-bottom:10px">This week's posts per pillar (planned counts) vs goal. Click a pillar to pick a topic for it.</p>
       ${sorted.map(s=>`<div style="margin-bottom:9px">
         <div class="row" style="cursor:pointer" onclick="dashPickPillar(${s.p})">
           <span class="pill p${s.p}">P${s.p}</span> <span class="small" style="flex:1">${PILLARS[s.p]}</span>
-          <span class="small muted">${(s.actual*100).toFixed(0)}% vs ${(s.target*100).toFixed(0)}%</span>
-          ${s.deficit>0.08?'<b class="small" style="color:var(--coral)">feed me</b>':''}
+          <span class="small muted"><b style="color:var(--navy)">${s.done}</b>/${s.goal} posts</span>
+          ${s.done<s.goal?'<b class="small" style="color:var(--coral)">feed me</b>':''}
           <span class="small">${dashPillar===s.p?'▴':'▾'}</span>
         </div>
-        <div class="meter"><i class="${s.actual>s.target*1.5?'over':''}" style="width:${Math.min(100,s.actual/(s.target||.2)*50)}%"></i></div>
+        <div class="meter"><i class="${s.done>s.goal?'over':''}" style="width:${Math.min(100,(s.done/(s.goal||1))*100)}%"></i></div>
         ${dashPillar===s.p?`
         <div style="margin:8px 0 4px 8px;padding-left:10px;border-left:3px solid var(--line)">
           ${ideasFor(s.p).slice(0,6).map(t=>`<div class="row" style="padding:4px 0"><span class="small" style="flex:1">${esc(t.title)}</span><button class="btn ghost sm" onclick="pickDay('','','${t.id}')">→ plan it</button></div>`).join('')||'<p class="small muted" style="padding:4px 0">No topic ideas banked for this pillar yet.</p>'}
