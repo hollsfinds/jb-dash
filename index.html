@@ -674,7 +674,7 @@ function initResizer(){
 
 /* ================= DASHBOARD ================= */
 function weekUnits(ws){return S.units.filter(u=>u.week_start===iso(ws));}
-/* ================= v1.5 DASH: pillars + waterfall ================= */
+/* ================= v1.6 DASH: pillars + waterfall + start-here ================= */
 const WF_FORMATS={pin:'Pin',reel:'IG Reel',carousel:'IG Carousel',fb:'FB post',tiktok:'TikTok'};
 function wfState(){return S.settings.wf_state||{};}
 function unitDate(u){const d=new Date(u.week_start+'T00:00:00');d.setDate(d.getDate()+(u.day||0));return d;}
@@ -716,6 +716,7 @@ function wfTree(){
     const linked=S.units.filter(u=>{if(u.kind!=='social')return false;const lb=blogFor(u);return lb&&String(lb.id)===String(b.id);});
     const byF={pin:[],reel:[],carousel:[],fb:[],tiktok:[]};
     linked.forEach(u=>{const f=guessFormat(u);(byF[f]||byF.pin).push(u);});
+    const fed={};linked.forEach(u=>{if(u.pillar)fed[u.pillar]=(fed[u.pillar]||0)+1;});
     const pinCount=Math.max(byF.pin.length,b.pins_count||0);
     const dates=[b.last_pin_at,...byF.pin.map(u=>unitDate(u))].filter(Boolean).map(d=>new Date(d)).sort((a,b2)=>b2-a);
     const stale=pinCount>0&&dates[0]&&(Date.now()-dates[0])>30*864e5;
@@ -723,7 +724,7 @@ function wfTree(){
     const branches=[{key:'pins',label:'Pins '+pinCount+'/'+target,state:na.pins?'na':pinCount>=target?(stale?'stale':'done'):'gap'}];
     for(const f of ['reel','carousel','fb','tiktok'])branches.push({key:f,label:WF_FORMATS[f],state:na[f]?'na':byF[f].length?'done':'gap'});
     branches.push({key:'email',label:'Email',state:ps.email==='na'?'na':ps.email==='sent'?'done':'gap'});
-    rows.push({b,branches,gaps:branches.filter(x=>x.state==='gap'||x.state==='stale').length});
+    rows.push({b,branches,gaps:branches.filter(x=>x.state==='gap'||x.state==='stale').length,fed,tags:ps.pillars||[]});
   }
   rows.sort((a,c)=>(c.gaps-a.gaps)||(new Date(c.b.published_at||0)-new Date(a.b.published_at||0)));
   return {rows,excluded};
@@ -753,10 +754,13 @@ window.wfMenu=function(blogId){
   const na=(wfState()[blogId]||{}).branch_na||{};
   modal(`<h3 style="margin-bottom:10px">${esc(b.title)}</h3>
   <p class="small muted" style="margin-bottom:10px">Waterfall settings for this post.</p>
+  <p class="small muted" style="margin-bottom:6px">This post can feed:</p>
+  <div class="row" style="flex-wrap:wrap;gap:5px;margin-bottom:10px">${[1,2,3,4,5].map(p=>{const on=((wfState()[blogId]||{}).pillars||[]).includes(p);return `<span class="chip" style="${on?'background:var(--navy);color:#fff;border-color:var(--navy)':''}" onclick="wfTogglePillar('${blogId}',${p})">P${p} ${PILLARS[p]}</span>`;}).join('')}</div>
   ${Object.keys(na).length?`<p class="small">N/A branches: ${Object.keys(na).map(k=>`${WF_FORMATS[k]||k} <a href="#" onclick="wfSet('${blogId}',ps=>{const x={...(ps.branch_na||{})};delete x['${k}'];ps.branch_na=x;});closeModal();return false">undo</a>`).join(' · ')}</p>`:''}
   <div class="row" style="margin-top:10px"><button class="btn ghost" onclick="wfExclude('${blogId}',true)">Exclude this post from the waterfall</button>
   <button class="btn ghost" onclick="closeModal()">Close</button></div>`);
 };
+window.wfTogglePillar=function(id,p){wfSet(id,ps=>{const t=new Set(ps.pillars||[]);if(t.has(p))t.delete(p);else t.add(p);ps.pillars=[...t];}).then(()=>wfMenu(id));};
 window.wfExcludedModal=function(){
   const st=wfState();
   const ex=S.blog.filter(b=>(st[b.id]||{}).excluded);
@@ -773,6 +777,9 @@ function pickDay(format,blogId,topicId){
     <select id="pd-week" style="flex:1">${weeks.map((w,i)=>`<option value="${iso(w)}">${i===0?'This week · ':i===1?'Next week · ':''}${fmtRange(w)}</option>`).join('')}</select>
     <select id="pd-day" style="width:110px">${days.map((d,i)=>`<option value="${i}" ${i===new Date().getDay()?'selected':''}>${d}</option>`).join('')}</select>
   </div>
+  <div class="row" style="margin-bottom:14px"><span class="small muted">Feeds pillar</span>
+    <select id="pd-pillar" style="flex:1">${(()=>{const t=topicId?S.topics.find(x=>String(x.id)===String(topicId)):null;const b=blogId?S.blog.find(x=>String(x.id)===String(blogId)):null;const def=t?t.pillar:(b&&((wfState()[b.id]||{}).pillars||[])[0])||2;return [1,2,3,4,5].map(p=>`<option value="${p}" ${p===def?'selected':''}>P${p} ${PILLARS[p]}</option>`).join('');})()}</select>
+  </div>
   <div class="row"><button class="btn" onclick="pickDayGo('${format||''}','${blogId||''}','${topicId||''}')">Add to plan</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
 }
 window.pickDay=pickDay;
@@ -780,10 +787,11 @@ async function pickDayGo(format,blogId,topicId){
   const ws=$('#pd-week').value,day=+$('#pd-day').value;
   const b=blogId?S.blog.find(x=>String(x.id)===String(blogId)):null;
   const t=topicId?S.topics.find(x=>String(x.id)===String(topicId)):null;
+  const pdPillar=+($('#pd-pillar')&&$('#pd-pillar').value)||2;
   const platforms={pin:{pinterest:true},reel:{instagram:true},carousel:{instagram:true},fb:{facebook:true},tiktok:{tiktok:true}}[format]||{pinterest:true,instagram:true,facebook:true,tiktok:true};
   const row={week_start:ws,day,kind:'social',
     title:t?t.title:(WF_FORMATS[format]||'Post')+': '+(b?b.title:''),
-    pillar:t?t.pillar:2,theme:t?(t.theme||nextTheme()):nextTheme(),
+    pillar:pdPillar,theme:t?(t.theme||nextTheme()):nextTheme(),
     topic_id:t?t.id:null,skeleton_id:(suggestSkeleton()||{}).id||null,
     platforms,
     copy:{source_url:b?b.url:'https://juneybyrd.com',...(b?{blog_id:String(b.id)}:{}),...(format?{format}:{})}};
@@ -812,6 +820,22 @@ async function dashSuggest(p,btn){
   }catch(e){toast('Suggest failed: '+e.message);render();}
 }
 window.dashSuggest=dashSuggest;
+/* ---- start here: one computed priority ---- */
+function startHere(){
+  const horizon=new Date(Date.now()-7*864e5);
+  const today=new Date();today.setHours(23,59,59,999);
+  const acts=S.units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step&&unitDate(a.u)>=horizon).sort((a,b)=>unitDate(a.u)-unitDate(b.u));
+  const due=acts.find(a=>unitDate(a.u)<=today);
+  if(due)return {label:due.step+': '+due.u.title,act:"jumpUnit('"+due.u.id+"')"};
+  const soc=weekUnits(weekStart(new Date())).filter(u=>u.kind==='social');
+  if(soc.length<7)return {label:'Plan this week: '+(7-soc.length)+' slot'+(7-soc.length===1?'':'s')+' still open',act:"go('plan')"};
+  if(acts.length)return {label:acts[0].step+': '+acts[0].u.title,act:"jumpUnit('"+acts[0].u.id+"')"};
+  const wt=wfTree();const gap=wt.rows.find(r=>r.gaps);
+  if(gap){const br=gap.branches.find(x=>x.state==='gap'||x.state==='stale');return {label:'Waterfall: "'+gap.b.title+'" needs '+br.label,act:br.key==='email'?"wfEmail('"+gap.b.id+"')":"wfBranch('"+gap.b.id+"','"+br.key+"')"};}
+  const {stats}=pillarStats();const hungry=[...stats].sort((a,b)=>b.deficit-a.deficit)[0];
+  if(hungry&&hungry.deficit>0.08)return {label:'Feed P'+hungry.p+' ('+PILLARS[hungry.p]+'): pick a topic for it',act:'dashPickPillar('+hungry.p+')'};
+  return {label:'All caught up. Look at you!',act:''};
+}
 /* ---- the dashboard ---- */
 function vDash(){
   const thisWs=weekStart(new Date());
@@ -838,7 +862,7 @@ function vDash(){
       <span class="small ${fuel<=1?'':'muted'}" style="${fuel===0?'color:var(--bad);font-weight:800':fuel===1?'color:var(--coral);font-weight:800':''}">Blog fuel: ${fuel} post${fuel===1?'':'s'}</span>
       <a class="small" href="#" onclick="go('packs');return false">workbench →</a>
     </div>
-    ${units.length?'':`<div class="alert" style="margin-top:10px">No plan yet. <a href="#" onclick="go('plan');return false"><b>Plan My Week →</b></a></div>`}
+    ${(()=>{const sh=startHere();return `<div class="alert ${sh.act?'':'good'}" style="margin-top:10px${sh.act?';cursor:pointer':''}" ${sh.act?`onclick="${sh.act}"`:''}><b>Start here →</b> ${esc(sh.label)}</div>`;})()}
   </div>
   <div class="grid g2">
     <div class="card">
@@ -864,6 +888,7 @@ function vDash(){
       <p class="small muted" style="margin:6px 0 10px">Every published post and what's been squeezed out of it. Click a red branch to create it or mark it N/A.</p>
       ${rows.length?rows.map(r=>`<div style="padding:9px 0;border-bottom:1px solid var(--line)">
         <div class="row"><b class="small" style="flex:1;${r.gaps?'':'opacity:.55'}">${esc(r.b.title)}</b><span class="small muted">${r.b.published_at?fmt(r.b.published_at):''}</span><span class="x" style="cursor:pointer" onclick="wfMenu('${r.b.id}')">⋯</span></div>
+        ${(r.tags.length||Object.keys(r.fed).length)?`<div class="row" style="flex-wrap:wrap;gap:4px;margin-top:5px">${[1,2,3,4,5].filter(p=>r.tags.includes(p)||r.fed[p]).map(p=>`<span class="pill p${p}" style="${r.fed[p]?'':'opacity:.4'}">P${p}${r.fed[p]?' ×'+r.fed[p]:''}</span>`).join('')}<span class="small muted" style="margin-left:4px">fed so far</span></div>`:''}
         <div class="row" style="flex-wrap:wrap;gap:5px;margin-top:6px">
           ${r.branches.map(br=>`<span class="chip" style="${wfChipStyle(br.state)}" ${br.state==='gap'||br.state==='stale'?(br.key==='email'?`onclick="wfEmail('${r.b.id}')"`:`onclick="wfBranch('${r.b.id}','${br.key}')"`):br.key==='email'?`onclick="wfEmail('${r.b.id}')"`:''}>${br.label}${br.state==='stale'?' · fresh pin due':''}</span>`).join('')}
         </div>
