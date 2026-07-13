@@ -504,7 +504,7 @@ function numKnownListings(){
 }
 function renderNum(){
   const D=NUM.data,H=D.products.hutch,A=H.accounts,S2=D.services||{},E=D.etsy||[];
-  const P=S2.paddle,M=S2.mailerlite,R=S2.resend,W=S2.wordpress;
+  const P=S2.paddle,M=S2.mailerlite,R=S2.resend,W=S2.wordpress,G=S2.gsc;
   const eIn=E.filter(w=>numInRange(Date.parse(w.week)));
   const eRev=eIn.reduce((a,w)=>a+w.revenueCents,0);
   const rev=P?P.tx.filter(x=>numInRange(x.t)).reduce((a,x)=>a+x.amt,0):null;
@@ -595,6 +595,22 @@ function renderNum(){
         {n:wIn.reduce((a,x)=>a+x.u,0).toLocaleString(),l:'Visitors in period'},
         {n:W.days.slice(-7).reduce((a,x)=>a+x.v,0).toLocaleString(),l:'Views, last 7 days',d:'regardless of range'}
       ].map(tile2).join('')}</div>`:`<p class="muted small">Not connected or unreachable. The stats link above always works.</p>`}</div>`;
+    const gIn=(G&&G.days)?G.days.filter(x=>numInRange(Date.parse(x.k))):[];
+    const gI=gIn.reduce((a,x)=>a+x.i,0),gC=gIn.reduce((a,x)=>a+x.c,0);
+    const gPos=gI?gIn.reduce((a,x)=>a+x.pos*x.i,0)/gI:0;
+    const gRow=r=>`<tr><td>${esc(String(r.k).replace(/^https:\/\/(www\.)?juneybyrd\.com/,''))||'/'}</td><td style="text-align:right;font-weight:700">${r.c}</td><td style="text-align:right;font-weight:700">${r.i.toLocaleString()}</td><td style="text-align:right;font-weight:700">${r.pos?r.pos.toFixed(1):'–'}</td></tr>`;
+    const gTable=(title,rows)=>rows&&rows.length?`<h3 style="margin-top:16px">${title}</h3><table><tr><th></th><th style="text-align:right">Clicks</th><th style="text-align:right">Impressions</th><th style="text-align:right">Position</th></tr>${rows.map(gRow).join('')}</table>`:'';
+    body+=`<div class="card"><h3>Google Search, juneybyrd.com · <a href="https://search.google.com/search-console" target="_blank" rel="noopener">open Search Console</a></h3>
+      ${G?((G.days&&G.days.length)?`<div class="tiles2">${[
+        {n:gC.toLocaleString(),l:'Clicks in period',d:'from Google results'},
+        {n:gI.toLocaleString(),l:'Impressions in period'},
+        {n:gI?(gC/gI*100).toFixed(1)+'%':'–',l:'Click-through rate'},
+        {n:gPos?gPos.toFixed(1):'–',l:'Avg position',d:'impression-weighted'}
+      ].map(tile2).join('')}</div>
+      ${gTable('Top queries',G.queries)}${gTable('Top pages',G.pages)}
+      <p class="small muted" style="margin-top:8px">Google shares the last 28 days and runs 2 to 3 days behind. Collection started July 11, 2026.</p>`
+      :`<p class="muted small">Connected! Google started counting on July 11 and reports run 2 to 3 days behind, so give it a couple of days.</p>`)
+      :`<p class="muted small">Not connected yet. Once the worker has the key and a fresh deploy, numbers land here on their own.</p>`}</div>`;
   }
   if(NUM.sec==='ops'){
     let resend='<p class="muted small">Couldn\'t reach Resend right now, use the dashboard link.</p>';
