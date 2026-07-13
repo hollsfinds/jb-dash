@@ -1317,6 +1317,8 @@ function unitBody(u){
       ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,u)))}
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
+      ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
+      ${field('Alt text (rides the image, all platforms)','alt_text',u)}`:''}
     </div>
     <div class="ustep">
       <span class="stepnum">2</span><span class="steptitle">Start the post \u00b7 accounts + format</span>
@@ -1350,7 +1352,6 @@ function unitBody(u){
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u)}
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
-      ${field('Pinterest \u00b7 Alt text','alt_text',u)}
       ${field('TikTok \u00b7 Caption','tiktok_caption',u)}
       `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
     </div>
