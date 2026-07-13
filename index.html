@@ -943,6 +943,14 @@ let dashPubOpen=false;
 window.dashTogglePub=function(){dashPubOpen=!dashPubOpen;render();};
 window.dashWk=function(d){const w=new Date(S.week);w.setDate(w.getDate()+7*d);S.week=weekStart(w);const ws0=weekStart(new Date());const diff=Math.round((S.week-ws0)/(7*864e5));if(diff<dashWkOff)dashWkOff=diff;if(diff>dashWkOff+3)dashWkOff=diff-3;render();};
 function weekDone(w){const us=weekUnits(w);return us.length>0&&us.every(u=>u.status==='published');}
+function csPinsWeek(ws){
+  if(!S.csPosts)return null;
+  const wEnd=new Date(ws);wEnd.setDate(wEnd.getDate()+7);
+  const isPin=p=>(p.accounts||[]).some(a=>a.platform==='pinterest');
+  const inWk=p=>{const t=p.scheduling&&p.scheduling.execute_time?new Date(p.scheduling.execute_time):null;return t&&t>=ws&&t<wEnd;};
+  return {sch:S.csPosts.filter(p=>isPin(p)&&['scheduled','queued','published','partially_failed'].includes(p.status)&&inWk(p)).length,
+          drafts:S.csPosts.filter(p=>isPin(p)&&p.status==='draft').length};
+}
 window.pinsDueModal=function(){
   const rows=wfTree().rows.filter(r=>r.branches.some(x=>x.state==='stale'));
   modal(`<h3 style="margin-bottom:10px">Fresh pins due</h3>
@@ -1007,7 +1015,7 @@ function vDash(){
       '',`dashToggleSoc()`)}
     ${tally(pub,7,'Socials published · wk',
       acts.length?`<div class="tfix" onclick="event.stopPropagation();jumpUnit('${acts[0].u.id}')">→ ${esc(acts[0].step)}</div>`:'',
-      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${[['IG',social.filter(u=>u.status==='published'&&(u.platforms||{}).instagram).length,cad.instagram_per_week||4],['FB',social.filter(u=>u.status==='published'&&(u.platforms||{}).facebook).length,cad.facebook_per_week||5],['TikTok',social.filter(u=>u.status==='published'&&(u.platforms||{}).tiktok).length,cad.tiktok_per_week||3]].map(([l,n,g])=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:52px;font-size:10.5px;font-weight:800;color:var(--muted)">${l}</span><div class="meter" style="flex:1;margin-top:0"><i class="${n>=g?'':'low'}" style="width:${Math.min(100,Math.max(3,(n/(g||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${n}/${g}</span></div>`).join('')}</div>`:`<div class="tfix" style="color:var(--muted)">▾ platforms</div>`,
+      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;return `<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:52px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins</span><div class="meter" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>=pg?'':'low'}" style="width:${cp?Math.min(100,Math.max(3,(cp.sch/pg)*100)):3}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:''}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>`;})()}${[['IG',social.filter(u=>u.status==='published'&&(u.platforms||{}).instagram).length,cad.instagram_per_week||4],['FB',social.filter(u=>u.status==='published'&&(u.platforms||{}).facebook).length,cad.facebook_per_week||5],['TikTok',social.filter(u=>u.status==='published'&&(u.platforms||{}).tiktok).length,cad.tiktok_per_week||3]].map(([l,n,g])=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:52px;font-size:10.5px;font-weight:800;color:var(--muted)">${l}</span><div class="meter" style="flex:1;margin-top:0"><i class="${n>=g?'':'low'}" style="width:${Math.min(100,Math.max(3,(n/(g||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${n}/${g}</span></div>`).join('')}</div>`:`<div class="tfix" style="color:var(--muted)">▾ platforms</div>`,
       `dashTogglePub()`)}
   </div>
   ${pinsDue.length?`<div class="alert" style="cursor:pointer" onclick="pinsDueModal()"><b>${pinsDue.length} blog post${pinsDue.length>1?'s':''}</b> due for fresh pins · click to plan</div>`:''}
