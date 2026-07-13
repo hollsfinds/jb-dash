@@ -81,7 +81,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--mint-d)}
 .alert.good{border-color:var(--good);background:#eef6f0}
 .alert.prod{border-color:var(--coral);background:#fdf0ec}
 .meter{height:9px;border-radius:6px;background:#eef0f3;overflow:hidden;margin-top:5px}
-.meter.zero{border:1.5px solid var(--coral);background:#eef0f3}
+.meter.zero{border:1.1px solid var(--coral);background:#eef0f3}
 .meter i{display:block;height:100%;border-radius:6px;background:var(--coral)}
 .meter i.done{background:var(--teal-lt)}
 .meter i.over{background:var(--teal-dk)}
@@ -880,9 +880,9 @@ async function dashSuggest(p,btn){
   }catch(e){toast('Suggest failed: '+e.message);render();}
 }
 window.dashSuggest=dashSuggest;
-function pillarWeek(){
+function pillarWeek(ws){
   const targets=S.settings.pillar_targets||{p1:.25,p2:.25,p3:.2,p4:.1,p5:.2};
-  const soc=weekUnits(weekStart(new Date())).filter(u=>u.kind==='social');
+  const soc=weekUnits(ws||S.week||weekStart(new Date())).filter(u=>u.kind==='social');
   return [1,2,3,4,5].map(p=>({p,goal:Math.max(1,Math.round((targets['p'+p]||.2)*7)),done:soc.filter(u=>u.pillar===p).length}));
 }
 /* ---- start here: one computed priority ---- */
