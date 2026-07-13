@@ -903,7 +903,7 @@ function startHere(){
 }
 /* ---- blog research (market questions -> blog ideas) ---- */
 async function dashResearch(btn){
-  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  if(btn){btn.innerHTML='<span class="spin" style="border-color:rgba(34,51,79,.2);border-top-color:var(--navy)"></span> researching...';btn.style.pointerEvents='none';}
   try{
     const have=S.blog.map(b=>b.title||b.topic||'').filter(Boolean).slice(0,20);
     const ask=`Research the questions Juney & Byrd's target market is asking online RIGHT NOW. Market: freelancers, sole proprietors, solopreneurs whose business and personal money commingle. Search for their real questions and pain points (tax set-aside panic, quarterly taxes, bookkeeping dread, mixed accounts, "am I actually making money", first-year overwhelm, home organization for busy self-employed women). Then propose 5 blog post ideas that ANSWER the most acute/searched questions. Avoid these existing posts: ${have.join('; ')||'none'}. Reply as JSON only: {"ideas":[{"title":"blog post working title","question":"the real market question it answers","pillars":[1,2]}]}. Pillars: 1 Pain hooks, 2 Plain-English help, 3 Tools talking (Hutch/Stash or other tools worth suggesting), 4 The maker, 5 Ask the bestie.`;
@@ -914,13 +914,26 @@ async function dashResearch(btn){
       const {data}=await sb.from('jb_blog').insert({topic:it.question||it.title,title:it.title,status:'idea'}).select();
       if(data)S.blog.unshift(data[0]);
     }
-    modal(`<h3 style="margin-bottom:10px">Research done: ${ideas.length} blog ideas banked</h3>
-    ${ideas.map(it=>`<div class="alert" style="margin-bottom:8px"><b>${esc(it.title)}</b><br><span class="small muted">answers: "${esc(it.question||'')}" · feeds ${(it.pillars||[]).map(p=>'P'+p).join(', ')}</span></div>`).join('')}
-    <p class="small muted">Saved to Brain → Blog as ideas.</p>
-    <div class="row" style="margin-top:10px"><button class="btn" onclick="closeModal();S.braintab='blog';go('brain')">Open blog list</button><button class="btn ghost" onclick="closeModal();render()">Close</button></div>`);
+    toast(ideas.length+' blog ideas banked');
+    blogIdeasModal();
   }catch(e){toast('Research failed: '+e.message);render();}
 }
 window.dashResearch=dashResearch;
+window.blogIdeasModal=function(){
+  const ideas=S.blog.filter(b=>b.status==='idea');
+  modal(`<h3 style="margin-bottom:4px">Blog ideas · ${ideas.length}</h3>
+  <p class="small muted" style="margin-bottom:10px">Everything banked by research or quick capture. Not now hides it for later; not ever bans it from future research.</p>
+  ${ideas.map(b=>`<div class="alert" style="margin-bottom:8px"><b>${esc(b.title||b.topic||'')}</b>${b.topic&&b.topic!==b.title?`<br><span class="small muted">answers: "${esc(b.topic)}"</span>`:''}
+    <div class="row" style="margin-top:6px"><div class="spacer"></div><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','snoozed')">Not now</button><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','denied')">Not ever</button></div>
+  </div>`).join('')||'<p class="muted small">No blog ideas banked yet. Hit Run blog research.</p>'}
+  <div class="row" style="margin-top:10px"><span class="rbtn" style="margin-top:0" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span><div class="spacer"></div><button class="btn ghost" onclick="closeModal();render()">Close</button></div>`);
+};
+window.blogIdeaStatus=async function(id,st){
+  await sb.from('jb_blog').update({status:st}).eq('id',id);
+  const b=S.blog.find(x=>String(x.id)===String(id));if(b)b.status=st;
+  toast(st==='denied'?'Banned from future research':'Snoozed');
+  blogIdeasModal();
+};
 /* ---- the dashboard ---- */
 let dashSocOpen=false;
 let dashWkOff=0;
@@ -980,7 +993,7 @@ function vDash(){
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?`<div class="tfix">→ ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,32))}</div>`:`<div class="tfix">→ plan a blog post</div>`,
-      `<span class="rbtn" onclick="event.stopPropagation();dashResearch(this)">${ic('sparkle')} Run blog research</span>`,
+      `<span class="rbtn" onclick="event.stopPropagation();dashResearch(this)">${ic('sparkle')} Run blog research</span>${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="event.stopPropagation();blogIdeasModal()">${ic('bulb')} Ideas · ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}`,
       blogAct?`jumpUnit('${blogAct.id}')`:`startWizard()`)}
     ${tally(slotsFilled,7,'Pillar slots filled',
       hungry.length?`<div class="tfix">→ ${hungry.join(' + ')} ${hungry.length===1?'is':'are'} hungry</div>`:'',
@@ -1161,9 +1174,9 @@ async function savePlan(btn){
 window.savePlan=savePlan;
 function renderWeekGrid(units){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return `<div class="card"><div class="row" style="flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">Planned · ${units.length}<span style="color:var(--muted)">/${7+Math.max(1,Math.round(((S.settings.cadence||{}).blog_per_month||4)/4))}</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
+  return `<div class="card"><div class="row" style="flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">Planned · Blog ${units.filter(u=>u.kind==='blog-task').length}<span style="color:var(--muted)">/${Math.max(1,Math.round(((S.settings.cadence||{}).blog_per_month||4)/4))}</span> <span style="color:var(--muted);font-weight:600">·</span> Socials ${units.filter(u=>u.kind==='social').length}<span style="color:var(--muted)">/7</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
-  ${[...units].sort((a,b)=>a.day-b.day).map(u=>`<tr style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
+  ${[...units].sort((a,b)=>((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1))||(a.day-b.day)).map(u=>`<tr style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
   </table>
   <div class="row" style="margin-top:14px"><button class="btn ghost sm" onclick="if(confirm('Delete this whole week plan?'))deleteWeek('${iso(S.week)}')">Delete plan</button></div></div>`;
 }
@@ -1547,6 +1560,9 @@ function vSet(){
       <p class="small">ContentStudio sync: <b style="color:${S.settings.cs_key?'var(--good)':'var(--bad)'}">${S.settings.cs_key?'wired — sync from Copy Packs':'needs your API key'}</b></p>
       <div class="row" style="margin-top:8px"><input id="cs-key" type="password" placeholder="ContentStudio API key (app.contentstudio.io/juneybyrd/api)"><button class="btn sm" onclick="saveCSKey()">Save</button></div>
       <p class="small muted" style="margin-top:8px">Voice prompt: ${esc(S.settings.voice_prompt_version||'v1')}</p>
+    </div>
+    <div class="card" style="grid-column:1/-1"><h3>Content pillars</h3>
+      ${(()=>{const tg=S.settings.pillar_targets||{1:2,2:2,3:1,4:1,5:1};const D={1:'The "that feeling when..." posts. Name the exact money stress or life-admin dread your reader feels, so she feels seen. Blog-fed.',2:'Teach one small thing in plain English. No jargon, one takeaway she can use today. Blog-fed.',3:'Tools doing their job: Hutch, Stash, or other tools you would honestly suggest. Blog-fed or direct.',4:'Behind the scenes. You, an accountant and business owner, building the thing: process, decisions, honest wins and flops. Direct-feed.',5:'Conversation starters. Questions, polls, and "tell me I am not the only one" prompts that get replies. Direct-feed.'};return [1,2,3,4,5].map(p=>`<div class="row" style="align-items:flex-start;margin-bottom:9px"><span class="pill p${p}" style="margin-top:2px">P${p}</span><div style="flex:1"><b class="small">${PILLARS[p]}</b> <span class="small muted">· ${tg[p]||0}/wk</span><br><span class="small muted">${D[p]}</span></div></div>`).join('');})()}
     </div>
     <div class="card" style="grid-column:1/-1"><h3>UTM tagging</h3>
       <label class="row small"><input type="checkbox" style="width:auto" ${(S.settings.utm||{}).enabled?'checked':''} onchange="toggleUTM(this.checked)"> Append utm_source / utm_medium to source URLs per platform</label>
