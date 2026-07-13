@@ -869,6 +869,11 @@ function blogFor(u){
   }catch(e){}}
   return null;
 }
+/* ---- week focus (blog backlog picker) ---- */
+function weekFocus(ws){const m=S.settings.week_focus||{};const k=typeof ws==='string'?ws:iso(ws);const id=m[k];return id?S.blog.find(b=>String(b.id)===String(id))||null:null;}
+function focusProcessedIds(){const m=S.settings.week_focus||{};return new Set(Object.values(m).map(String));}
+async function setWeekFocus(wsIso,blogId){const m={...(S.settings.week_focus||{})};if(blogId)m[wsIso]=blogId;else delete m[wsIso];await saveSetting('week_focus',m);render();}
+window.setWeekFocus=setWeekFocus;
 function wfTree(){
   const posts=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
   const st=wfState();
@@ -960,7 +965,7 @@ function pickDay(format,blogId,topicId){
 window.pickDay=pickDay;
 async function pickDayGo(format,blogId,topicId){
   const ws=$('#pd-week').value,day=+$('#pd-day').value;
-  const b=blogId?S.blog.find(x=>String(x.id)===String(blogId)):null;
+  const b=blogId?S.blog.find(x=>String(x.id)===String(blogId)):weekFocus(ws);
   const t=topicId?S.topics.find(x=>String(x.id)===String(topicId)):null;
   const pdPillar=+($('#pd-pillar')&&$('#pd-pillar').value)||2;
   const platforms={pin:{pinterest:true},reel:{instagram:true},carousel:{instagram:true},fb:{facebook:true},tiktok:{tiktok:true}}[format]||{pinterest:true,instagram:true,facebook:true,tiktok:true};
@@ -1150,6 +1155,14 @@ function vDash(){
         <h3 style="margin-left:26px">Blog</h3>
         <div class="row small" style="margin:2px 0 4px 26px;gap:5px"><span class="muted">This week:</span> <b>${blogTasks.length}/${blogGoal} planned</b> <span class="muted">\u00b7 ${blogsPub} published</span></div>
         ${blogAct?`<div class="tfix" style="margin-left:26px;cursor:pointer" onclick="jumpUnit('${blogAct.id}')">\u2192 ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,34))}</div>`:''}
+        ${(()=>{const wf=weekFocus(wsIso);
+          if(wf)return `<div class="row small" style="margin:8px 0 0 26px;gap:6px"><span class="muted">Processing:</span> <a href="${esc(wf.url||'#')}" target="_blank" rel="noopener" style="font-weight:800;color:var(--navy)">${esc((wf.title||'').slice(0,40))}</a> <span title="Un-pick this post" style="cursor:pointer;color:var(--muted);font-weight:800;padding:0 4px" onclick="setWeekFocus('${wsIso}','')">\u2715</span></div>`;
+          const done=focusProcessedIds();
+          const all=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
+          const cands=all.filter(b=>b.status!=='waterfalled'&&!done.has(String(b.id)));
+          const procd=all.filter(b=>!cands.includes(b));
+          if(!all.length)return '';
+          return `<div class="row small" style="margin:8px 0 0 26px"><select style="flex:1;max-width:360px" onchange="if(this.value)setWeekFocus('${wsIso}',this.value)"><option value="">Process a post this week\u2026</option>${cands.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}</optgroup>`:''}</select></div>`;})()}
         <div class="row" style="margin-left:26px;margin-top:8px">
           <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
           ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
