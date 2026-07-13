@@ -766,6 +766,42 @@ const MIX_ROLE={ig_reel:'reach',fb_reel:'reach',ig_post:'authority',fb_post:'aut
 const PILLAR_FMT={1:['ig_reel','fb_reel','ig_post','fb_post'],2:['ig_post','fb_post','ig_reel','fb_reel'],3:['ig_post','fb_post','ig_reel','fb_reel'],4:['ig_story','fb_story','ig_reel','fb_reel'],5:['ig_story','fb_story','ig_post','fb_post']};
 function formatMix(){return {ig_reel:2,ig_post:2,ig_story:5,fb_reel:2,fb_post:3,fb_story:3,tiktok:3,...(S.settings.format_mix||{})};}
 const FMT_FAMILY={reel:'reel',fb_reel:'reel',ig_post:'post',carousel:'post',fb:'post',ig_story:'story',fb_story:'story',tiktok:'tiktok',pin:'pin'};
+async function dealFormats(btn){
+  if(btn){btn.disabled=true;btn.textContent='Dealing\u2026';}
+  try{
+    const ws=S.week||weekStart(new Date());
+    const shipped=u=>['scheduled','published'].includes(u.status);
+    const mix=formatMix();
+    const need={};Object.keys(mix).forEach(k=>need[k]=mix[k]);
+    weekUnits(ws).filter(u=>u.kind==='social'&&shipped(u)).forEach(u=>mixBuckets(u).forEach(k=>{if(need[k]!=null)need[k]--;}));
+    const open=weekUnits(ws).filter(u=>u.kind==='social'&&!shipped(u)).sort((a,b)=>a.day-b.day);
+    const D2F={ig_reel:'reel',fb_reel:'fb_reel',ig_post:'ig_post',fb_post:'fb',ig_story:'ig_story',fb_story:'fb_story',tiktok:'tiktok'};
+    for(const u of open){
+      const prefs=PILLAR_FMT[u.pillar]||['ig_post','fb_post'];
+      const k=prefs.find(x=>need[x]>0)||Object.keys(need).find(x=>x!=='tiktok'&&need[x]>0)||prefs[0];
+      const fmt=D2F[k]||'ig_post';
+      const fam=FMT_FAMILY[fmt];
+      const p={pinterest:!!(u.platforms||{}).pinterest};
+      if(fam==='story'){
+        p.instagram=k==='ig_story'||need.ig_story>0;
+        p.facebook=k==='fb_story'||need.fb_story>0;
+      }else{
+        p.instagram=k.indexOf('ig')===0||need['ig_'+fam]>0;
+        p.facebook=k.indexOf('fb')===0||need['fb_'+fam]>0;
+        if(need.tiktok>0)p.tiktok=true;
+      }
+      if(!p.instagram&&!p.facebook&&!p.tiktok)p[k.indexOf('fb')===0?'facebook':'instagram']=true;
+      const st=(fam!=='story'&&((p.instagram&&need.ig_story>0)||(p.facebook&&need.fb_story>0)))?1:'';
+      const copy={...(u.copy||{}),format:fmt,story_too:st};
+      const sim={...u,copy,platforms:p};
+      mixBuckets(sim).forEach(x=>{if(need[x]!=null)need[x]--;});
+      await updUnit(u.id,{copy,platforms:p});
+    }
+    render();toast('Formats dealt. Every open card now says exactly what to make.');
+  }catch(e){toast('Deal failed: '+e.message);render();}
+  if(btn){btn.disabled=false;btn.innerHTML='Deal formats';}
+}
+window.dealFormats=dealFormats;
 function mixBuckets(u){
   const f=guessFormat(u);const fam=FMT_FAMILY[f];
   if(!fam||fam==='pin')return [];
@@ -1267,9 +1303,9 @@ async function savePlan(btn){
 window.savePlan=savePlan;
 function renderWeekGrid(units){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return `<div class="card"><div class="row" style="flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">Planned · Blog ${units.filter(u=>u.kind==='blog-task').length}<span style="color:var(--muted)">/${Math.max(1,Math.round(((S.settings.cadence||{}).blog_per_month||4)/4))}</span> <span style="color:var(--muted);font-weight:600">·</span> Socials ${units.filter(u=>u.kind==='social').length}<span style="color:var(--muted)">/7</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
+  return `<div class="card"><div class="row" style="flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">Planned · Blog ${units.filter(u=>u.kind==='blog-task').length}<span style="color:var(--muted)">/${Math.max(1,Math.round(((S.settings.cadence||{}).blog_per_month||4)/4))}</span> <span style="color:var(--muted);font-weight:600">·</span> Socials ${units.filter(u=>u.kind==='social').length}<span style="color:var(--muted)">/7</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
-  ${[...units].sort((a,b)=>((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1))||(a.day-b.day)).map(u=>`<tr style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
+  ${[...units].sort((a,b)=>((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1))||(a.day-b.day)).map(u=>`<tr style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}${u.kind==='social'&&(u.copy||{}).format?`<div class="small muted" style="margin-top:2px">\u2192 ${WF_FORMATS[(u.copy||{}).format]||''}${PLATFORMS.filter(p=>(u.platforms||{})[p]).length?' \u00b7 '+PLATFORMS.filter(p=>(u.platforms||{})[p]).map(p=>({pinterest:'Pin',instagram:'IG',facebook:'FB',tiktok:'TT'})[p]).join('+'):''}${(u.copy||{}).story_too?' + Story':''}</div>`:''}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
   </table>
   <div class="row" style="margin-top:14px"><button class="btn ghost sm" onclick="if(confirm('Delete this whole week plan?'))deleteWeek('${iso(S.week)}')">Delete plan</button></div></div>`;
 }
