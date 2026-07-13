@@ -101,6 +101,22 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .tally.ok{border-top-color:var(--teal-lt)}
 .tally.ovr{border-top-color:var(--teal-dk)}
 .tally .tck{position:absolute;top:10px;right:14px;color:var(--teal-lt);font-weight:900;font-size:16px}
+.flowbar{display:flex;height:14px;border-radius:8px;overflow:hidden;background:#eef0f3;border:1px solid var(--line)}
+.flowbar span{flex:1;cursor:pointer;border-right:2px solid #fff}
+.flowbar span:last-child{border-right:none}
+.flowbar span.fdone{background:var(--teal-lt)}
+.flowbar span.fcur{background:var(--coral)}
+.flowlabels{display:flex;margin-top:5px}
+.flowlabels span{flex:1;text-align:center;font-size:9.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);cursor:pointer}
+.flowlabels span.fcur{color:var(--coral-b)}
+.flowlabels span.fdone{color:var(--teal-lt)}
+.stepnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:900;margin-right:8px}
+.steptitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--navy);font-weight:900}
+.stephint{font-size:11.5px;color:var(--muted);margin:2px 0 8px 28px}
+.stepbody{margin-left:28px}
+.ustep{border-top:1.5px solid var(--line);margin-top:16px;padding-top:12px}
+.suggest{margin:10px 0 0 28px;background:#fdf0ec;border-left:4px solid var(--coral);border-radius:10px;padding:9px 12px}
+.owedline{margin:8px 0 0 28px;font-size:11.5px;font-weight:800;color:var(--coral-b)}
 .tally.ovr .tck{color:var(--teal-dk)}
 .tally.short{border-top-color:var(--coral)}
 .tnum{font-size:34px;font-weight:800;line-height:1}
@@ -724,7 +740,27 @@ function initResizer(){
 /* ================= DASHBOARD ================= */
 function weekUnits(ws){return S.units.filter(u=>u.week_start===iso(ws));}
 /* ================= v1.6 DASH: pillars + waterfall + start-here ================= */
-const WF_FORMATS={pin:'Pin',reel:'IG Reel',carousel:'IG Carousel',fb:'FB post',tiktok:'TikTok'};
+const WF_FORMATS={pin:'Pin',reel:'IG Reel',ig_post:'IG Post',carousel:'IG Carousel',ig_story:'IG Story',fb_reel:'FB Reel',fb:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};
+const MIX_KEY={reel:'ig_reel',ig_post:'ig_post',carousel:'ig_post',ig_story:'ig_story',fb:'fb_post',fb_reel:'fb_reel',fb_story:'fb_story',tiktok:'tiktok'};
+const MIX_LABEL={ig_reel:'IG Reels',ig_post:'IG Posts',ig_story:'IG Stories',fb_reel:'FB Reels',fb_post:'FB Posts',fb_story:'FB Stories',tiktok:'TikTok'};
+const MIX_ROLE={ig_reel:'reach',fb_reel:'reach',ig_post:'authority',fb_post:'authority',ig_story:'connection',fb_story:'connection',tiktok:'reach'};
+const PILLAR_FMT={1:['ig_reel','fb_reel','ig_post','fb_post'],2:['ig_post','fb_post','ig_reel','fb_reel'],3:['ig_post','fb_post','ig_reel','fb_reel'],4:['ig_story','fb_story','ig_reel','fb_reel'],5:['ig_story','fb_story','ig_post','fb_post']};
+function formatMix(){return {ig_reel:2,ig_post:2,ig_story:5,fb_reel:2,fb_post:3,fb_story:3,tiktok:3,...(S.settings.format_mix||{})};}
+function mixCounts(ws,publishedOnly){
+  const mix=formatMix();const out={};Object.keys(mix).forEach(k=>out[k]={goal:mix[k],n:0});
+  weekUnits(ws).filter(u=>u.kind==='social'&&(!publishedOnly||u.status==='published')).forEach(u=>{const k=MIX_KEY[guessFormat(u)];if(k&&out[k])out[k].n++;});
+  return out;
+}
+function mixOwed(ws){const mc=mixCounts(ws,false);return Object.keys(mc).filter(k=>k!=='tiktok'&&mc[k].n<mc[k].goal).map(k=>({k,need:mc[k].goal-mc[k].n}));}
+function suggestFormat(u){
+  const owed=mixOwed(new Date(u.week_start+'T00:00:00'));
+  const prefs=PILLAR_FMT[u.pillar]||['ig_reel','ig_post'];
+  const pick=prefs.find(k=>owed.some(o=>o.k===k))||prefs[0];
+  const fkey=Object.keys(MIX_KEY).find(f=>MIX_KEY[f]===pick&&f!=='carousel')||pick;
+  const still=owed.find(o=>o.k===pick);
+  const role=MIX_ROLE[pick];
+  return {fkey,label:MIX_LABEL[pick],role,reason:`P${u.pillar||'?'} leans ${role}${still?`, and you still owe ${still.need} ${MIX_LABEL[pick]} this week`:''}`};
+}
 function wfState(){return S.settings.wf_state||{};}
 function unitDate(u){const d=new Date(u.week_start+'T00:00:00');d.setDate(d.getDate()+(u.day||0));return d;}
 function nextStepFor(u){
@@ -764,7 +800,7 @@ function wfTree(){
     if(ps.excluded){excluded.push(b);continue;}
     const linked=S.units.filter(u=>{if(u.kind!=='social')return false;const lb=blogFor(u);return lb&&String(lb.id)===String(b.id);});
     const byF={pin:[],reel:[],carousel:[],fb:[],tiktok:[]};
-    linked.forEach(u=>{const f=guessFormat(u);(byF[f]||byF.pin).push(u);});
+    linked.forEach(u=>{const f=guessFormat(u);if(byF[f])byF[f].push(u);});
     const fed={};linked.forEach(u=>{if(u.pillar)fed[u.pillar]=(fed[u.pillar]||0)+1;});
     const pinCount=Math.max(byF.pin.length,b.pins_count||0);
     const dates=[b.last_pin_at,...byF.pin.map(u=>unitDate(u))].filter(Boolean).map(d=>new Date(d)).sort((a,b2)=>b2-a);
@@ -1020,7 +1056,7 @@ function vDash(){
       '',`dashToggleSoc()`)}
     ${tally(pub,7,'Socials published · wk',
       acts.length?`<div class="tfix" onclick="event.stopPropagation();jumpUnit('${acts[0].u.id}')">→ ${esc(acts[0].step)}</div>`:'',
-      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;return `<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:52px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins</span><div class="meter ${!cp||cp.sch===0?'zero':''}" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>pg?'over':cp&&cp.sch>=pg?'done':''}" style="width:${cp&&cp.sch?Math.min(100,Math.max(3,(cp.sch/pg)*100)):0}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:''}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>`;})()}${[['IG',social.filter(u=>u.status==='published'&&(u.platforms||{}).instagram).length,cad.instagram_per_week||4],['FB',social.filter(u=>u.status==='published'&&(u.platforms||{}).facebook).length,cad.facebook_per_week||5],['TikTok',social.filter(u=>u.status==='published'&&(u.platforms||{}).tiktok).length,cad.tiktok_per_week||3]].map(([l,n,g])=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:52px;font-size:10.5px;font-weight:800;color:var(--muted)">${l}</span><div class="meter ${n===0?'zero':''}" style="flex:1;margin-top:0"><i class="${n>g?'over':n>=g?'done':''}" style="width:${n===0?0:Math.min(100,Math.max(3,(n/(g||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${n}/${g}</span></div>`).join('')}</div>`:`<div class="tfix" style="color:var(--muted)">▾ platforms</div>`,
+      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;return `<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins</span><div class="meter ${!cp||cp.sch===0?'zero':''}" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>pg?'over':cp&&cp.sch>=pg?'done':''}" style="width:${cp&&cp.sch?Math.min(100,Math.max(3,(cp.sch/pg)*100)):0}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:''}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>`;})()}${(()=>{const mc=mixCounts(ws,true);return Object.keys(mc).map(k=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">${MIX_LABEL[k]}</span><div class="meter ${mc[k].n===0?'zero':''}" style="flex:1;margin-top:0"><i class="${mc[k].n>mc[k].goal?'over':mc[k].n>=mc[k].goal?'done':''}" style="width:${mc[k].n===0?0:Math.min(100,Math.max(3,(mc[k].n/(mc[k].goal||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${mc[k].n}/${mc[k].goal}</span></div>`).join('');})()}</div>`:`<div class="tfix" style="color:var(--muted)">▾ format mix</div>`,
       `dashTogglePub()`)}
   </div>
   ${pinsDue.length?`<div class="alert" style="cursor:pointer" onclick="pinsDueModal()"><b>${pinsDue.length} blog post${pinsDue.length>1?'s':''}</b> due for fresh pins · click to plan</div>`:''}
@@ -1224,41 +1260,72 @@ function vPacks(){
 function unitBody(u){
   const c=u.copy||{};
   const si=STATUSES.indexOf(u.status);
-  return `<div style="position:sticky;top:0;height:0;text-align:right;z-index:9"><span onclick="closeModal()" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;cursor:pointer;font-weight:800;font-size:13px;box-shadow:0 1px 5px rgba(20,28,44,.25)">✕</span></div>
+  const sg=u.kind==='social'?suggestFormat(u):null;
+  const cur=guessFormat(u);
+  const owed=u.kind==='social'?mixOwed(new Date(u.week_start+'T00:00:00')):[];
+  return `<div style="position:sticky;top:0;height:0;text-align:right;z-index:9"><span onclick="closeModal()" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;cursor:pointer;font-weight:800;font-size:13px;box-shadow:0 1px 5px rgba(20,28,44,.25)">\u2715</span></div>
     <div class="row" style="flex-wrap:wrap;margin-bottom:10px;padding-right:38px">
       <b>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</b>
       ${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}
       <span class="chip">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][u.day]||''}</span>
       ${c.cs_status?`<a class="chip" href="${esc(c.cs_url||'#')}" target="_blank" rel="noopener" style="text-decoration:none;color:${c.cs_status==='published'?'var(--good)':c.cs_status==='draft'?'var(--warn)':'var(--navy)'}">CS: ${esc(c.cs_status)}</a>`:''}
     </div>
-    <div class="statusflow" style="margin-bottom:12px">${STATUSES.map((st,i)=>`<span class="st ${i<si?'done':i===si?'cur':''}" onclick="updUnit('${u.id}',{status:'${st}'}).then(render)">${STATUS_LABEL[st]}</span>`).join('')}</div>
+    <div style="margin:14px 0 4px">
+      <div class="flowbar">${STATUSES.map((st,i)=>`<span class="${i<si?'fdone':i===si?'fcur':''}" onclick="updUnit('${u.id}',{status:'${st}'}).then(render)" title="${STATUS_LABEL[st]}"></span>`).join('')}</div>
+      <div class="flowlabels">${STATUSES.map((st,i)=>`<span class="${i<si?'fdone':i===si?'fcur':''}" onclick="updUnit('${u.id}',{status:'${st}'}).then(render)">${STATUS_LABEL[st]}</span>`).join('')}</div>
+    </div>
     ${u.kind==='social'?`
-      <div class="row" style="margin-bottom:12px;flex-wrap:wrap">
+    <div class="ustep">
+      <span class="stepnum">1</span><span class="steptitle">Make the image \u00b7 AI Studio</span>
+      <p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>
+      ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,u)))}
+    </div>
+    <div class="ustep">
+      <span class="stepnum">2</span><span class="steptitle">Start the post \u00b7 accounts + format</span>
+      <div class="row stepbody" style="margin-top:8px;flex-wrap:wrap">
         ${PLATFORMS.map(p=>`<span class="plat ${(u.platforms||{})[p]?'on':''}" onclick="togglePlat('${u.id}','${p}')">${ic(PLAT_ICON[p])} ${p}</span>`).join('')}
-        <div class="spacer"></div>
-        <button class="btn sm" onclick="genCopy('${u.id}',this)">${c.caption?ic('refresh')+' Rewrite copy':ic('sparkle')+' Write copy'}</button>
-      </div>
-      <div class="row" style="margin-bottom:12px;flex-wrap:wrap">
-        <span class="small muted">Format</span>
+        <span class="small muted" style="margin-left:6px">Format</span>
         <select style="width:120px" onchange="saveCopyField('${u.id}','format',this.value).then(render)"><option value="">auto</option>${Object.entries(WF_FORMATS).map(([k,v])=>`<option value="${k}" ${c.format===k?'selected':''}>${v}</option>`).join('')}</select>
         <span class="small muted">Waterfalls from</span>
-        <select style="flex:1;min-width:160px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
+        <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
       </div>
-      ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,u)))}
+      ${sg?`<div class="suggest">
+        <span style="font-size:12.5px;font-weight:800;color:var(--navy)">Suggested: ${WF_FORMATS[sg.fkey]||sg.label}</span>
+        <span class="small muted">\u00b7 ${esc(sg.reason)}</span>
+        ${MIX_KEY[cur]===MIX_KEY[sg.fkey]?`<b class="small" style="color:var(--teal-lt);margin-left:6px">set \u2713</b>`:`<button class="btn sm" style="margin-left:8px" onclick="saveCopyField('${u.id}','format','${sg.fkey}').then(render)">Use it</button>`}
+      </div>`:''}
+      ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:`<div class="owedline" style="color:var(--teal-lt)">Weekly format mix fully assigned \u2713</div>`}
+      <p class="stephint" style="margin-top:6px">Reels = reach \u00b7 Posts = authority \u00b7 Stories = connection.</p>
+    </div>
+    <div class="ustep">
+      <span class="stepnum">3</span><span class="steptitle">Content \u00b7 the main caption box</span>
       ${c.caption?`
-      ${field('Caption (A)','caption',u)}
-      ${c.caption_b?field('Caption (B)','caption_b',u):''}
-      ${field('Pinterest title','pin_title',u)}
-      ${field('Pinterest alt text','alt_text',u)}
-      ${field('Source URL (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
-      ${field('TikTok caption','tiktok_caption',u)}
-      ${c.slide2_prompt?field('TikTok slide-2 prompt','slide2_prompt',u):''}
-      `:'<p class="muted small">No copy yet. Hit Write copy.</p>'}`
-      :`<p class="small muted">Blog task. Write it with Claude using the blog-writing skill, then it auto-appears in the Brain → Blog tab when published.</p>
+      <div style="margin-top:8px"></div>
+      ${field('Content (A)','caption',u)}
+      ${c.caption_b?field('Content (B)','caption_b',u):''}
+      `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
+    </div>
+    <div class="ustep">
+      <span class="stepnum">4</span><span class="steptitle">Per-platform fields \u00b7 CS order</span>
+      ${c.caption?`
+      <div style="margin-top:8px"></div>
+      ${field('Pinterest \u00b7 Title','pin_title',u)}
+      ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
+      ${field('Pinterest \u00b7 Alt text','alt_text',u)}
+      ${field('TikTok \u00b7 Caption','tiktok_caption',u)}
+      ${c.slide2_prompt?field('TikTok \u00b7 Slide-2 prompt','slide2_prompt',u):''}
+      `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
+    </div>
+    <div class="ustep">
+      <span class="stepnum">5</span><span class="steptitle">Save as draft in CS \u00b7 tap the bar above as it moves</span>
+    </div>`
+      :`<p class="small muted">Blog task. Write it with Claude using the blog-writing skill, then it auto-appears in the Brain \u2192 Blog tab when published.</p>
       <button class="btn ghost sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((u.title||'').replace(/'/g,''))} . Please use the J&B blog-writing skill and voice.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy handoff for Claude</button>`}
-    <div class="row" style="margin-top:12px"><button class="btn ghost sm" onclick="if(confirm('Delete this unit?'))delUnit('${u.id}')">Delete</button>
+    <div class="row" style="margin-top:14px"><button class="btn ghost sm" onclick="if(confirm('Delete this unit?'))delUnit('${u.id}')">Delete</button>
     ${u.status==='published'?`<button class="btn mint sm" onclick="markWinner('${u.id}')">${ic('star')} Mark as winner</button>`:''}
-    <div class="spacer"></div><button class="btn ghost sm" onclick="closeModal()">Close</button><button class="btn sm" onclick="unitNext('${u.id}')">Next →</button></div>`;
+    <div class="spacer"></div>
+    ${u.kind==='social'?`<button class="btn ghost sm" style="border-color:var(--coral);color:var(--coral-b)" onclick="genCopy('${u.id}',this)">${c.caption?ic('refresh')+' Rewrite copy':ic('sparkle')+' Write copy'}</button>`:''}
+    <button class="btn ghost sm" onclick="closeModal()">Close</button><button class="btn sm" onclick="unitNext('${u.id}')">Next \u2192</button></div>`;
 }
 window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;};
 window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
@@ -1602,6 +1669,16 @@ function vSet(){
       <div class="row" style="margin-top:8px"><input id="cs-key" type="password" placeholder="ContentStudio API key (app.contentstudio.io/juneybyrd/api)"><button class="btn sm" onclick="saveCSKey()">Save</button></div>
       <p class="small muted" style="margin-top:8px">Voice prompt: ${esc(S.settings.voice_prompt_version||'v1')}</p>
     </div>
+    <div class="card" style="grid-column:1/-1"><h3>Weekly format mix</h3>
+      <p class="small muted" style="margin-bottom:12px">Why each format exists, and how many per week. 2026 guidance: Reels 4-7/wk for reach, Posts 2-3/wk alongside Reels, Stories near-daily. These are the sustainable solo defaults, edit freely.</p>
+      ${(()=>{const m=formatMix();const row=(tag,tagStyle,name,desc,keys)=>`<div class="row" style="align-items:flex-start;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:10px"><span class="small" style="font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:2px 8px;border-radius:6px;${tagStyle}">${tag}</span><div style="flex:1"><b class="small">${name}</b> <span class="small muted">${desc}</span></div>${keys.map(([k,l])=>`<span class="small muted">${l}</span><input type="number" style="width:56px" value="${m[k]}" onchange="setMix('${k}',+this.value)">`).join('')}</div>`;
+      return row('Reach','background:#fdf0ec;color:var(--coral-b)','Reels','short video, quick hook, made to be discovered by non-followers',[['ig_reel','IG'],['fb_reel','FB']])
+        +row('Authority','background:#e7f2f0;color:var(--teal-dk)','Posts','static + carousels, evergreen, your brand backbone',[['ig_post','IG'],['fb_post','FB']])
+        +row('Connection','background:#f3e8d5;color:#8a6d1a','Stories','casual, behind-the-scenes, polls, daily trust with followers',[['ig_story','IG'],['fb_story','FB']]);})()}
+      <p class="small muted" style="margin:2px 0 8px">Repurpose one idea across all three: the Reel is the source, pull a quote image for the Post, use the making-of for the Story. TikTok target lives in Cadence targets above.</p>
+      <div style="border-top:1.5px solid var(--line);padding-top:8px"><b class="small">Pillar \u2192 format (drives the popup suggestion)</b><br>
+      <span class="small muted">P1 Pain hooks \u2192 <b>Reel</b> (backup Post) \u00b7 P2 Plain-English help \u2192 <b>Post</b> (backup Reel) \u00b7 P3 Tools talking \u2192 <b>Post</b> (backup Reel) \u00b7 P4 The maker \u2192 <b>Story</b> (backup Reel) \u00b7 P5 Ask the bestie \u2192 <b>Story</b> (backup Post)</span></div>
+    </div>
     <div class="card" style="grid-column:1/-1"><h3>Content pillars</h3>
       ${(()=>{const _pt=S.settings.pillar_targets||{p1:.25,p2:.25,p3:.2,p4:.1,p5:.2};const tg={};[1,2,3,4,5].forEach(p=>tg[p]=Math.max(1,Math.round((_pt['p'+p]||.2)*7)));const D={1:'The "that feeling when..." posts. Name the exact money stress or life-admin dread your reader feels, so she feels seen. Blog-fed.',2:'Teach one small thing in plain English. No jargon, one takeaway she can use today. Blog-fed.',3:'Tools doing their job: Hutch, Stash, or other tools you would honestly suggest. Blog-fed or direct.',4:'Behind the scenes. You, an accountant and business owner, building the thing: process, decisions, honest wins and flops. Direct-feed.',5:'Conversation starters. Questions, polls, and "tell me I am not the only one" prompts that get replies. Direct-feed.'};return [1,2,3,4,5].map(p=>`<div class="row" style="align-items:flex-start;margin-bottom:9px"><span class="pill p${p}" style="margin-top:2px">P${p}</span><div style="flex:1"><b class="small">${PILLARS[p]}</b> <span class="small muted">· ${tg[p]||0}/wk</span><br><span class="small muted">${D[p]}</span></div></div>`).join('');})()}
     </div>
@@ -1612,6 +1689,8 @@ function vSet(){
 }
 async function setCadence(k,v){const c={...(S.settings.cadence||{})};c[k]=v;await saveSetting('cadence',c);toast('Saved');}
 window.setCadence=setCadence;
+async function setMix(k,v){const m={...(S.settings.format_mix||{})};m[k]=v;await saveSetting('format_mix',m);toast('Saved');}
+window.setMix=setMix;
 async function toggleUTM(on){const u={...(S.settings.utm||{})};u.enabled=on;await saveSetting('utm',u);toast('Saved');}
 window.toggleUTM=toggleUTM;
 async function saveCSKey(){const v=$('#cs-key').value.trim();if(!v)return;await saveSetting('cs_key',v);toast('ContentStudio key saved. Sync lives in Copy Packs!');render();}
