@@ -136,6 +136,16 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .tabbar button:hover:not(.on){color:var(--navy);background:#f7f8f9}
 .tabbar button.wknav{background:transparent;border:none;font-size:17px;padding:9px 8px;color:var(--muted)}
 .tabbar button.wknav:hover{color:var(--navy);background:transparent}
+.secttitle{font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);font-weight:900;margin:0 0 24px 2px}
+.stepcard{position:relative}
+.stepnum{position:absolute;top:-12px;left:-10px;width:38px;height:38px;border-radius:12px;background:var(--mint);color:var(--navy);border:1px solid var(--navy);font-size:20px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(34,51,79,.12)}
+.fmts{margin-top:3px;font-size:11.5px;font-weight:800}
+.fmts span{display:inline-block;background:#f2f4f6;color:var(--navy);border-radius:6px;padding:1px 7px;margin:2px 3px 0 0}
+.fmts span.story{background:#ece2f0;color:#7a4d94}
+.fmts span.pin{background:#f6e3dd;color:#a3543f}
+tr.done-divider td{padding:7px 8px;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:900;border-top:2px solid var(--line)}
+tr.donerow td{color:#9aa3b0}
+tr.donerow .fmts{opacity:.6}
 .wkn{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--muted);color:#fff;font-size:10.5px;font-weight:800;margin-left:7px}
 .tabbar button.on .wkn{background:var(--coral-b)}
 .wkck{color:var(--teal);font-weight:900;margin-left:6px;font-size:14px}
@@ -1117,7 +1127,7 @@ function vDash(){
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?`<div class="tfix">→ ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,32))}</div>`:`<div class="tfix">→ plan a blog post</div>`,
-      `<span class="rbtn" onclick="event.stopPropagation();dashResearch(this)">${ic('sparkle')} Run blog research</span>${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="event.stopPropagation();blogIdeasModal()">${ic('bulb')} Ideas · ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}`,
+      '',
       blogAct?`jumpUnit('${blogAct.id}')`:`startWizard()`)}
     ${tally(slotsFilled,7,'Pillar slots filled',
       hungry.length?`<div class="tfix">→ ${hungry.join(' + ')} ${hungry.length===1?'is':'are'} hungry</div>`:'',
@@ -1132,8 +1142,21 @@ function vDash(){
   </div>
   ${pinsDue.length?`<div class="alert" style="cursor:pointer" onclick="pinsDueModal()"><b>${pinsDue.length} blog post${pinsDue.length>1?'s':''}</b> due for fresh pins · click to plan</div>`:''}
   <div class="dashcols">
-    <div class="card">
-      <h3>Feed the pillars</h3>
+    <div>
+      <p class="secttitle">Planning</p>
+      <div class="card stepcard">
+        <span class="stepnum">1</span>
+        <h3 style="margin-left:26px">Blog</h3>
+        <div class="row small" style="margin:2px 0 4px 26px;gap:5px"><span class="muted">This week:</span> <b>${blogTasks.length}/${blogGoal} planned</b> <span class="muted">\u00b7 ${blogsPub} published</span></div>
+        ${blogAct?`<div class="tfix" style="margin-left:26px;cursor:pointer" onclick="jumpUnit('${blogAct.id}')">\u2192 ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,34))}</div>`:''}
+        <div class="row" style="margin-left:26px;margin-top:8px">
+          <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
+          ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
+        </div>
+      </div>
+      <div class="card stepcard" style="margin-top:18px">
+        <span class="stepnum">2</span>
+        <h3 style="margin-left:26px">Feed the pillars</h3>
       ${pw.map(s=>`<div style="margin-bottom:9px">
         <div class="row" style="cursor:pointer" onclick="dashPickPillar(${s.p})">
           <span class="pill p${s.p}">P${s.p}</span> <span class="small" style="flex:1">${PILLARS[s.p]}</span>
@@ -1148,8 +1171,10 @@ function vDash(){
           <button class="btn ghost sm" style="margin-top:6px" onclick="dashSuggest(${s.p},this)">${ic('sparkle')} Suggest 5 topics</button>
         </div>`:''}
       </div>`).join('')}
+      </div>
     </div>
     <div>
+      <p class="secttitle">&nbsp;</p>
       ${units.length?renderWeekGrid(units):planDraft&&planDraft.week===wsIso?renderWizard():`
       <div class="card" style="text-align:center;padding:44px">
         <p class="muted">No plan for this week yet.</p><br>
@@ -1303,9 +1328,22 @@ async function savePlan(btn){
 window.savePlan=savePlan;
 function renderWeekGrid(units){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return `<div class="card"><div class="row" style="flex-wrap:wrap;margin-bottom:6px"><h3 style="margin:0">Planned · Blog ${units.filter(u=>u.kind==='blog-task').length}<span style="color:var(--muted)">/${Math.max(1,Math.round(((S.settings.cadence||{}).blog_per_month||4)/4))}</span> <span style="color:var(--muted);font-weight:600">·</span> Socials ${units.filter(u=>u.kind==='social').length}<span style="color:var(--muted)">/7</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
+  const doneSt=u=>['scheduled','published'].includes(u.status);
+  const srt=(a,b)=>((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1))||(a.day-b.day);
+  const open=[...units].filter(u=>!doneSt(u)).sort(srt);
+  const done=[...units].filter(doneSt).sort(srt);
+  const FSING={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};
+  const chips=u=>{
+    if(u.kind!=='social'||!(u.copy||{}).format)return '';
+    const b=mixBuckets(u).map(k=>`<span class="${k.indexOf('story')>-1?'story':''}">${FSING[k]||k}</span>`);
+    if((u.platforms||{}).pinterest)b.push('<span class="pin">Pin</span>');
+    return b.length?`<div class="fmts">${b.join('')}</div>`:'';
+  };
+  const row=u=>`<tr${doneSt(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
+  return `<div class="card stepcard"><span class="stepnum">3</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
-  ${[...units].sort((a,b)=>((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1))||(a.day-b.day)).map(u=>`<tr style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}${u.kind==='social'&&(u.copy||{}).format?`<div class="small muted" style="margin-top:2px">\u2192 ${WF_FORMATS[(u.copy||{}).format]||''}${PLATFORMS.filter(p=>(u.platforms||{})[p]).length?' \u00b7 '+PLATFORMS.filter(p=>(u.platforms||{})[p]).map(p=>({pinterest:'Pin',instagram:'IG',facebook:'FB',tiktok:'TT'})[p]).join('+'):''}${(u.copy||{}).story_too?' + Story':''}</div>`:''}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
+  ${open.map(row).join('')}
+  ${done.length?`<tr class="done-divider"><td colspan="5">Completed \u00b7 ${done.length}</td></tr>${done.map(row).join('')}`:''}
   </table>
   <div class="row" style="margin-top:14px"><button class="btn ghost sm" onclick="if(confirm('Delete this whole week plan?'))deleteWeek('${iso(S.week)}')">Delete plan</button></div></div>`;
 }
