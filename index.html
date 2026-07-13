@@ -770,7 +770,8 @@ function mixBuckets(u){
   const p=u.platforms||{};const out=[];
   if(p.instagram)out.push('ig_'+fam);
   if(p.facebook)out.push('fb_'+fam);
-  if(p.tiktok&&fam==='reel')out.push('tiktok');
+  if(p.tiktok&&fam!=='story')out.push('tiktok');
+  if((u.copy||{}).story_too){if(p.instagram&&fam!=='story')out.push('ig_story');if(p.facebook&&fam!=='story')out.push('fb_story');}
   if(!out.length){const k=MIX_KEY[f];if(k)out.push(k);}
   return out;
 }
@@ -1326,6 +1327,7 @@ function unitBody(u){
         <span class="small muted">Waterfalls from</span>
         <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
       </div>
+      <label class="small" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" ${c.story_too?'checked':''} onchange="saveCopyField('${u.id}','story_too',this.checked?1:'').then(render)"> Also shared to Story in CS (counts IG/FB Stories in the mix)</label>
       ${sg?`<div class="suggest">
         <span style="font-size:12.5px;font-weight:800;color:var(--navy)">Suggested: ${WF_FORMATS[sg.fkey]||sg.label}</span>
         <span class="small muted">\u00b7 ${esc(sg.reason)}</span>
