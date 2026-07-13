@@ -14,8 +14,8 @@
 <style>
 :root{
   --navy:#22334f; --navy-d:#1a2840; --coral:#e8836f; --coral-d:#d96f5a;
-  --mint:#a9cbb7; --mint-d:#8db49d; --peach:#f2c4ae; --bg:#f7f7f5; --card:#ffffff;
-  --ink:#2b3648; --muted:#8a93a3; --line:#e8eaee; --good:#5aa477; --warn:#d9a04b; --bad:#c96a5a;
+  --mint:#bfe0da; --mint-d:#2a9488; --teal:#2a9488; --coral-b:#f2603d; --peach:#f2c4ae; --bg:#f7f7f5; --card:#ffffff;
+  --ink:#2b3648; --muted:#8a93a3; --line:#e8eaee; --good:#238577; --warn:#d9a04b; --bad:#c96a5a;
   --r:14px; --shadow:0 6px 20px rgba(34,51,79,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -108,10 +108,15 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 @media(max-width:900px){.tallies{grid-template-columns:repeat(2,1fr)}}
 .dashcols{display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start;margin-bottom:16px}
 @media(max-width:1000px){.dashcols{grid-template-columns:1fr}}
-.tabbar{display:flex;gap:2px;margin-bottom:16px;flex-wrap:wrap;border-bottom:2px solid var(--line)}
-.tabbar button{background:transparent;border:none;border-bottom:3px solid transparent;border-radius:8px 8px 0 0;color:var(--muted);padding:9px 18px;font-size:13.5px;margin-bottom:-2px}
-.tabbar button.on{color:var(--navy);border-bottom-color:var(--coral);background:#fbf4f1}
-.tabbar button:hover:not(.on){color:var(--navy);background:#f5f6f7}
+.tabbar{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;border-bottom:2px solid var(--line)}
+.tabbar button{background:#f0f1f3;border:1.5px solid var(--line);border-bottom:3px solid transparent;border-radius:10px 10px 0 0;color:var(--muted);padding:9px 16px;font-size:13.5px;margin-bottom:-2px}
+.tabbar button.on{color:var(--navy);border-bottom-color:var(--coral-b);background:#fff;font-weight:700}
+.tabbar button:hover:not(.on){color:var(--navy);background:#f7f8f9}
+.tabbar button.wknav{background:transparent;border:none;font-size:17px;padding:9px 8px;color:var(--muted)}
+.tabbar button.wknav:hover{color:var(--navy);background:transparent}
+.wkn{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--muted);color:#fff;font-size:10.5px;font-weight:800;margin-left:7px}
+.tabbar button.on .wkn{background:var(--coral-b)}
+.wkck{color:var(--teal);font-weight:900;margin-left:6px;font-size:14px}
 .skel-card{border:1.5px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:14px;align-items:flex-start}
 .skel-prev{width:76px;min-width:76px;aspect-ratio:2/3;border-radius:8px;position:relative;overflow:hidden;border:2px solid var(--line)}
 .unit{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff}
@@ -674,7 +679,8 @@ function renderTodo(){
     <span class="x" onclick="delTodo('${t.id}')">✕</span></div>`).join('')}
   ${!groups.length&&!list.length?'<p class="small muted" style="padding:2px 4px">Nothing yet.</p>':''}
   <div class="addrow"><input type="text" id="todo-new" placeholder="Add..." onkeydown="if(event.key==='Enter')addTodo()"><select id="todo-pri"><option value="hi">High</option><option value="md" selected>Med</option><option value="lo">Low</option></select><button onclick="addTodo()">+</button></div>
-  <h4 style="margin-top:16px">Quick capture</h4>
+  <div style="border-top:1.5px solid var(--line);margin-top:16px"></div>
+  <h4 style="margin-top:14px">Quick capture</h4>
   <input type="text" id="qc-text" placeholder="Idea, topic, or a note to Claude..." style="width:100%;margin-bottom:6px">
   <div class="addrow" style="margin-top:0">
     <select id="qc-pillar" style="flex:1"><option value="">Pillar?</option>${Object.entries(PILLARS).map(([k,v])=>`<option value="${k}">P${k} ${v}</option>`).join('')}</select>
@@ -915,10 +921,14 @@ async function dashResearch(btn){
 window.dashResearch=dashResearch;
 /* ---- the dashboard ---- */
 let dashSocOpen=false;
+let dashWkOff=0;
 window.dashToggleSoc=function(){dashSocOpen=!dashSocOpen;render();};
+window.dashWk=function(d){const w=new Date(S.week);w.setDate(w.getDate()+7*d);S.week=weekStart(w);const ws0=weekStart(new Date());const diff=Math.round((S.week-ws0)/(7*864e5));if(diff<dashWkOff)dashWkOff=diff;if(diff>dashWkOff+3)dashWkOff=diff-3;render();};
+function weekDone(w){const us=weekUnits(w);return us.length>0&&us.every(u=>u.status==='published');}
 function vDash(){
-  const weeks=[0,1,2,3].map(i=>{const d=weekStart(new Date());d.setDate(d.getDate()+i*7);return d;});
-  if(!weeks.some(w=>iso(w)===iso(S.week)))S.week=weekStart(new Date());
+  const weeks=[0,1,2,3].map(i=>{const d=weekStart(new Date());d.setDate(d.getDate()+(i+dashWkOff)*7);return d;});
+  if(dashWkOff===0&&!weeks.some(w=>iso(w)===iso(S.week)))S.week=weekStart(new Date());
+  if(!weeks.some(w=>iso(w)===iso(S.week)))S.week=new Date(weeks[0]);
   const ws=S.week;
   const wsIso=iso(ws);
   const wEnd=new Date(ws);wEnd.setDate(wEnd.getDate()+7);
@@ -956,7 +966,7 @@ function vDash(){
     </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${fmtRange(ws)}</span></div>
-  <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?' ·'+weekUnits(w).length:''}</button>`).join('')}</div>
+  <div class="tabbar"><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button></div>
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?`<div class="tfix">→ ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,32))}</div>`:`<div class="tfix">→ plan a blog post</div>`,
@@ -1140,7 +1150,7 @@ async function savePlan(btn){
 window.savePlan=savePlan;
 function renderWeekGrid(units){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return `<div class="card"><h3>Planned · ${units.length} items</h3>
+  return `<div class="card"><h3>Planned · ${units.length}<span style="color:var(--muted)">/${7+Math.max(1,Math.round(((S.settings.cadence||{}).blog_per_month||4)/4))}</span></h3>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${[...units].sort((a,b)=>a.day-b.day).map(u=>`<tr><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${STATUS_LABEL[u.status]||u.status}</td></tr>`).join('')}
   </table>
