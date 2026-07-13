@@ -439,7 +439,7 @@ function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
   const title=(unit.title||'').toUpperCase();
   let edit=t.edit.replace(/\{[A-Z0-9]+\}/g,m=>({'{HEADLINE}':title,'{HERO}':'YES','{LINE2}':'MADE SIMPLE','{KICKER}':'you can do this','{SMALL}':'The','{PUNCH}':'DONE.','{BADGE1}':'SIMPLE. HONEST.','{BADGE2}':'NO OVERWHELM.','{CHECK1}':'Start small','{CHECK2}':'Stay honest','{CHECK3}':'Keep going','{L1}':'THE','{L2}':title,'{L4}':'THAT ACTUALLY','{L5}':'WORKS','{L6}':'FOR REAL LIFE','{SCRIPT}':'finally','{TOP}':title,'{OVERLAY}':'OVERWHELMING, MADE EASY'}[m]||m));
-  return edit+t.body;
+  return edit+t.body+'\nCROP SAFETY: keep every word of text, every badge, and the logo at least 8% away from the top and bottom edges. Only background scenery may touch the top and bottom edges. This image gets center-cropped to 3:4 for Instagram, so nothing important lives in the outer sliver top or bottom.';
 }
 </script>
 <script>
