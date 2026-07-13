@@ -1093,7 +1093,7 @@ function vDash(){
   const pinsDue=wfTree().rows.filter(r=>r.branches.some(x=>x.state==='stale'));
   const cad=S.settings.cadence||{};
   const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));
-  const blogsPub=blogTasks.filter(u=>u.status==='published').length+S.blog.filter(b=>b.status==='published'&&b.published_at&&new Date(b.published_at)>=new Date(ws.getTime()-2*864e5)&&new Date(b.published_at)<wEnd).length;
+  const blogsPub=blogTasks.filter(u=>u.status==='published').length+S.blog.filter(b=>b.status==='published'&&b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso).length;
   const pw=pillarWeek(ws);
   const slotsFilled=pw.reduce((a,s)=>a+Math.min(s.done,s.goal),0);
   const hungry=pw.filter(s=>s.done<s.goal).map(s=>'P'+s.p);
