@@ -1311,6 +1311,8 @@ function unitBody(u){
       <span class="stepnum">1</span><span class="steptitle">Make the image \u00b7 AI Studio</span>
       <p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>
       ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,u)))}
+      ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
+      ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
     </div>
     <div class="ustep">
       <span class="stepnum">2</span><span class="steptitle">Start the post \u00b7 accounts + format</span>
@@ -1345,7 +1347,6 @@ function unitBody(u){
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
       ${field('Pinterest \u00b7 Alt text','alt_text',u)}
       ${field('TikTok \u00b7 Caption','tiktok_caption',u)}
-      ${c.slide2_prompt?field('TikTok \u00b7 Slide-2 prompt','slide2_prompt',u):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
     </div>
     <div class="ustep">
@@ -1404,7 +1405,7 @@ Reply as JSON ONLY:
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok version: shorter, says juneybyrd.com in the text, 2-4 relevant hashtags, never mentions links",
-"slide2_prompt":"one sentence describing a simple text-checklist slide 2 image for the TikTok carousel"}`;
+"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`;
     const out=await claude(VOICE,ask,1400);
     const j=extractJSON(out);
     const c={...(u.copy||{}),...j};
