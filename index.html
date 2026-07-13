@@ -1352,7 +1352,7 @@ function unitBody(u){
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u)}
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
-      ${field('TikTok \u00b7 Caption','tiktok_caption',u)}
+      ${field('TikTok \u00b7 Post title','tiktok_caption',u)}
       `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
     </div>
     <div class="ustep">
@@ -1410,7 +1410,7 @@ Reply as JSON ONLY:
 "pin_title":"Pinterest title, keyword-rich, under 90 chars",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
-"tiktok_caption":"TikTok version: shorter, says juneybyrd.com in the text, 2-4 relevant hashtags, never mentions links",
+"tiktok_caption":"TikTok post title: one punchy hook line under 85 characters that works as a photo-post title, end it with juneybyrd.com when it fits, no links, no hashtags",
 "slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`;
     const out=await claude(VOICE,ask,1400);
     const j=extractJSON(out);
