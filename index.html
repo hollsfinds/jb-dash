@@ -746,9 +746,21 @@ const MIX_LABEL={ig_reel:'IG Reels',ig_post:'IG Posts',ig_story:'IG Stories',fb_
 const MIX_ROLE={ig_reel:'reach',fb_reel:'reach',ig_post:'authority',fb_post:'authority',ig_story:'connection',fb_story:'connection',tiktok:'reach'};
 const PILLAR_FMT={1:['ig_reel','fb_reel','ig_post','fb_post'],2:['ig_post','fb_post','ig_reel','fb_reel'],3:['ig_post','fb_post','ig_reel','fb_reel'],4:['ig_story','fb_story','ig_reel','fb_reel'],5:['ig_story','fb_story','ig_post','fb_post']};
 function formatMix(){return {ig_reel:2,ig_post:2,ig_story:5,fb_reel:2,fb_post:3,fb_story:3,tiktok:3,...(S.settings.format_mix||{})};}
+const FMT_FAMILY={reel:'reel',fb_reel:'reel',ig_post:'post',carousel:'post',fb:'post',ig_story:'story',fb_story:'story',tiktok:'tiktok',pin:'pin'};
+function mixBuckets(u){
+  const f=guessFormat(u);const fam=FMT_FAMILY[f];
+  if(!fam||fam==='pin')return [];
+  if(fam==='tiktok')return ['tiktok'];
+  const p=u.platforms||{};const out=[];
+  if(p.instagram)out.push('ig_'+fam);
+  if(p.facebook)out.push('fb_'+fam);
+  if(p.tiktok&&fam==='reel')out.push('tiktok');
+  if(!out.length){const k=MIX_KEY[f];if(k)out.push(k);}
+  return out;
+}
 function mixCounts(ws,publishedOnly){
   const mix=formatMix();const out={};Object.keys(mix).forEach(k=>out[k]={goal:mix[k],n:0});
-  weekUnits(ws).filter(u=>u.kind==='social'&&(!publishedOnly||u.status==='published')).forEach(u=>{const k=MIX_KEY[guessFormat(u)];if(k&&out[k])out[k].n++;});
+  weekUnits(ws).filter(u=>u.kind==='social'&&(!publishedOnly||u.status==='published')).forEach(u=>{mixBuckets(u).forEach(k=>{if(out[k])out[k].n++;});});
   return out;
 }
 function mixOwed(ws){const mc=mixCounts(ws,false);return Object.keys(mc).filter(k=>k!=='tiktok'&&mc[k].n<mc[k].goal).map(k=>({k,need:mc[k].goal-mc[k].n}));}
@@ -1166,6 +1178,9 @@ function startWizard(){
     const sk=suggestSkeletonRotating(i);
     slots.push({day:i%7,pillar,theme:themes[i%themes.length],kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
   }
+  const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
+  const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
+  slots.forEach(s=>{const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
   for(let b=0;b<blogPerWeek;b++)slots.push({day:1,pillar:2,theme:themes[b%themes.length],kind:'blog-task',title:'',needsTopic:true});
   planDraft={week:iso(S.week),slots};
   render();
@@ -1183,7 +1198,7 @@ function renderWizard(){
       <span class="pill p${s.pillar}">P${s.pillar}</span>
       <span class="chip">${s.kind==='blog-task'?ic('pen')+' BLOG POST':s.theme}</span>
       <input placeholder="${s.kind==='blog-task'?'Blog post topic...':'Topic / headline...'}" value="${esc(s.title)}" style="flex:1;min-width:200px" onchange="planDraft.slots[${i}].title=this.value">
-      ${s.kind==='social'?`<select style="width:170px" onchange="planDraft.slots[${i}].skeleton_id=this.value">${S.skeletons.map(k=>`<option value="${k.id}" ${k.id===s.skeleton_id?'selected':''}>${k.name}</option>`).join('')}</select>`:''}
+      ${s.kind==='social'?`<select style="width:170px" onchange="planDraft.slots[${i}].skeleton_id=this.value">${S.skeletons.map(k=>`<option value="${k.id}" ${k.id===s.skeleton_id?'selected':''}>${k.name}</option>`).join('')}</select><select style="width:105px" onchange="planDraft.slots[${i}].format=this.value">${Object.entries(WF_FORMATS).map(([k,v])=>`<option value="${k}" ${k===s.format?'selected':''}>${v}</option>`).join('')}</select>`:''}
       <button class="btn ghost sm" onclick="planDraft.slots.splice(${i},1);render()">✕</button>
     </div>${s.needsTopic&&!s.title?'<div class="small muted" style="margin-top:6px">Needs a topic: type one, or use Suggest below</div>':''}</div>`).join('')}
   <div class="row" style="margin-top:14px;flex-wrap:wrap">
@@ -1218,7 +1233,8 @@ async function savePlan(btn){
     }else{
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
-    rows.push({week_start:planDraft.week,day:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com'}});
+    const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true},ig_post:{instagram:true},carousel:{instagram:true},ig_story:{instagram:true},fb_reel:{facebook:true},fb:{facebook:true},fb_story:{facebook:true},tiktok:{tiktok:true}};
+    rows.push({week_start:planDraft.week,day:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{})}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
