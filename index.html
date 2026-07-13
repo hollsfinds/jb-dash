@@ -669,11 +669,14 @@ async function syncCS(btn){
       const c=u.copy||{};
       let p=c.cs_post_id?posts.find(x=>x.id===c.cs_post_id):null;
       if(!p){
-        const t1=normTxt(c.pin_title),t2=normTxt(c.caption).slice(0,60);
+        const t1=normTxt(c.pin_title),t2=normTxt(c.caption).slice(0,60),t3=normTxt(c.caption_b).slice(0,60);
         p=posts.find(x=>{
           const pt=normTxt(x.pinterest_options&&x.pinterest_options.title);
-          const tx=normTxt(x.common&&x.common.content&&x.common.content.text).slice(0,60);
-          return (t1&&pt&&pt===t1)||(t2&&tx&&tx===t2);
+          const tt=normTxt(x.tiktok_options&&x.tiktok_options.title);
+          let raw=x.common&&x.common.content&&x.common.content.text;
+          if(!raw&&x.overrides)for(const k in x.overrides){const t=x.overrides[k]&&x.overrides[k].content&&x.overrides[k].content.text;if(t){raw=t;break;}}
+          const tx=normTxt(raw).slice(0,60);
+          return (t1&&pt&&pt===t1)||(t1&&tt&&tt===t1)||(t2&&tx&&tx===t2)||(t3&&tx&&tx===t3);
         });
       }
       if(!p)continue;
