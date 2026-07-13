@@ -421,15 +421,15 @@ function buildImagePrompt(skelId,unit){
 </script>
 <script>
 /* ================= NAV / ROUTER ================= */
-const VIEWS=[['dash','home','Dashboard'],['packs','pen','Copy Packs'],['wfall','drop','Waterfall'],['skel','grid','Skeletons'],['brain','brain','Brain'],['season','leaf','Seasonal'],['numbers','chart','Numbers'],['info','info','Info'],['set','gear','Settings']];
+const VIEWS=[['dash','home','Dashboard'],['packs','pen','Copy Packs'],['brain','brain','Brain'],['season','leaf','Seasonal'],['numbers','chart','Numbers'],['set','gear','Settings']];
 function renderNav(){
   const newInbox=S.inbox.filter(i=>i.status==='new').length;
   $('#nav').innerHTML=VIEWS.map(([id,icn,label])=>
-    `<button class="${S.view===id?'on':''}" onclick="go('${id}')"><span class="ic">${ic(icn)}</span>${label}${id==='skel'&&newInbox?`<span class="badge">${newInbox}</span>`:''}</button>`).join('');
+    `<button class="${S.view===id||(id==='set'&&(S.view==='skel'||S.view==='info'||S.view==='wfall'))?'on':''}" onclick="go('${id}')"><span class="ic">${ic(icn)}</span>${label}${id==='set'&&newInbox?`<span class="badge">${newInbox}</span>`:''}</button>`).join('');
 }
 function go(v){S.view=v;render();}
 window.go=go;
-function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vPacks,wfall:vWaterfall,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();}
+function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vPacks,wfall:vSet,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();}
 
 /* ---------- NUMBERS (native HQ dashboard, data from hutch-api worker) ---------- */
 const HUTCH_API='https://hutch-api.juneybyrd.workers.dev';
@@ -1286,11 +1286,13 @@ async function genAll(btn){
 window.genAll=genAll;
 
 /* ================= SKELETONS ================= */
+function setTabs(cur){const n=S.inbox.filter(i=>i.status==='new').length;return `<div class="tabbar">${[['set','Settings'],['skel','Skeletons'],['info','Info']].map(([id,l])=>`<button class="${cur===id?'on':''}" onclick="go('${id}')">${l}${id==='skel'&&n?`<span class="wkn" style="background:var(--coral)">${n}</span>`:''}</button>`).join('')}</div>`;}
 function vSkel(){
   const ideas=S.inbox.filter(i=>i.kind==='skeleton-idea');
   const notes=S.inbox.filter(i=>i.kind!=='skeleton-idea');
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Skeletons</h1><span class="sub">${S.skeletons.length} locked recipes + your idea inbox</span></div>
+  ${setTabs('skel')}
   <div class="grid g2">
   ${S.skeletons.map(k=>{const img=(S.settings.skel_images||{})[k.id];return `
     <div class="card skel-card">
@@ -1349,6 +1351,7 @@ window.uploadSkelImage=uploadSkelImage;
 function vInfo(){
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Info</h1><span class="sub">how this whole machine works</span></div>
+  ${setTabs('info')}
   <div class="card" style="max-width:820px">
     <h3>The big picture</h3>
     <p class="small" style="line-height:1.7">This tool is the hub and brain of all J&amp;B social content. The flow, start to finish:
@@ -1522,6 +1525,7 @@ function vSet(){
   const c=S.settings.cadence||{};
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Settings</h1></div>
+  ${setTabs('set')}
   <div class="grid g2">
     <div class="card"><h3>Cadence targets (researched 2026 defaults, edit freely)</h3>
       ${[['pinterest_fresh_per_day','Pinterest fresh pins / day'],['instagram_per_week','Instagram posts / week'],['facebook_per_week','Facebook posts / week'],['tiktok_per_week','TikTok posts / week'],['blog_per_month','Blog posts / month'],['stories_per_week','Stories / week']].map(([k,l])=>`
