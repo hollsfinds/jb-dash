@@ -1193,7 +1193,8 @@ function vPacks(){
 function unitBody(u){
   const c=u.copy||{};
   const si=STATUSES.indexOf(u.status);
-  return `<div class="row" style="flex-wrap:wrap;margin-bottom:10px">
+  return `<div style="position:sticky;top:0;height:0;text-align:right;z-index:9"><span onclick="closeModal()" style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;cursor:pointer;font-weight:800;font-size:13px;box-shadow:0 1px 5px rgba(20,28,44,.25)">✕</span></div>
+    <div class="row" style="flex-wrap:wrap;margin-bottom:10px;padding-right:38px">
       <b>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</b>
       ${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}
       <span class="chip">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][u.day]||''}</span>
@@ -1226,9 +1227,10 @@ function unitBody(u){
       <button class="btn ghost sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((u.title||'').replace(/'/g,''))} . Please use the J&B blog-writing skill and voice.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy handoff for Claude</button>`}
     <div class="row" style="margin-top:12px"><button class="btn ghost sm" onclick="if(confirm('Delete this unit?'))delUnit('${u.id}')">Delete</button>
     ${u.status==='published'?`<button class="btn mint sm" onclick="markWinner('${u.id}')">${ic('star')} Mark as winner</button>`:''}
-    <div class="spacer"></div><button class="btn ghost sm" onclick="closeModal()">Close</button></div>`;
+    <div class="spacer"></div><button class="btn ghost sm" onclick="closeModal()">Close</button><button class="btn sm" onclick="unitNext('${u.id}')">Next →</button></div>`;
 }
 window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;};
+window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
 
 function field(label,key,u,forced){
   const val=forced!==undefined?forced:(u.copy||{})[key]||'';
