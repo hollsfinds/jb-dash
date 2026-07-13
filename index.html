@@ -932,8 +932,8 @@ window.blogIdeasModal=function(){
 window.blogIdeaStatus=async function(id,st){
   await sb.from('jb_blog').update({status:st}).eq('id',id);
   const b=S.blog.find(x=>String(x.id)===String(id));if(b)b.status=st;
-  toast(st==='denied'?'Banned from future research':'Snoozed');
-  blogIdeasModal();
+  toast(st==='denied'?'Banned from future research':st==='idea'?'Back in the idea pile':'Snoozed');
+  if($('#overlay').style.display==='flex')blogIdeasModal();else render();
 };
 /* ---- the dashboard ---- */
 let dashSocOpen=false;
@@ -1420,17 +1420,40 @@ function vBrain(){
   <div id="braincontent">${({blog:brainBlog,topics:brainTopics,winners:brainWinners,keywords:brainKeywords,boards:brainBoards})[S.braintab]()}</div>`;
 }
 function brainBlog(){
+  window.blogOpen=window.blogOpen||{ideas:true,published:false,snoozed:false,denied:false};
+  window.blogSort=window.blogSort||'date';
+  const pub=S.blog.filter(b=>['published','waterfalled'].includes(b.status));
+  const pubSorted=window.blogSort==='title'?[...pub].sort((a,b)=>String(a.title||'').localeCompare(String(b.title||''))):[...pub].sort((a,b)=>new Date(b.published_at||0)-new Date(a.published_at||0));
+  const groups=[
+    {k:'ideas',label:'Ideas',list:S.blog.filter(b=>b.status==='idea')},
+    {k:'published',label:'Published',list:pubSorted},
+    {k:'snoozed',label:'Not now',list:S.blog.filter(b=>b.status==='snoozed')},
+    {k:'denied',label:'Not ever',list:S.blog.filter(b=>b.status==='denied')}];
+  const ideaRow=(b,acts)=>`<div class="row" style="padding:7px 4px;border-bottom:1px solid var(--line);align-items:flex-start">
+    <span style="flex:1"><b class="small">${esc(b.title||b.topic||'')}</b>${b.topic&&b.topic!==b.title?`<br><span class="small muted">${esc(b.topic)}</span>`:''}</span>${acts}</div>`;
+  const gbody=g=>{
+    if(!g.list.length)return '<p class="small muted" style="padding:6px 4px">Nothing here.</p>';
+    if(g.k==='published')return `<table><tr><th>Post</th><th>Published</th><th>Pins</th><th></th></tr>
+      ${g.list.map(b=>`<tr><td><b>${esc(b.title||b.topic||'')}</b>${b.url?`<br><a class="small muted" href="${b.url}" target="_blank">${b.url}</a>`:''}</td>
+      <td class="small">${b.published_at?fmt(b.published_at):'—'}</td>
+      <td class="small">${b.pins_count||0}${b.last_pin_at?`<br><span class="muted">last ${fmt(b.last_pin_at)}</span>`:''}${b.pins_count>0&&b.last_pin_at&&(Date.now()-new Date(b.last_pin_at))>30*864e5?'<br><span class="pill p1">needs fresh pin</span>':''}</td>
+      <td><button class="btn sm" onclick="waterfall('${b.id}',this)">${ic('drop')} Waterfall</button></td></tr>`).join('')}</table>`;
+    if(g.k==='ideas')return g.list.map(b=>ideaRow(b,`<button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','snoozed')">Not now</button><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','denied')">Not ever</button>`)).join('');
+    return g.list.map(b=>ideaRow(b,`<button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','idea')">Restore</button>`)).join('');
+  };
   return `<div class="card">
-  <div class="row" style="margin-bottom:12px"><h3 style="margin:0">Blog pipeline</h3><div class="spacer"></div><button class="btn ghost sm" onclick="syncWP(this)">${ic('refresh')} Sync from juneybyrd.com</button></div>
-  <table><tr><th>Post</th><th>Status</th><th>Published</th><th>Pins</th><th></th></tr>
-  ${S.blog.length?S.blog.map(b=>`<tr>
-    <td><b>${esc(b.title||b.topic||'')}</b>${b.url?`<br><a class="small muted" href="${b.url}" target="_blank">${b.url}</a>`:''}</td>
-    <td class="small">${b.status}</td>
-    <td class="small">${b.published_at?fmt(b.published_at):'—'}</td>
-    <td class="small">${b.pins_count||0}${b.last_pin_at?`<br><span class="muted">last ${fmt(b.last_pin_at)}</span>`:''}${b.status==='published'&&b.pins_count>0&&b.last_pin_at&&(Date.now()-new Date(b.last_pin_at))>30*864e5?'<br><span class="pill p1">needs fresh pin</span>':''}</td>
-    <td>${b.status==='published'?`<button class="btn sm" onclick="waterfall('${b.id}',this)">${ic('drop')} Waterfall</button>`:''}</td>
-  </tr>`).join(''):'<tr><td colspan="5" class="muted">No posts yet. Hit Sync.</td></tr>'}
-  </table>
+  <div class="row" style="margin-bottom:6px"><h3 style="margin:0">Blog pipeline</h3><div class="spacer"></div><button class="btn ghost sm" onclick="syncWP(this)">${ic('refresh')} Sync from juneybyrd.com</button></div>
+  ${groups.map(g=>`
+    <div class="row" style="cursor:pointer;padding:9px 4px;border-top:1.5px solid var(--line)" onclick="window.blogOpen['${g.k}']=!window.blogOpen['${g.k}'];render()">
+      <b class="small" style="text-transform:uppercase;letter-spacing:1.5px;color:var(--muted)">${g.label}</b>
+      <span class="wkn">${g.list.length}</span>
+      ${g.k==='published'&&window.blogOpen.published?`<span class="small muted" style="margin-left:10px">sort:</span>
+        <a href="#" class="small" style="font-weight:${window.blogSort==='date'?800:400};color:var(--navy)" onclick="event.stopPropagation();window.blogSort='date';render();return false">date</a>
+        <a href="#" class="small" style="font-weight:${window.blogSort==='title'?800:400};color:var(--navy)" onclick="event.stopPropagation();window.blogSort='title';render();return false">title</a>`:''}
+      <div class="spacer"></div><span class="small">${window.blogOpen[g.k]?'▴':'▾'}</span>
+    </div>
+    ${window.blogOpen[g.k]?gbody(g):''}
+  `).join('')}
   <div class="row" style="margin-top:12px">
     <input id="blog-idea" placeholder="New blog post idea..." style="flex:1">
     <button class="btn ghost sm" onclick="addBlogIdea()">+ Idea</button>
