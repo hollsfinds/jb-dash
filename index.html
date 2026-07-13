@@ -1010,6 +1010,7 @@ let dashWkOff=0;
 window.dashToggleSoc=function(){dashSocOpen=!dashSocOpen;render();};
 let dashPubOpen=false;
 window.dashTogglePub=function(){dashPubOpen=!dashPubOpen;render();};
+window.dashToday=function(){dashWkOff=0;S.week=weekStart(new Date());render();};
 window.dashWk=function(d){const w=new Date(S.week);w.setDate(w.getDate()+7*d);S.week=weekStart(w);const ws0=weekStart(new Date());const diff=Math.round((S.week-ws0)/(7*864e5));if(diff<dashWkOff)dashWkOff=diff;if(diff>dashWkOff+3)dashWkOff=diff-3;render();};
 function weekDone(w){const us=weekUnits(w);return us.length>0&&us.every(u=>u.status==='published');}
 function csPinsWeek(ws){
@@ -1070,7 +1071,7 @@ function vDash(){
     </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${fmtRange(ws)}</span></div>
-  <div class="tabbar"><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button></div>
+  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button></div>
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?`<div class="tfix">→ ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,32))}</div>`:`<div class="tfix">→ plan a blog post</div>`,
