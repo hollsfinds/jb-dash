@@ -1444,7 +1444,7 @@ function unitBody(u){
     <div class="ustep">
       <span class="stepnum">1</span><span class="steptitle">Make the image \u00b7 AI Studio</span>
       <p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>
-      ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,u)))}
+      ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})))}
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
@@ -1542,17 +1542,26 @@ async function unitSendCS(id,btn){
   let accts=[];try{accts=await loadCsAccounts();}catch(e){}
   const pick=pf=>accts.find(a=>a.platform===pf);
   const board=S.settings.pin_batch_board;
-  const link=c.source_url?utmize(c.source_url,'pinterest'):'';
-  const jobs=[];
-  if(pl.instagram&&c.caption&&pick('instagram'))jobs.push({label:'Instagram',body:{accounts:[pick('instagram').id],post_type:'feed',content:{text:c.caption},scheduling:{publish_type:'draft'}}});
-  if(pl.facebook&&c.caption&&pick('facebook'))jobs.push({label:'Facebook',body:{accounts:[pick('facebook').id],post_type:'feed',content:{text:c.caption},scheduling:{publish_type:'draft'}}});
-  if(pl.tiktok&&c.tiktok_caption&&pick('tiktok'))jobs.push({label:'TikTok',body:{accounts:[pick('tiktok').id],post_type:'feed',content:{text:c.tiktok_caption},scheduling:{publish_type:'draft'}}});
-  if(pl.pinterest&&board&&(c.pin_title||c.caption))jobs.push({label:'Pinterest',body:{accounts:[board],post_type:'feed',content:{text:c.caption||c.pin_title},scheduling:{publish_type:'draft'},pinterest_options:{title:c.pin_title||'',link:link}}});
-  if(!jobs.length){toast('Nothing to send: check active platforms have copy (Pinterest also needs a board set in Pin batch first).');if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
-  const done=[],failed=[];
-  for(const jb of jobs){try{await csCall(`/workspaces/${CS_WS}/posts`,'POST',jb.body);done.push(jb.label);}catch(e){failed.push(jb.label);}}
-  if(done.length){await updUnit(id,{status:'draft_staged'});try{await syncCS(null);}catch(e){}}
-  toast(done.length+' draft'+(done.length===1?'':'s')+' sent to CS'+(done.length?' ('+done.join(', ')+')':'')+(failed.length?' · FAILED: '+failed.join(', '):'')+'. Add the image in CS, then schedule.');
+  const want=[];
+  ['instagram','facebook','tiktok'].forEach(pf=>{if(pl[pf]){const a=pick(pf);if(a)want.push(a.id);}});
+  let usedBoard=null;
+  if(pl.pinterest){if(board){want.push(board);usedBoard=board;}else if(pick('pinterest')){usedBoard=pick('pinterest').id;want.push(usedBoard);}}
+  if(!want.length){toast('No matching CS accounts for the active platforms on this card. Check the platform toggles and that those accounts are connected in CS.');if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
+  const body={accounts:want,post_type:'feed',content:{text:c.caption||c.pin_title||c.tiktok_caption||''},scheduling:{publish_type:'draft'}};
+  if(usedBoard&&(c.pin_title||c.caption))body.pinterest_options={title:c.pin_title||'',link:c.source_url?utmize(c.source_url,'pinterest'):''};
+  let res=null;
+  try{res=await csCall(`/workspaces/${CS_WS}/posts`,'POST',body);}
+  catch(e){toast('CS draft failed: '+(e.message||e));if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
+  const post=res?(Array.isArray(res.data)?res.data[0]:(res.data||res)):null;
+  const pid=post&&(post.id||post._id);
+  const patch={status:'draft_staged'};if(pid)patch.copy={...c,cs_post_id:pid};
+  await updUnit(id,patch);
+  try{await syncCS(null);}catch(e){}
+  const u2=S.units.find(x=>x.id===id)||u;
+  const finalUrl=(u2.copy&&u2.copy.cs_url)||(post&&(post.post_url||post.url))||'';
+  if(btn){btn.disabled=false;btn.innerHTML='Open in CS';}
+  if(finalUrl){window.open(finalUrl,'_blank');toast('One draft created across '+want.length+' account'+(want.length>1?'s':'')+'. Opening the CS composer: add the image, tweak per platform, then schedule.');}
+  else{toast('One draft created across '+want.length+' accounts. Open it from your CS Drafts to finish (add image, schedule).');}
   render();
 }
 window.unitSendCS=unitSendCS;
@@ -1805,19 +1814,22 @@ async function genCopy(id,btn){
   try{
     const kws=S.keywords.filter(k=>k.pillar===u.pillar);
     const blogs=S.blog.filter(b=>b.status==='published').map(b=>b.title+' → '+b.url).join(' | ');
+    const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
+    const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
     const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
 Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
 Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
-Reply as JSON ONLY:
-{"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
+${slotSpec?`This unit's pin image uses the "${sk.name}" layout. Fill each image text slot below with REAL converting copy about this topic: a scroll-stopping hook, specific, in Juney & Byrd voice, respect each length hint, and clearly different from the caption. Slots: ${slotSpec}.
+`:''}Reply as JSON ONLY:
+{${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"the words for this slot"`).join(',')}},`:''}"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
 "caption_b":"a second, different take on the caption",
 "pin_title":"Pinterest title, keyword-rich, under 90 chars",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: one punchy hook line under 85 characters that works as a photo-post title, end it with juneybyrd.com when it fits, no links, no hashtags",
 "slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`;
-    const out=await claude(VOICE,ask,1400);
+    const out=await claude(VOICE,ask,1900);
     const j=extractJSON(out);
     const c={...(u.copy||{}),...j};
     await updUnit(id,{copy:c,status:u.status==='idea'?'idea':u.status});
