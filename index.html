@@ -1483,7 +1483,7 @@ function unitBody(u){
     </div>
     <div class="ustep">
       <span class="stepnum">5</span><span class="steptitle">Save as draft in CS \u00b7 tap the bar above as it moves</span>
-      ${(c.caption||c.pin_title||c.tiktok_caption)?`<div class="row stepbody" style="margin-top:8px;flex-wrap:wrap;align-items:center;gap:8px"><button class="btn sm" onclick="unitSendCS('${u.id}',this)">${ic('refresh')} Send draft to CS</button><span class="small muted">Pushes the caption, link and settings for each active platform as a CS draft. You just add the image, then schedule.</span></div>`:`<p class="stephint" style="margin-top:6px">Write the copy first and a Send draft to CS button appears here.</p>`}
+      ${(c.caption||c.pin_title||c.tiktok_caption)?`<div class="row stepbody" style="margin-top:8px;flex-wrap:wrap;align-items:center;gap:8px"><button class="btn sm" onclick="unitSendCS('${u.id}')">${ic('refresh')} Open in CS composer</button><span class="small muted">Copies the caption and opens ContentStudio. Nothing is saved: pick your accounts, paste, add the image, and schedule there.</span></div>`:`<p class="stephint" style="margin-top:6px">Write the copy first and an Open in CS composer button appears here.</p>`}
     </div>`
       :`<p class="small muted">Blog task. Write it with Claude using the blog-writing skill, then it auto-appears in the Brain \u2192 Blog tab when published.</p>
       <button class="btn ghost sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((u.title||'').replace(/'/g,''))} . Please use the J&B blog-writing skill and voice.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy handoff for Claude</button>`}
@@ -1528,49 +1528,20 @@ async function togglePlat(id,p){
   await updUnit(id,{platforms:pl});render();
 }
 window.togglePlat=togglePlat;
+const CS_COMPOSER_URL='https://app.contentstudio.io/juneybyrd/publisher/';
 async function loadCsAccounts(){
   if(S.csAccounts)return S.csAccounts;
   const j=await csCall(`/workspaces/${CS_WS}/accounts?per_page=100`);
   S.csAccounts=(j.data||[]).filter(a=>a.validity==='valid').map(a=>({id:a._id,name:a.account_name,platform:a.platform}));
   return S.csAccounts;
 }
-async function unitSendCS(id,btn){
+function unitSendCS(id){
   const u=S.units.find(x=>x.id===id);if(!u)return;
-  const c=u.copy||{};const pl=u.platforms||{};
-  if(!(c.caption||c.pin_title||c.tiktok_caption)){toast('Write the copy first');return;}
-  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';}
-  let accts=[];try{accts=await loadCsAccounts();}catch(e){}
-  const pick=pf=>accts.find(a=>a.platform===pf);
-  const NAME={instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',pinterest:'Pinterest'};
-  const NEEDS_IMAGE=['instagram','tiktok'];
-  const need=[];
-  ['facebook','instagram','tiktok'].forEach(pf=>{if(pl[pf]){const a=pick(pf);if(a)need.push({platform:pf,id:a.id});}});
-  if(pl.pinterest){let bid=S.settings.pin_batch_board;if(!bid){const e=accts.find(a=>a.platform==='pinterest'&&/entrepreneur/i.test(a.name||''));bid=(e||accts.find(a=>a.platform==='pinterest')||{}).id;}if(bid)need.push({platform:'pinterest',id:bid});}
-  if(!need.length){toast('No matching CS accounts for the active platforms on this card. Check the platform toggles and that those accounts are connected in CS.');if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
-  const mkBody=list=>{const b2={accounts:list.map(x=>x.id),post_type:'feed',content:{text:c.caption||c.pin_title||c.tiktok_caption||''},scheduling:{publish_type:'draft'}};const pin=list.find(x=>x.platform==='pinterest');if(pin&&(c.pin_title||c.caption))b2.pinterest_options={title:c.pin_title||'',link:c.source_url?utmize(c.source_url,'pinterest'):''};return b2;};
-  let res=null,used=need,deferred=[];
-  try{res=await csCall(`/workspaces/${CS_WS}/posts`,'POST',mkBody(need));}
-  catch(e){
-    const safe=need.filter(x=>!NEEDS_IMAGE.includes(x.platform));
-    deferred=need.filter(x=>NEEDS_IMAGE.includes(x.platform)).map(x=>x.platform);
-    if(!safe.length){toast(need.map(x=>NAME[x.platform]).join(' + ')+' need an image before CS will save a draft. Make the image first, or add them straight in the composer.');if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
-    try{res=await csCall(`/workspaces/${CS_WS}/posts`,'POST',mkBody(safe));used=safe;}
-    catch(e2){toast('CS draft failed: '+(e2.message||e2));if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
-  }
-  const post=res?(Array.isArray(res.data)?res.data[0]:(res.data||res)):null;
-  const pid=post&&(post.id||post._id);
-  const patch={status:'draft_staged'};if(pid)patch.copy={...c,cs_post_id:pid};
-  await updUnit(id,patch);
-  try{await syncCS(null);}catch(e){}
-  const u2=S.units.find(x=>x.id===id)||u;
-  const finalUrl=(u2.copy&&u2.copy.cs_url)||(post&&(post.post_url||post.url))||'';
-  if(btn){btn.disabled=false;btn.innerHTML='Open in CS';}
-  const usedTxt=used.map(x=>NAME[x.platform]).join(', ');
-  const defTxt=deferred.map(x=>NAME[x]).join(' + ');
-  const tail=deferred.length?' '+defTxt+' need an image first, so add '+(deferred.length>1?'them':'it')+' in the composer once you drop the image in.':'';
-  if(finalUrl){window.open(finalUrl,'_blank');toast('Draft created for '+usedTxt+'. Opening the CS composer to add the image + schedule.'+tail);}
-  else{toast('Draft created for '+usedTxt+'. Open it from your CS Drafts to finish.'+tail);}
-  render();
+  const c=u.copy||{};
+  const cap=c.caption||c.pin_title||c.tiktok_caption||'';
+  if(!cap){toast('Write the copy first');return;}
+  window.open(CS_COMPOSER_URL,'_blank');
+  try{copyText(cap,'Caption copied. Opening ContentStudio: click Compose, pick your accounts, paste, add the image, then schedule. Nothing was saved.');}catch(e){toast('Opening ContentStudio to compose. Nothing was saved.');}
 }
 window.unitSendCS=unitSendCS;
 async function delUnit(id){await sb.from('jb_units').delete().eq('id',id);S.units=S.units.filter(u=>u.id!==id);render();}
