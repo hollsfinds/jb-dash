@@ -1483,6 +1483,7 @@ function unitBody(u){
     </div>
     <div class="ustep">
       <span class="stepnum">5</span><span class="steptitle">Save as draft in CS \u00b7 tap the bar above as it moves</span>
+      ${(c.caption||c.pin_title||c.tiktok_caption)?`<div class="row stepbody" style="margin-top:8px;flex-wrap:wrap;align-items:center;gap:8px"><button class="btn sm" onclick="unitSendCS('${u.id}',this)">${ic('refresh')} Send draft to CS</button><span class="small muted">Pushes the caption, link and settings for each active platform as a CS draft. You just add the image, then schedule.</span></div>`:`<p class="stephint" style="margin-top:6px">Write the copy first and a Send draft to CS button appears here.</p>`}
     </div>`
       :`<p class="small muted">Blog task. Write it with Claude using the blog-writing skill, then it auto-appears in the Brain \u2192 Blog tab when published.</p>
       <button class="btn ghost sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((u.title||'').replace(/'/g,''))} . Please use the J&B blog-writing skill and voice.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy handoff for Claude</button>`}
@@ -1527,6 +1528,34 @@ async function togglePlat(id,p){
   await updUnit(id,{platforms:pl});render();
 }
 window.togglePlat=togglePlat;
+async function loadCsAccounts(){
+  if(S.csAccounts)return S.csAccounts;
+  const j=await csCall(`/workspaces/${CS_WS}/accounts?per_page=100`);
+  S.csAccounts=(j.data||[]).filter(a=>a.validity==='valid').map(a=>({id:a._id,name:a.account_name,platform:a.platform}));
+  return S.csAccounts;
+}
+async function unitSendCS(id,btn){
+  const u=S.units.find(x=>x.id===id);if(!u)return;
+  const c=u.copy||{};const pl=u.platforms||{};
+  if(!(c.caption||c.pin_title||c.tiktok_caption)){toast('Write the copy first');return;}
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';}
+  let accts=[];try{accts=await loadCsAccounts();}catch(e){}
+  const pick=pf=>accts.find(a=>a.platform===pf);
+  const board=S.settings.pin_batch_board;
+  const link=c.source_url?utmize(c.source_url,'pinterest'):'';
+  const jobs=[];
+  if(pl.instagram&&c.caption&&pick('instagram'))jobs.push({label:'Instagram',body:{accounts:[pick('instagram').id],post_type:'feed',content:{text:c.caption},scheduling:{publish_type:'draft'}}});
+  if(pl.facebook&&c.caption&&pick('facebook'))jobs.push({label:'Facebook',body:{accounts:[pick('facebook').id],post_type:'feed',content:{text:c.caption},scheduling:{publish_type:'draft'}}});
+  if(pl.tiktok&&c.tiktok_caption&&pick('tiktok'))jobs.push({label:'TikTok',body:{accounts:[pick('tiktok').id],post_type:'feed',content:{text:c.tiktok_caption},scheduling:{publish_type:'draft'}}});
+  if(pl.pinterest&&board&&(c.pin_title||c.caption))jobs.push({label:'Pinterest',body:{accounts:[board],post_type:'feed',content:{text:c.caption||c.pin_title},scheduling:{publish_type:'draft'},pinterest_options:{title:c.pin_title||'',link:link}}});
+  if(!jobs.length){toast('Nothing to send: check active platforms have copy (Pinterest also needs a board set in Pin batch first).');if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
+  const done=[],failed=[];
+  for(const jb of jobs){try{await csCall(`/workspaces/${CS_WS}/posts`,'POST',jb.body);done.push(jb.label);}catch(e){failed.push(jb.label);}}
+  if(done.length){await updUnit(id,{status:'draft_staged'});try{await syncCS(null);}catch(e){}}
+  toast(done.length+' draft'+(done.length===1?'':'s')+' sent to CS'+(done.length?' ('+done.join(', ')+')':'')+(failed.length?' · FAILED: '+failed.join(', '):'')+'. Add the image in CS, then schedule.');
+  render();
+}
+window.unitSendCS=unitSendCS;
 async function delUnit(id){await sb.from('jb_units').delete().eq('id',id);S.units=S.units.filter(u=>u.id!==id);render();}
 window.delUnit=delUnit;
 async function markWinner(id){
