@@ -1541,11 +1541,10 @@ async function unitSendCS(id,btn){
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';}
   let accts=[];try{accts=await loadCsAccounts();}catch(e){}
   const pick=pf=>accts.find(a=>a.platform===pf);
-  const board=S.settings.pin_batch_board;
   const want=[];
   ['instagram','facebook','tiktok'].forEach(pf=>{if(pl[pf]){const a=pick(pf);if(a)want.push(a.id);}});
   let usedBoard=null;
-  if(pl.pinterest){if(board){want.push(board);usedBoard=board;}else if(pick('pinterest')){usedBoard=pick('pinterest').id;want.push(usedBoard);}}
+  if(pl.pinterest){let bid=S.settings.pin_batch_board;if(!bid){const e=accts.find(a=>a.platform==='pinterest'&&/entrepreneur/i.test(a.name||''));bid=(e||accts.find(a=>a.platform==='pinterest')||{}).id;}if(bid){want.push(bid);usedBoard=bid;}}
   if(!want.length){toast('No matching CS accounts for the active platforms on this card. Check the platform toggles and that those accounts are connected in CS.');if(btn){btn.disabled=false;btn.innerHTML='Send draft to CS';}return;}
   const body={accounts:want,post_type:'feed',content:{text:c.caption||c.pin_title||c.tiktok_caption||''},scheduling:{publish_type:'draft'}};
   if(usedBoard&&(c.pin_title||c.caption))body.pinterest_options={title:c.pin_title||'',link:c.source_url?utmize(c.source_url,'pinterest'):''};
@@ -1578,10 +1577,12 @@ function pinGoalWeek(){return (((S.settings.cadence||{}).pinterest_fresh_per_day
 function csSyncedLabel(){if(!S.csSyncedAt)return 'CS not synced yet';const m=Math.round((Date.now()-S.csSyncedAt)/60000);return 'CS synced '+(m<1?'just now':m<60?m+'m ago':Math.round(m/60)+'h ago');}
 function evgState(){return S.settings.evergreen||{};}
 const PIN_ANGLES=['Main hook','The trick','The objection','Curiosity gap','The list'];
+function pinDefaultBoard(){const b=(S.csBoards||[]).find(x=>/entrepreneur/i.test(x.name||''));return b?b.id:'';}
 async function loadBoards(){
   if(S.csBoards)return S.csBoards;
   const j=await csCall(`/workspaces/${CS_WS}/accounts?per_page=100`);
   S.csBoards=(j.data||[]).filter(a=>a.platform==='pinterest'&&a.validity==='valid').map(a=>({id:a._id,name:a.account_name}));
+  if(!S.settings.pin_batch_board||!S.csBoards.some(b=>b.id===S.settings.pin_batch_board)){const def=S.csBoards.find(b=>/entrepreneur/i.test(b.name||''));if(def){S.settings.pin_batch_board=def.id;saveSetting('pin_batch_board',def.id);}}
   return S.csBoards;
 }
 function pinCounter(key,val){const n=(val||'').length;
@@ -1697,7 +1698,7 @@ function renderPinBatch(){
   const cp=csPinsWeek(weekStart(new Date()));
   const goal=pinGoalWeek();
   const boards=S.csBoards;
-  const savedBoard=S.settings.pin_batch_board||'';
+  const savedBoard=S.settings.pin_batch_board||pinDefaultBoard();
   const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?ps.logged:0;const c=ps&&ps.cs?ps.cs.fresh+ps.cs.evg:null;return esc((p.title||'').slice(0,40))+' \u00b7 HQ '+n+' / CS '+(c===null?'?':c);};
   modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
   <div class="row" style="background:var(--bg);border-radius:10px;padding:9px 12px;margin:10px 0;gap:8px;flex-wrap:wrap">
