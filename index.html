@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#22334f">
-<title>J&amp;B Post Picker</title>
+<title>J&amp;B HQ</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2322334f%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2215%22%20width%3D%2240%22%20height%3D%229%22%20rx%3D%224.5%22%20fill%3D%22%232a9488%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2227.5%22%20width%3D%2226%22%20height%3D%229%22%20rx%3D%224.5%22%20fill%3D%22%23f2603d%22/%3E%3Crect%20x%3D%2212%22%20y%3D%2240%22%20width%3D%2233%22%20height%3D%229%22%20rx%3D%224.5%22%20fill%3D%22%23bfe0da%22/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="https://i0.wp.com/juneybyrd.com/wp-content/uploads/2026/07/juneybyrd-site-icon-bottom.png?fit=240%2C240&amp;ssl=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -185,7 +185,7 @@ tr.donerow .fmts{opacity:.6}
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand"><span class="logobox"><img src="https://i0.wp.com/juneybyrd.com/wp-content/uploads/2026/07/JuneyByrd-Logo-1000x275-1.png?fit=1000%2C275&amp;ssl=1" alt="Juney &amp; Byrd"></span><small>Post Picker</small></div>
+    <div class="brand"><span class="logobox"><img src="https://i0.wp.com/juneybyrd.com/wp-content/uploads/2026/07/JuneyByrd-Logo-1000x275-1.png?fit=1000%2C275&amp;ssl=1" alt="Juney &amp; Byrd"></span><small>J&amp;B HQ</small></div>
     <nav class="nav" id="nav"></nav>
     <div class="todo" id="todo"></div>
   </aside>
@@ -1131,7 +1131,7 @@ function vDash(){
     </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${fmtRange(ws)}</span></div>
-  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><span class="small muted" style="align-self:center">${csSyncedLabel()}</span><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--navy)" onclick="syncCS(this)">${ic('refresh')} SYNC CS</button></div>
+  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted" style="align-self:center;margin-bottom:6px">${csSyncedLabel()}</span></div>
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?'':`<div class="tfix">→ plan a blog post</div>`,
@@ -1430,6 +1430,7 @@ function unitBody(u){
         <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
       </div>
       <label class="small" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" ${c.story_too?'checked':''} onchange="saveCopyField('${u.id}','story_too',this.checked?1:'').then(render)"> Also shared to Story in CS (counts IG/FB Stories in the mix)</label>
+      ${c.format?(()=>{const FS={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};const items=mixBuckets(u).map(k=>({t:FS[k]||k,c:k.indexOf('story')>-1?'story':''}));if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});items.sort((a,b)=>a.t.localeCompare(b.t));return `<div class="row" style="margin-top:8px"><span class="small muted" style="font-weight:700">Counts as:</span><div class="fmts" style="margin-top:0">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div></div>`;})():''}
       ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:''}
       <p class="stephint" style="margin-top:6px">Reels = reach \u00b7 Posts = authority \u00b7 Stories = connection.</p>
     </div>
@@ -1461,7 +1462,18 @@ function unitBody(u){
     ${u.kind==='social'?`<button class="btn ghost sm" style="border-color:var(--coral);color:var(--coral-b)" onclick="genCopy('${u.id}',this)">${c.caption?ic('refresh')+' Rewrite copy':ic('sparkle')+' Write copy'}</button>`:''}
     <button class="btn ghost sm" onclick="closeModal()">Close</button><button class="btn sm" onclick="unitNext('${u.id}')">Next \u2192</button></div>`;
 }
-window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;};
+window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;
+  if(u.kind==='social'&&!(u.copy||{}).format){
+    const sg=suggestFormat(u);
+    if(sg){
+      const FN={ig_reel:{instagram:true},ig_post:{instagram:true},ig_story:{instagram:true},carousel:{instagram:true},reel:{instagram:true},fb_reel:{facebook:true},fb:{facebook:true},fb_post:{facebook:true},fb_story:{facebook:true},tiktok:{tiktok:true},pin:{pinterest:true}};
+      const patch={copy:{...(u.copy||{}),format:sg.fkey}};
+      if(!Object.values(u.platforms||{}).some(Boolean))patch.platforms=FN[sg.fkey]||{};
+      Object.assign(u,patch);updUnit(id,patch);
+      toast('Auto-set to the suggested format: '+(WF_FORMATS[sg.fkey]||sg.fkey));
+    }
+  }
+  modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;};
 window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
 
 function field(label,key,u,forced){
@@ -1597,8 +1609,8 @@ function renderPinBatch(){
   const goal=pinGoalWeek();
   const boards=S.csBoards;
   const savedBoard=S.settings.pin_batch_board||'';
-  const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?ps.logged:0;const c=ps&&ps.cs?ps.cs.fresh+ps.cs.evg:null;return esc((p.title||'').slice(0,40))+' \u00b7 Nest '+n+' / CS '+(c===null?'?':c);};
-  modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin Nest</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
+  const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?ps.logged:0;const c=ps&&ps.cs?ps.cs.fresh+ps.cs.evg:null;return esc((p.title||'').slice(0,40))+' \u00b7 HQ '+n+' / CS '+(c===null?'?':c);};
+  modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
   <div class="row" style="background:var(--bg);border-radius:10px;padding:9px 12px;margin:10px 0;gap:8px;flex-wrap:wrap">
     ${cp?`<span class="small"><b>Pins this week: ${cp.sch}/${goal} scheduled</b></span><div class="meter" style="max-width:160px;flex:1;margin-top:0"><i class="${cp.sch>=goal?'done':''}" style="width:${Math.min(100,Math.max(3,cp.sch/goal*100))}%"></i></div><span class="small" style="font-weight:800;color:${goal-cp.sch>0?'var(--coral-b)':'var(--good)'}">${goal-cp.sch>0?'gap: '+(goal-cp.sch):'goal met ✓'}</span>`:`<span class="small muted">Hit <a href="#" onclick="syncCS(null);return false">Sync CS</a> for live pin math</span>`}
     <span class="small muted">· goal = Settings (${cad.pinterest_fresh_per_day||15}/day × 7) · ${csSyncedLabel()}</span>
@@ -1615,7 +1627,7 @@ function renderPinBatch(){
     ${boards?`<select id="pb-board" style="flex:1;min-width:170px" onchange="saveSetting('pin_batch_board',this.value)">${boards.map(x=>`<option value="${x.id}" ${x.id===savedBoard?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`:`<span class="small muted">loading boards…</span>`}
   </div>
   ${(()=>{const b2=allSrc.find(x=>String(x.id)===st.blogId);const ps=pinStatsFor(b2);if(!ps)return '';
-    return `<div class="small muted" style="margin:4px 0 2px">Pins for this ${b2.status==='page'?'page':'post'}: <b style="color:var(--navy)">Nest ${ps.logged}</b> <span style="opacity:.8">(made here: batches + cards)</span>${ps.cs?` \u00b7 CS planner (\u00b145d): <b style="color:var(--navy)">${ps.cs.fresh} fresh</b> + <b style="color:var(--teal)">${ps.cs.evg} evergreen</b>`:` \u00b7 <a href="#" onclick="syncCS(null);return false">Sync CS</a> for the fresh vs evergreen split`}</div>`;})()}
+    return `<div class="small muted" style="margin:4px 0 2px">Pins for this ${b2.status==='page'?'page':'post'}: <b style="color:var(--navy)">HQ ${ps.logged}</b> <span style="opacity:.8">(made here: batches + cards)</span>${ps.cs?` \u00b7 CS planner (\u00b145d): <b style="color:var(--navy)">${ps.cs.fresh} fresh</b> + <b style="color:var(--teal)">${ps.cs.evg} evergreen</b>`:` \u00b7 <a href="#" onclick="syncCS(null);return false">Sync CS</a> for the fresh vs evergreen split`}</div>`;})()}
   ${st.pins?st.pins.map((p,i)=>pinCard(p,i)).join(''):`<p class="small muted" style="margin:12px 0">No pins written yet. Each pin gets its own angle, image prompt, title, description, alt text and UTM link.</p>`}
   ${st.pins?`<div class="row" style="margin-top:14px;flex-wrap:wrap">
     <button class="btn sm" onclick="pinBatchSend(this)">Send all ${st.pins.length} to CS as drafts</button>
@@ -1764,7 +1776,7 @@ function vSkel(){
           <div class="small">${esc(i.note||'')}</div>
           <div class="small muted">${fmt(i.created_at)} · ${i.status}</div>
           <div class="row" style="margin-top:6px">
-            <button class="btn ghost sm" onclick="copyText('New skeleton idea in the Post Picker inbox (id ${i.id}). Image: ${i.image_url||'none'}. Note: ${esc((i.note||'').replace(/'/g,''))}. Let\\'s discuss a new skeleton based on it.','Handoff copied! Paste to Claude.')">${ic('chat')} Discuss</button>
+            <button class="btn ghost sm" onclick="copyText('New skeleton idea in the J&B HQ inbox (id ${i.id}). Image: ${i.image_url||'none'}. Note: ${esc((i.note||'').replace(/'/g,''))}. Let\\'s discuss a new skeleton based on it.','Handoff copied! Paste to Claude.')">${ic('chat')} Discuss</button>
             <button class="btn ghost sm" onclick="updInbox('${i.id}','archived')">Archive</button>
           </div>
         </div>
