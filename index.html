@@ -1347,15 +1347,17 @@ window.savePlan=savePlan;
 function renderWeekGrid(units){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const doneSt=u=>['scheduled','published'].includes(u.status);
-  const srt=(a,b)=>((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1))||(a.day-b.day);
+  const srt=(a,b)=>(a.day-b.day)||((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1));
   const open=[...units].filter(u=>!doneSt(u)).sort(srt);
   const done=[...units].filter(doneSt).sort(srt);
   const FSING={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};
   const chips=u=>{
+    if(u.kind==='blog-task')return `<div class="fmts"><span style="background:var(--peach);color:var(--navy)">Blog</span></div>`;
     if(u.kind!=='social'||!(u.copy||{}).format)return '';
-    const b=mixBuckets(u).map(k=>`<span class="${k.indexOf('story')>-1?'story':''}">${FSING[k]||k}</span>`);
-    if((u.platforms||{}).pinterest)b.push('<span class="pin">Pin</span>');
-    return b.length?`<div class="fmts">${b.join('')}</div>`:'';
+    const items=mixBuckets(u).map(k=>({t:FSING[k]||k,c:k.indexOf('story')>-1?'story':''}));
+    if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});
+    items.sort((a,b)=>a.t.localeCompare(b.t));
+    return items.length?`<div class="fmts">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div>`:'';
   };
   const row=u=>`<tr${doneSt(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
   return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
@@ -1595,6 +1597,7 @@ function renderPinBatch(){
   const goal=pinGoalWeek();
   const boards=S.csBoards;
   const savedBoard=S.settings.pin_batch_board||'';
+  const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?(ps.cs?ps.cs.fresh+ps.cs.evg:ps.logged):0;return esc((p.title||'').slice(0,44))+' \u00b7 '+n+' pin'+(n===1?'':'s');};
   modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
   <div class="row" style="background:var(--bg);border-radius:10px;padding:9px 12px;margin:10px 0;gap:8px;flex-wrap:wrap">
     ${cp?`<span class="small"><b>Pins this week: ${cp.sch}/${goal} scheduled</b></span><div class="meter" style="max-width:160px;flex:1;margin-top:0"><i class="${cp.sch>=goal?'done':''}" style="width:${Math.min(100,Math.max(3,cp.sch/goal*100))}%"></i></div><span class="small" style="font-weight:800;color:${goal-cp.sch>0?'var(--coral-b)':'var(--good)'}">${goal-cp.sch>0?'gap: '+(goal-cp.sch):'goal met ✓'}</span>`:`<span class="small muted">Hit <a href="#" onclick="syncCS(null);return false">Sync CS</a> for live pin math</span>`}
@@ -1602,7 +1605,7 @@ function renderPinBatch(){
   </div>
   <div class="row" style="margin-bottom:8px;flex-wrap:wrap">
     <span class="small muted">Pins for</span>
-    <select style="flex:1;min-width:170px" onchange="if(this.value==='__addpage'){pinAddPage()}else{window.__pinBatch.blogId=this.value;window.__pinBatch.pins=null;renderPinBatch()}"><optgroup label="Blog posts">${pubs.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${esc((p.title||'').slice(0,52))}</option>`).join('')}</optgroup>${pages.length?`<optgroup label="Site pages">${pages.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${esc((p.title||'').slice(0,52))}</option>`).join('')}</optgroup>`:''}<option value="__addpage">+ Add a juneybyrd.com page\u2026</option></select>
+    <select style="flex:1;min-width:170px" onchange="if(this.value==='__addpage'){pinAddPage()}else{window.__pinBatch.blogId=this.value;window.__pinBatch.pins=null;renderPinBatch()}"><optgroup label="Blog posts">${pubs.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${optLabel(p)}</option>`).join('')}</optgroup>${pages.length?`<optgroup label="Site pages">${pages.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${optLabel(p)}</option>`).join('')}</optgroup>`:''}<option value="__addpage">+ Add a juneybyrd.com page\u2026</option></select>
     <span class="small muted">Count</span>
     <select onchange="window.__pinBatch.count=+this.value">${[3,4,5].map(x=>`<option ${st.count===x?'selected':''}>${x}</option>`).join('')}</select>
     <button class="btn sm" style="background:var(--coral-b)" onclick="pinBatchWrite(this)">${st.pins?ic('refresh')+' Rewrite batch':ic('sparkle')+' Write the batch'}</button>
