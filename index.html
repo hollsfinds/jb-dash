@@ -453,10 +453,30 @@ s2:[{t:'SMALL',b:'tiny lead-in word in script (The, Your, This)'},{t:'HEADLINE',
 s3:[{t:'L1',b:'small kicker line above the big line',caps:1},{t:'L2',b:'big bold line, the hook',caps:1},{t:'SCRIPT',b:'ONE script word bridging the two big lines'},{t:'L4',b:'small italic line',caps:1},{t:'L5',b:'big bold payoff line',caps:1},{t:'L6',b:'small footer line',caps:1}],
 s4:[{t:'TOP',b:'setup line, smaller caps, the hook',caps:1},{t:'SCRIPT',b:'ONE connective word/phrase, goes in brackets (finally, at last)'},{t:'HERO',b:'the biggest payoff line, the promise',caps:1},{t:'OVERLAY',b:'tiny label riding on the photo, 2 to 4 words',caps:1}]
 };
+const SKEL_FILLERS={
+HERO:['YES','FINALLY','DONE','EASY','HANDLED','SORTED','AT LAST'],
+LINE2:['MADE SIMPLE','MADE EASY','MINUS THE STRESS','WITHOUT THE DREAD','THE SIMPLE WAY','ON REPEAT','DONE RIGHT'],
+KICKER:['you can do this','one small step','start today','no overwhelm','future you says thanks','keep it simple','you have got this'],
+SMALL:['The','Your','This','My','A simpler','The easy'],
+PUNCH:['DONE.','EASY.','SORTED.','HANDLED.','SIMPLE.','FINALLY.','CLEAR.'],
+BADGE1:['SIMPLE. HONEST.','NO FLUFF.','REAL TALK.','KEEP IT EASY.','SMALL STEPS.','DO-ABLE.','ONE AT A TIME.'],
+BADGE2:['NO OVERWHELM.','NO DREAD.','NO GUILT.','LESS STRESS.','MADE CLEAR.','STAY ON TRACK.','ZERO CHAOS.'],
+CHECK1:['Start small','Log it','Set a date','Pick a day','Open the app','One small win'],
+CHECK2:['Stay honest','Sort receipts','Reconcile once','Track as you go','Keep it weekly','Review the numbers'],
+CHECK3:['Keep going','Close the laptop','Thank yourself','Repeat weekly','Breathe easy','Done for the week'],
+L1:['THE','TRY','HERE IS','MEET','START WITH','THE ONE'],
+L4:['THAT ACTUALLY','THAT REALLY','THE ONE THAT','SO IT','THAT FINALLY','BUILT TO'],
+L5:['WORKS','STICKS','HELPS','LASTS','FITS REAL LIFE','SAVES YOU'],
+L6:['FOR REAL LIFE','FOR BUSY WEEKS','FOR FREELANCERS','FOR YOUR BOOKS','WITHOUT THE STRESS','ALL YEAR'],
+SCRIPT:['finally','at last','for real','made easy','no really','the simple way','honestly'],
+OVERLAY:['SIMPLE MONEY MOVES','LESS STRESS, MORE DONE','THE EASY WAY','SMALL STEPS, BIG CALM','MONEY, MADE SIMPLE','OVERWHELM, HANDLED']
+};
 function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
   const title=(unit.title||'').toUpperCase();
-  const DEF={'{HEADLINE}':title,'{HERO}':'YES','{LINE2}':'MADE SIMPLE','{KICKER}':'you can do this','{SMALL}':'The','{PUNCH}':'DONE.','{BADGE1}':'SIMPLE. HONEST.','{BADGE2}':'NO OVERWHELM.','{CHECK1}':'Start small','{CHECK2}':'Stay honest','{CHECK3}':'Keep going','{L1}':'THE','{L2}':title,'{L4}':'THAT ACTUALLY','{L5}':'WORKS','{L6}':'FOR REAL LIFE','{SCRIPT}':'finally','{TOP}':title,'{OVERLAY}':'OVERWHELMING, MADE EASY'};
+  let _sd=0;const _ss=(unit.title||unit.overlay||'x')+skelId;for(let _i=0;_i<_ss.length;_i++)_sd=(_sd*31+_ss.charCodeAt(_i))>>>0;
+  const pk=k=>{const a=SKEL_FILLERS[k];if(!a)return '';let h=_sd;for(let i=0;i<k.length;i++)h=(h*31+k.charCodeAt(i))>>>0;return a[h%a.length];};
+  const DEF={'{HEADLINE}':title,'{HERO}':pk('HERO'),'{LINE2}':pk('LINE2'),'{KICKER}':pk('KICKER'),'{SMALL}':pk('SMALL'),'{PUNCH}':pk('PUNCH'),'{BADGE1}':pk('BADGE1'),'{BADGE2}':pk('BADGE2'),'{CHECK1}':pk('CHECK1'),'{CHECK2}':pk('CHECK2'),'{CHECK3}':pk('CHECK3'),'{L1}':pk('L1'),'{L2}':title,'{L4}':pk('L4'),'{L5}':pk('L5'),'{L6}':pk('L6'),'{SCRIPT}':pk('SCRIPT'),'{TOP}':title,'{OVERLAY}':pk('OVERLAY')};
   const slots=unit.slots||{};const capsMap={};(SKELETON_SLOTS[skelId]||[]).forEach(x=>{capsMap[x.t]=!!x.caps;});
   let edit=t.edit.replace(/\{[A-Z0-9]+\}/g,m=>{const key=m.slice(1,-1);if(slots[key]!=null&&String(slots[key]).trim()!==''){const v=String(slots[key]).trim();return capsMap[key]?v.toUpperCase():v;}return (DEF[m]!=null)?DEF[m]:m;});
   return edit+t.body+'\nTEXT RULES (critical): Render ONLY the exact text lines listed in the edit block, and render each line EXACTLY ONCE in its own described spot. The lines are DIFFERENT phrases: never copy one line into another, never repeat the same words anywhere else in the image, and never fill empty space by duplicating text from another line. Any circle badge shows only its own short badge words and must never repeat the headline or the top line. Do not add any words that are not in the edit block.'+'\nCROP SAFETY: keep every word of text, every badge, and the logo at least 8% away from the top and bottom edges. Only background scenery may touch the top and bottom edges. This image gets center-cropped to 3:4 for Instagram, so nothing important lives in the outer sliver top or bottom.';
