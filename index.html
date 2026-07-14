@@ -520,6 +520,7 @@ function renderNum(){
   const eIn=E.filter(w=>numInRange(Date.parse(w.week)));
   const eRev=eIn.reduce((a,w)=>a+w.revenueCents,0);
   const rev=P?P.tx.filter(x=>numInRange(x.t)).reduce((a,x)=>a+x.amt,0):null;
+  const ref=P&&P.adj?P.adj.filter(x=>numInRange(x.t)).reduce((a,x)=>a+x.amt,0):0;
   const optins=M?(M.groups.find(g=>/Hutch App/i.test(g.name))||{}).n:null;
   const wIn=(W&&W.days)?W.days.filter(x=>numInRange(Date.parse(x.d))):null;
   const st=$('#num-stamp');if(st)st.textContent='updated '+new Date(D.generatedAt).toLocaleString();
@@ -527,7 +528,7 @@ function renderNum(){
   let body=`
   <div class="row" style="margin-bottom:12px">${[7,30,90,0].map(d=>`<span class="chip ${NUM.range===d?'on':''}" onclick="NUM.range=${d};renderNum()" style="${NUM.range===d?'background:var(--navy);color:#fff;border-color:var(--navy)':''}">${d===0?'All time':d+' days'}</span>`).join('')}</div>
   <div class="card" style="border-color:var(--navy);margin-bottom:14px"><h3>All of Juney &amp; Byrd</h3><div class="tiles2">${[
-    {n:fmt$((P?rev:0)+eRev),l:'Revenue in period',d:(P?'Paddle':'Paddle unreachable')+' + Etsy, gross'},
+    {n:fmt$((P?rev-ref:0)+eRev),l:'Revenue in period',d:(P?(ref?'Paddle net of refunds':'Paddle')+' + Etsy':'Paddle unreachable + Etsy')},
     {n:P?fmt$(P.mrrCents):'–',l:'MRR',d:'monthly run rate'},
     {n:P?(P.active+P.pastDue):numCnt(A,a=>['active','trialing','past_due'].includes(a.s)),l:'Paying subscribers',d:'Hutch Plus'},
     {n:A.length,l:'App accounts',d:numCnt(A,a=>a.t&&a.cu>Date.now()&&!a.s)+' in trial now'},
@@ -537,7 +538,7 @@ function renderNum(){
   <div class="tabbar">${SECS.map(([id,l])=>`<button class="${NUM.sec===id?'on':''}" onclick="NUM.sec='${id}';renderNum()">${l}</button>`).join('')}</div>`;
   if(NUM.sec==='money'){
     body+=`<div class="card"><h3>Paddle, subscriptions · <a href="https://vendors.paddle.com/overview" target="_blank" rel="noopener">open dashboard</a></h3>
-    ${P?`<div class="tiles2">${[{n:P.active,l:'Active subs'},{n:P.pastDue,l:'Past due'},{n:P.canceled,l:'Canceled'},{n:fmt$(P.mrrCents),l:'MRR'},{n:fmt$(rev),l:'Revenue in period'},{n:P.tx.length,l:'Recent transactions',d:'last 200 fetched'}].map(tile2).join('')}</div><p class="small muted" style="margin-top:8px">Numbers refresh at most every 15 minutes.</p>`
+    ${P?`<div class="tiles2">${[{n:P.active,l:'Active subs'},{n:P.pastDue,l:'Past due'},{n:P.canceled,l:'Canceled'},{n:fmt$(P.mrrCents),l:'MRR'},{n:fmt$(rev),l:'Gross in period'},{n:P.adj?fmt$(-ref):'\u2013',l:'Refunds in period',d:P.adj?'approved + pending':'redeploy worker'},{n:P.adj?fmt$(rev-ref):'\u2013',l:'Net in period'},{n:P.tx.length,l:'Recent transactions',d:'last 200 fetched'}].map(tile2).join('')}</div><p class="small muted" style="margin-top:8px">Numbers refresh at most every 15 minutes.</p>`
     :`<p class="muted small">Couldn't reach Paddle right now, use the dashboard link.</p>`}</div>
     <div class="card"><h3>Etsy, shop money (from your weekly log)</h3><div class="tiles2">${[
       {n:fmt$(eRev),l:'Etsy revenue in period'},{n:eIn.reduce((a,w)=>a+w.orders,0),l:'Etsy orders'},{n:E.length,l:'Weeks logged',d:'all time'}
