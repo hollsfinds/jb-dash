@@ -794,7 +794,7 @@ async function dealFormats(btn){
       const k=prefs.find(x=>need[x]>0)||Object.keys(need).find(x=>x!=='tiktok'&&need[x]>0)||prefs[0];
       const fmt=D2F[k]||'ig_post';
       const fam=FMT_FAMILY[fmt];
-      const p={pinterest:!!(u.platforms||{}).pinterest};
+      const p={pinterest:(u.platforms||{}).pinterest!==false};
       if(fam==='story'){
         p.instagram=k==='ig_story'||need.ig_story>0;
         p.facebook=k==='fb_story'||need.fb_story>0;
@@ -970,7 +970,7 @@ async function pickDayGo(format,blogId,topicId){
   const b=blogId?S.blog.find(x=>String(x.id)===String(blogId)):weekFocus(ws);
   const t=topicId?S.topics.find(x=>String(x.id)===String(topicId)):null;
   const pdPillar=+($('#pd-pillar')&&$('#pd-pillar').value)||2;
-  const platforms={pin:{pinterest:true},reel:{instagram:true},carousel:{instagram:true},fb:{facebook:true},tiktok:{tiktok:true}}[format]||{pinterest:true,instagram:true,facebook:true,tiktok:true};
+  const platforms={pin:{pinterest:true},reel:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},fb:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}}[format]||{pinterest:true,instagram:true,facebook:true,tiktok:true};
   const row={week_start:ws,day,kind:'social',
     title:t?t.title:(WF_FORMATS[format]||'Post')+': '+(b?b.title:''),
     pillar:pdPillar,theme:t?(t.theme||nextTheme()):nextTheme(),
@@ -1337,7 +1337,7 @@ async function savePlan(btn){
     }else{
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
-    const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true},ig_post:{instagram:true},carousel:{instagram:true},ig_story:{instagram:true},fb_reel:{facebook:true},fb:{facebook:true},fb_story:{facebook:true},tiktok:{tiktok:true}};
+    const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
     rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{})}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
@@ -1430,7 +1430,7 @@ function unitBody(u){
         <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
       </div>
       <label class="small" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" ${c.story_too?'checked':''} onchange="saveCopyField('${u.id}','story_too',this.checked?1:'').then(render)"> Also shared to Story in CS (counts IG/FB Stories in the mix)</label>
-      ${c.format?(()=>{const FS={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};const items=mixBuckets(u).map(k=>({t:FS[k]||k,c:k.indexOf('story')>-1?'story':''}));if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});items.sort((a,b)=>a.t.localeCompare(b.t));return `<div class="row" style="margin-top:8px"><span class="small muted" style="font-weight:700">Counts as:</span><div class="fmts" style="margin-top:0">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div></div>`;})():''}
+      ${c.format?(()=>{const FS={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};const items=mixBuckets(u).map(k=>({t:FS[k]||k,c:k.indexOf('story')>-1?'story':''}));if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});items.sort((a,b)=>a.t.localeCompare(b.t));return `<div class="row" style="margin-top:8px"><span class="small muted" style="font-weight:700">Post as:</span><div class="fmts" style="margin-top:0">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div></div>`;})():''}
       ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:''}
       <p class="stephint" style="margin-top:6px">Reels = reach \u00b7 Posts = authority \u00b7 Stories = connection.</p>
     </div>
@@ -1466,12 +1466,16 @@ window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;
   if(u.kind==='social'&&!(u.copy||{}).format){
     const sg=suggestFormat(u);
     if(sg){
-      const FN={ig_reel:{instagram:true},ig_post:{instagram:true},ig_story:{instagram:true},carousel:{instagram:true},reel:{instagram:true},fb_reel:{facebook:true},fb:{facebook:true},fb_post:{facebook:true},fb_story:{facebook:true},tiktok:{tiktok:true},pin:{pinterest:true}};
+      const FN={ig_reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},reel:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_post:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true},pin:{pinterest:true}};
       const patch={copy:{...(u.copy||{}),format:sg.fkey}};
       if(!Object.values(u.platforms||{}).some(Boolean))patch.platforms=FN[sg.fkey]||{};
       Object.assign(u,patch);updUnit(id,patch);
       toast('Auto-set to the suggested format: '+(WF_FORMATS[sg.fkey]||sg.fkey));
     }
+  }
+  if(u.kind==='social'&&(u.platforms||{}).pinterest===undefined){
+    const pl={...(u.platforms||{}),pinterest:true};
+    Object.assign(u,{platforms:pl});updUnit(id,{platforms:pl});
   }
   modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;};
 window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
