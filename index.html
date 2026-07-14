@@ -1586,9 +1586,9 @@ async function loadBoards(){
   return S.csBoards;
 }
 function pinCounter(key,val){const n=(val||'').length;
-  if(key==='title')return `<b style="color:${n<=90?'var(--good)':'var(--coral-b)'}">${n}/90</b>`;
-  if(key==='desc')return `<b style="color:${n>=220&&n<=232?'var(--good)':'var(--coral-b)'}">${n} · target 220-232</b>`;
-  if(key==='alt')return `<b style="color:${n<=200?'var(--good)':'var(--coral-b)'}">${n}/200</b>`;
+  if(key==='title')return `<b style="color:${n<=100?'var(--good)':'var(--coral-b)'}">${n}/100</b>`;
+  if(key==='desc')return `<b style="color:${n<=500?'var(--good)':'var(--coral-b)'}">${n}/500</b>`;
+  if(key==='alt')return `<b style="color:${n<=500?'var(--good)':'var(--coral-b)'}">${n}/500</b>`;
   return '';}
 window.pinFieldEdit=function(i,key,val){const st=window.__pinBatch;if(!st||!st.pins||!st.pins[i])return;st.pins[i][key]=val;const el=document.getElementById('pb-'+i+'-'+key+'-n');if(el)el.innerHTML=pinCounter(key,val);};
 function pinCard(p,i){
@@ -1753,9 +1753,9 @@ THE IMAGE TEXT IS THE MOST IMPORTANT PART. For each pin, write the ACTUAL words 
 ${slotLines}
 
 Also for EVERY pin write:
-- "title": keyword-rich Pinterest title, UNDER 90 characters
-- "desc": 220-232 characters TOTAL including 3-4 hashtags at the end, natural keywords, one soft save-this CTA
-- "alt": literal plain description of the finished pin image including the words shown on it, under 200 characters
+- "title": keyword-rich Pinterest title, 45 to 70 characters, and NEVER over 100 characters
+- "desc": 150 to 230 characters including 3-4 hashtags at the end, natural keywords, one soft save-this CTA, and NEVER over 500 characters
+- "alt": literal plain description of the finished pin image including the words shown on it, under 300 characters
 Reply as JSON only, with slots keyed by the exact slot names shown above:
 {"pins":[{"slots":{"SLOTNAME":"the words"},"title":"","desc":"","alt":""}]}`;
     const out=await claude(VOICE,ask,2600);
@@ -1765,7 +1765,7 @@ Reply as JSON only, with slots keyed by the exact slot names shown above:
       const slots=p.slots||{};
       const overlay=Object.values(slots).filter(Boolean)[0]||'';
       const img=sk?buildImagePrompt(sk.id,{slots}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+String(overlay).toUpperCase()+'"');
-      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:p.title||'',desc:p.desc||'',alt:p.alt||'',url:utmize(b.url,'pinterest'),done:false};
+      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:(p.title||'').slice(0,100),desc:(p.desc||'').slice(0,500),alt:(p.alt||'').slice(0,500),url:utmize(b.url,'pinterest'),done:false};
     });
     pbSave();
   }catch(e){toast('Pin batch failed: '+(e.message||e));}
@@ -1825,7 +1825,7 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 `:''}Reply as JSON ONLY:
 {${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"specific words about this topic, never blank, never generic filler"`).join(',')}},`:''}"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
 "caption_b":"a second, different take on the caption",
-"pin_title":"Pinterest title, keyword-rich, under 90 chars",
+"pin_title":"Pinterest title, keyword-rich, 45 to 70 characters, never over 100",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: one punchy hook line under 85 characters that works as a photo-post title, end it with juneybyrd.com when it fits, no links, no hashtags",
