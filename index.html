@@ -451,7 +451,7 @@ function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
   const title=(unit.title||'').toUpperCase();
   let edit=t.edit.replace(/\{[A-Z0-9]+\}/g,m=>({'{HEADLINE}':title,'{HERO}':'YES','{LINE2}':'MADE SIMPLE','{KICKER}':'you can do this','{SMALL}':'The','{PUNCH}':'DONE.','{BADGE1}':'SIMPLE. HONEST.','{BADGE2}':'NO OVERWHELM.','{CHECK1}':'Start small','{CHECK2}':'Stay honest','{CHECK3}':'Keep going','{L1}':'THE','{L2}':title,'{L4}':'THAT ACTUALLY','{L5}':'WORKS','{L6}':'FOR REAL LIFE','{SCRIPT}':'finally','{TOP}':title,'{OVERLAY}':'OVERWHELMING, MADE EASY'}[m]||m));
-  return edit+t.body+'\nCROP SAFETY: keep every word of text, every badge, and the logo at least 8% away from the top and bottom edges. Only background scenery may touch the top and bottom edges. This image gets center-cropped to 3:4 for Instagram, so nothing important lives in the outer sliver top or bottom.';
+  return edit+t.body+'\nTEXT RULES (critical): Render ONLY the exact text lines listed in the edit block, and render each line EXACTLY ONCE in its own described spot. The lines are DIFFERENT phrases: never copy one line into another, never repeat the same words anywhere else in the image, and never fill empty space by duplicating text from another line. Any circle badge shows only its own short badge words and must never repeat the headline or the top line. Do not add any words that are not in the edit block.'+'\nCROP SAFETY: keep every word of text, every badge, and the logo at least 8% away from the top and bottom edges. Only background scenery may touch the top and bottom edges. This image gets center-cropped to 3:4 for Instagram, so nothing important lives in the outer sliver top or bottom.';
 }
 </script>
 <script>
@@ -1526,15 +1526,31 @@ function pinCounter(key,val){const n=(val||'').length;
 window.pinFieldEdit=function(i,key,val){const st=window.__pinBatch;if(!st||!st.pins||!st.pins[i])return;st.pins[i][key]=val;const el=document.getElementById('pb-'+i+'-'+key+'-n');if(el)el.innerHTML=pinCounter(key,val);};
 function pinCard(p,i){
   const f=(key,label,val,cnt)=>`<div class="copyfield"><label>${label}${cnt?` · <span id="pb-${i}-${key}-n">${pinCounter(key,val)}</span>`:''}</label><textarea oninput="pinFieldEdit(${i},'${key}',this.value)">${esc(val||'')}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
-  return `<div style="border-top:1.5px solid var(--line);margin-top:14px;padding-top:10px">
-  <div class="row"><b style="font-size:15px">Pin ${String.fromCharCode(65+i)}</b><span class="chip" style="background:var(--mint);color:#204430;border-color:transparent">${esc(p.angle||'')}</span><span class="small muted">skeleton: ${esc(p.skel_name||'')}</span></div>
+  const open=(p._open!==undefined)?p._open:(i===0);
+  const noImg=!((p.img||'').trim());
+  const done=!!p.done;
+  const head=`<div class="row" style="cursor:pointer;align-items:center;gap:8px;margin:0" onclick="if(event.target.tagName!=='INPUT')pinToggleOpen(${i})">
+    <input type="checkbox" ${done?'checked':''} ${noImg?'disabled':''} onclick="event.stopPropagation();pinToggleDone(${i})" title="${noImg?'no image prompt - skipped':'check when you have posted this pin'}" style="width:17px;height:17px;flex:none;cursor:pointer;accent-color:var(--good)">
+    <b style="font-size:15px;${done?'color:var(--good)':''}">Pin ${i+1}${done?' ✓':''}</b>
+    <span class="chip" style="background:var(--mint);color:#204430;border-color:transparent">${esc(p.angle||'')}</span>
+    ${noImg?`<span class="chip" style="background:#fbe4de;color:var(--coral-b);border-color:transparent">no image · skip</span>`:''}
+    <span class="small muted" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">skeleton: ${esc(p.skel_name||'')}</span>
+    <span class="small muted" style="flex:none;font-weight:800">${open?'▾':'▸'}</span>
+  </div>`;
+  const body=open?`
   ${f('img','Image prompt · AI Studio → CS media library',p.img)}
   ${f('title','Pin title',p.title,1)}
   ${f('desc','Description (with hashtags)',p.desc,1)}
   ${f('alt','Alt text · middle icon on the image in CS media library',p.alt,1)}
-  ${f('url','Destination link (UTM)',p.url)}
+  ${f('url','Destination link (UTM)',p.url)}`:'';
+  return `<div style="border-top:1.5px solid var(--line);margin-top:14px;padding-top:10px;${done?'opacity:.7':''}">${head}${body}
   </div>`;
 }
+function pbSave(){try{const st=window.__pinBatch;if(!st||!st.blogId)return;const all=JSON.parse(localStorage.getItem('pin_batch_state')||'{}');all[st.blogId]={pins:st.pins,count:st.count,ts:Date.now()};localStorage.setItem('pin_batch_state',JSON.stringify(all));}catch(e){}}
+function pbRestore(blogId){try{const all=JSON.parse(localStorage.getItem('pin_batch_state')||'{}');const r=all[blogId];return r&&r.pins&&r.pins.length?r:null;}catch(e){return null;}}
+function pbClear(blogId){try{const all=JSON.parse(localStorage.getItem('pin_batch_state')||'{}');delete all[blogId];localStorage.setItem('pin_batch_state',JSON.stringify(all));}catch(e){}}
+window.pinToggleDone=function(i){const st=window.__pinBatch;if(!st||!st.pins||!st.pins[i])return;st.pins[i].done=!st.pins[i].done;pbSave();renderPinBatch();};
+window.pinToggleOpen=function(i){const st=window.__pinBatch;if(!st||!st.pins||!st.pins[i])return;st.pins[i]._open=(st.pins[i]._open!==undefined)?!st.pins[i]._open:(i!==0);renderPinBatch();};
 function evergreenPanel(){
   const n=S.winners.length,goal=10,ev=evgState();
   const box=c=>`<div style="border:1.5px dashed var(--teal-lt);border-radius:12px;padding:13px 15px;margin-top:18px;background:#f4faf8">${c}</div>`;
@@ -1610,6 +1626,7 @@ function renderPinBatch(){
   const pages=S.blog.filter(b=>b.status==='page'&&b.url);
   const allSrc=pubs.concat(pages);
   if(!st.blogId||!allSrc.some(p=>String(p.id)===st.blogId)){const wf=weekFocus(weekStart(new Date()));st.blogId=String(((wf&&wf.url?wf:null)||pubs[0]||pages[0]||{}).id||'');}
+  if(st.pins==null){const _r=pbRestore(st.blogId);if(_r){st.pins=_r.pins;if(_r.count)st.count=_r.count;}}
   const cad=S.settings.cadence||{};
   const cp=csPinsWeek(weekStart(new Date()));
   const goal=pinGoalWeek();
@@ -1635,11 +1652,12 @@ function renderPinBatch(){
   ${(()=>{const b2=allSrc.find(x=>String(x.id)===st.blogId);const ps=pinStatsFor(b2);if(!ps)return '';
     return `<div class="small muted" style="margin:4px 0 2px">Pins for this ${b2.status==='page'?'page':'post'}: <b style="color:var(--navy)">HQ ${ps.logged}</b> <span style="opacity:.8">(made here: batches + cards)</span>${ps.cs?` \u00b7 CS planner (\u00b145d): <b style="color:var(--navy)">${ps.cs.fresh} fresh</b> + <b style="color:var(--teal)">${ps.cs.evg} evergreen</b>`:` \u00b7 <a href="#" onclick="syncCS(null);return false">Sync CS</a> for the fresh vs evergreen split`}</div>`;})()}
   ${st.pins?st.pins.map((p,i)=>pinCard(p,i)).join(''):`<p class="small muted" style="margin:12px 0">No pins written yet. Each pin gets its own angle, image prompt, title, description, alt text and UTM link.</p>`}
-  ${st.pins?`<div class="row" style="margin-top:14px;flex-wrap:wrap">
+  ${st.pins?(()=>{const doneN=st.pins.filter(p=>p.done).length;const postable=st.pins.filter(p=>(p.img||'').trim()).length;const allDone=postable>0&&doneN>=postable;return `<div class="row" style="margin-top:14px;flex-wrap:wrap;align-items:center">
     <button class="btn sm" onclick="pinBatchSend(this)">Send all ${st.pins.length} to CS as drafts</button>
-    <button class="btn sm" style="background:var(--mint);color:#204430" onclick="pinBatchMark(this)">✓ Mark batch created</button>
+    <button class="btn sm" style="background:var(--mint);color:#204430" onclick="pinBatchMark(this)">✓ Mark ${doneN} posted complete</button>
+    <span class="small" style="font-weight:800;color:${allDone?'var(--good)':'var(--muted,#888)'}">${doneN}/${postable} posted${allDone?' ✓':''}</span>
   </div>
-  <p class="small muted" style="margin-top:6px">Send = drafts land in CS with title, description and link filled. You make each image from its prompt, drop it on the draft, schedule. Mark = stamps ${st.pins.length} pins on this post so the 30-day fresh-pin clock resets.</p>`:''}
+  <p class="small muted" style="margin-top:6px">Send drops the drafts into CS in the SAME order you see here (title, description, link filled). Check the box on each pin as you post its image. Mark logs only the checked pins on this post and resets the 30-day fresh-pin clock.</p>`;})():''}
   ${evergreenPanel()}
   <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
   $('#modal').classList.add('wide');
@@ -1655,7 +1673,7 @@ async function pinBatchWrite(btn){
     const kws=S.keywords.filter(k=>k.platform==='pinterest').flatMap(k=>k.items||[]).slice(0,25).join(', ');
     const kind=b.status==='page'?'juneybyrd.com page':'blog post';
     const ask=`Create ${n} DIFFERENT Pinterest pin variations that all point to this ${kind}. It is: "${b.title}" (${b.url}).
-Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>String.fromCharCode(65+i)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
+Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>(i+1)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
 Pinterest keywords to weave in naturally: ${kws||'n/a'}.
 Rules for EVERY pin:
 - "overlay": the short punchy text ON the image, under 12 words, every pin's overlay clearly different
@@ -1669,8 +1687,9 @@ Reply as JSON only: {"pins":[{"overlay":"","title":"","desc":"","alt":""}]}`;
     st.pins=(j.pins||[]).slice(0,n).map((p,i)=>{
       const sk=sks.length?sks[i%sks.length]:null;
       const img=sk?buildImagePrompt(sk.id,{title:p.overlay}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+(p.overlay||'').toUpperCase()+'"');
-      return {...p,angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',img,url:utmize(b.url,'pinterest')};
+      return {...p,angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',img,url:utmize(b.url,'pinterest'),done:false};
     });
+    pbSave();
   }catch(e){toast('Pin batch failed: '+(e.message||e));}
   renderPinBatch();
 }
@@ -1683,7 +1702,7 @@ async function pinBatchSend(btn){
   if(S.settings.pin_batch_board!==board)await saveSetting('pin_batch_board',board);
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';}
   let ok=0,fail=0;
-  for(const p of st.pins){
+  for(const p of st.pins.slice().reverse()){
     try{
       await csCall(`/workspaces/${CS_WS}/posts`,'POST',{accounts:[board],post_type:'feed',content:{text:p.desc||''},scheduling:{publish_type:'draft'},pinterest_options:{title:p.title||'',link:p.url||''}});
       ok++;
@@ -1697,15 +1716,18 @@ window.pinBatchSend=pinBatchSend;
 async function pinBatchMark(btn){
   const st=window.__pinBatch;if(!st||!st.pins||!st.pins.length)return;
   const b=S.blog.find(x=>String(x.id)===st.blogId);if(!b)return;
+  const posted=st.pins.filter(p=>p.done);
+  if(!posted.length){toast('Check the box on each pin you actually posted first, then mark.');return;}
   if(btn)btn.disabled=true;
   const now=new Date().toISOString();
-  await sb.from('jb_blog').update({pins_count:(b.pins_count||0)+st.pins.length,last_pin_at:now}).eq('id',b.id);
-  b.pins_count=(b.pins_count||0)+st.pins.length;b.last_pin_at=now;
-  for(const sid of [...new Set(st.pins.map(p=>p.skel_id).filter(Boolean))]){
+  await sb.from('jb_blog').update({pins_count:(b.pins_count||0)+posted.length,last_pin_at:now}).eq('id',b.id);
+  b.pins_count=(b.pins_count||0)+posted.length;b.last_pin_at=now;
+  for(const sid of [...new Set(posted.map(p=>p.skel_id).filter(Boolean))]){
     await sb.from('jb_skeletons').update({last_used_at:now}).eq('id',sid);
     const s=S.skeletons.find(x=>x.id===sid);if(s)s.last_used_at=now;
   }
-  toast('Batch logged: +'+st.pins.length+' pins on this post. Fresh-pin clock reset.');
+  pbClear(st.blogId);
+  toast('Batch logged: +'+posted.length+' pins on this post. Fresh-pin clock reset.');
   window.__pinBatch=null;closeModal();render();
 }
 window.pinBatchMark=pinBatchMark;
