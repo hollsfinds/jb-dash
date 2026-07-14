@@ -1749,7 +1749,7 @@ async function pinBatchWrite(btn){
 Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>(i+1)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
 Pinterest keywords to weave in naturally: ${kws||'n/a'}.
 
-THE IMAGE TEXT IS THE MOST IMPORTANT PART. For each pin, write the ACTUAL words for every image text slot of that pin's layout, listed below. Fill EVERY slot with real, specific copy about THIS post, never placeholder words like YES or DONE. Write it to CONVERT: a scroll-stopping hook, a concrete benefit or a curiosity gap, specific not generic, in Juney & Byrd's warm plain-spoken voice. Respect each slot's length hint. Every pin's image text is clearly different from the other pins and matches its angle.
+THE IMAGE TEXT IS THE MOST IMPORTANT PART. For each pin, write the ACTUAL words for EVERY image text slot of that pin's layout, listed below. You MUST fill every slot; never leave one blank. NEVER use generic filler like YES, DONE, MADE SIMPLE, SIMPLE HONEST, NO OVERWHELM, FINALLY, WORKS, FOR REAL LIFE. Write it to CONVERT: a scroll-stopping hook, a concrete benefit or a curiosity gap, specific to THIS post, in Juney & Byrd's warm plain-spoken voice. Respect each slot's length hint. Every pin's image text is clearly different from the other pins and matches its angle.
 ${slotLines}
 
 Also for EVERY pin write:
@@ -1821,9 +1821,9 @@ async function genCopy(id,btn){
 Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
 Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
-${slotSpec?`This unit's pin image uses the "${sk.name}" layout. Fill each image text slot below with REAL converting copy about this topic: a scroll-stopping hook, specific, in Juney & Byrd voice, respect each length hint, and clearly different from the caption. Slots: ${slotSpec}.
+${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.name}" layout with these text slots: ${slotSpec}. You MUST fill EVERY slot with real words about THIS exact topic ("${u.title}"). Never leave a slot blank. NEVER use generic filler like MADE SIMPLE, DONE, SIMPLE HONEST, NO OVERWHELM, YES, FINALLY, WORKS, FOR REAL LIFE. Each line reads like it was written for this post: a concrete hook or specific detail, in Juney & Byrd warm plain voice, within each length hint, clearly different from the caption.
 `:''}Reply as JSON ONLY:
-{${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"the words for this slot"`).join(',')}},`:''}"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
+{${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"specific words about this topic, never blank, never generic filler"`).join(',')}},`:''}"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
 "caption_b":"a second, different take on the caption",
 "pin_title":"Pinterest title, keyword-rich, under 90 chars",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
