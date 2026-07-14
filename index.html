@@ -91,6 +91,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .copyfield{position:relative;margin-bottom:10px}
 .copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--teal);font-weight:800;display:block;margin-bottom:4px}
 .copyfield textarea{min-height:64px;font-size:13.5px;padding-right:64px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}
+.copyfield textarea.grow{overflow:hidden}
 .copyfield .cp{position:absolute;right:8px;top:26px;background:var(--navy);color:#fff;padding:4px 10px;font-size:11px;border-radius:8px}
 .statusflow{display:flex;gap:5px;flex-wrap:wrap}
 .statusflow .st{font-size:11px;font-weight:800;padding:4px 9px;border-radius:8px;background:#eef0f3;color:var(--muted);cursor:pointer}
@@ -493,7 +494,7 @@ function renderNav(){
 function go(v){S.view=v;render();}
 window.go=go;
 function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vDash,wfall:vSet,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();
-  if(window.__unitModalId&&$('#overlay').style.display==='flex'){const u=S.units.find(x=>x.id===window.__unitModalId);if(u)$('#modal').innerHTML=unitBody(u);else closeModal();}}
+  if(window.__unitModalId&&$('#overlay').style.display==='flex'){const u=S.units.find(x=>x.id===window.__unitModalId);if(u){$('#modal').innerHTML=unitBody(u);sizeGrowAreas();}else closeModal();}}
 
 /* ---------- NUMBERS (native HQ dashboard, data from hutch-api worker) ---------- */
 const HUTCH_API='https://hutch-api.juneybyrd.workers.dev';
@@ -1489,8 +1490,8 @@ function unitBody(u){
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u)}
-      ${field('Content (A)','caption',u)}
-      ${c.caption_b?field('Content (B)','caption_b',u):''}
+      ${field('Content (A)','caption',u,undefined,true)}
+      ${c.caption_b?field('Content (B)','caption_b',u,undefined,true):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
@@ -1528,13 +1529,16 @@ window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;
     const pl={...(u.platforms||{}),pinterest:true};
     Object.assign(u,{platforms:pl});updUnit(id,{platforms:pl});
   }
-  modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;};
+  modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;sizeGrowAreas();};
 window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
 
-function field(label,key,u,forced){
+function field(label,key,u,forced,grow){
   const val=forced!==undefined?forced:(u.copy||{})[key]||'';
-  return `<div class="copyfield"><label>${label}</label><textarea onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
+  const g=grow?` class="grow" oninput="this.style.height='auto';this.style.height=(this.scrollHeight+2)+'px'"`:'';
+  return `<div class="copyfield"><label>${label}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
 }
+function sizeGrowAreas(){try{document.querySelectorAll('#modal textarea.grow').forEach(t=>{t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';});}catch(e){}}
+window.sizeGrowAreas=sizeGrowAreas;
 async function saveCopyField(id,key,val){
   if(key==='source_url_utm')return;
   const u=S.units.find(x=>x.id===id);
