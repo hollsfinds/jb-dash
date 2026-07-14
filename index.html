@@ -1143,7 +1143,7 @@ function vDash(){
       '',`dashToggleSoc()`)}
     ${tally(outdoor,7,'Socials scheduled · wk',
       `<div class="tfix" style="color:var(--muted)">${[outdoor?`${sched} scheduled · ${pub} live`:'',dashPubOpen?'':'▾ format mix'].filter(Boolean).join(' · ')}</div>`,
-      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;return `<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins</span><div class="meter ${!cp||cp.sch===0?'zero':''}" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>pg?'over':cp&&cp.sch>=pg?'done':''}" style="width:${cp&&cp.sch?Math.min(100,Math.max(3,(cp.sch/pg)*100)):0}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:''}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>`;})()}${(()=>{const mc=mixCounts(ws,true);return Object.keys(mc).map(k=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">${MIX_LABEL[k]}</span><div class="meter ${mc[k].n===0?'zero':''}" style="flex:1;margin-top:0"><i class="${mc[k].n>mc[k].goal?'over':mc[k].n>=mc[k].goal?'done':''}" style="width:${mc[k].n===0?0:Math.min(100,Math.max(3,(mc[k].n/(mc[k].goal||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${mc[k].n}/${mc[k].goal}</span></div>`).join('');})()}</div>`:'',
+      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;return `<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins</span><div class="meter ${!cp||cp.sch===0?'zero':''}" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>pg?'over':cp&&cp.sch>=pg?'done':''}" style="width:${cp&&cp.sch?Math.min(100,Math.max(3,(cp.sch/pg)*100)):0}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:''}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>`;})()}${(()=>{const mc=mixCounts(ws,true);return Object.keys(mc).map(k=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">${MIX_LABEL[k]}</span><div class="meter ${mc[k].n===0?'zero':''}" style="flex:1;margin-top:0"><i class="${mc[k].n>mc[k].goal?'over':mc[k].n>=mc[k].goal?'done':''}" style="width:${mc[k].n===0?0:Math.min(100,Math.max(3,(mc[k].n/(mc[k].goal||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${mc[k].n}/${mc[k].goal}</span></div>`).join('');})()}<div class="small muted" style="margin-top:5px">${csSyncedLabel()}</div></div>`:'',
       `dashTogglePub()`)}
   </div>
   ${pinsDue.length?`<div class="alert" style="cursor:pointer" onclick="pinsDueModal()"><b>${pinsDue.length} blog post${pinsDue.length>1?'s':''}</b> due for fresh pins · click to plan</div>`:''}
@@ -1283,7 +1283,7 @@ function startWizard(){
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
   slots.forEach(s=>{const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
-  for(let b=0;b<blogPerWeek;b++)slots.push({day:1,pillar:2,theme:themes[b%themes.length],kind:'blog-task',title:'',needsTopic:true});
+  for(let b=0;b<blogPerWeek;b++)slots.push({day:0,pillar:2,theme:themes[b%themes.length],kind:'blog-task',title:'',needsTopic:true});
   planDraft={week:iso(S.week),slots};
   render();
 }
@@ -1336,7 +1336,7 @@ async function savePlan(btn){
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true},ig_post:{instagram:true},carousel:{instagram:true},ig_story:{instagram:true},fb_reel:{facebook:true},fb:{facebook:true},fb_story:{facebook:true},tiktok:{tiktok:true}};
-    rows.push({week_start:planDraft.week,day:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{})}});
+    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{})}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
@@ -1360,7 +1360,7 @@ function renderWeekGrid(units){
     return items.length?`<div class="fmts">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div>`:'';
   };
   const row=u=>`<tr${doneSt(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
-  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button></div>
+  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted">${csSyncedLabel()}</span></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${open.map(row).join('')}
   ${done.length?`<tr class="done-divider"><td colspan="5">Completed \u00b7 ${done.length}</td></tr>${done.map(row).join('')}`:''}
@@ -1493,6 +1493,7 @@ async function markWinner(id){
 window.markWinner=markWinner;
 /* ---- PIN BATCH ENGINE ---- */
 function pinGoalWeek(){return (((S.settings.cadence||{}).pinterest_fresh_per_day)||15)*7;}
+function csSyncedLabel(){if(!S.csSyncedAt)return 'CS not synced yet';const m=Math.round((Date.now()-S.csSyncedAt)/60000);return 'CS synced '+(m<1?'just now':m<60?m+'m ago':Math.round(m/60)+'h ago');}
 function evgState(){return S.settings.evergreen||{};}
 const PIN_ANGLES=['Main hook','The trick','The objection','Curiosity gap','The list'];
 async function loadBoards(){
@@ -1560,7 +1561,8 @@ function pinStatsFor(b){
     const evg=mine.filter(p=>Array.isArray(p.campaign)?p.campaign.length>0:!!p.campaign).length;
     cs={total:mine.length,evg,fresh:mine.length-evg};
   }
-  return {logged:b.pins_count||0,cs};
+  const unitPins=S.units.filter(u=>{if(u.kind!=='social'||!(u.platforms||{}).pinterest||!['scheduled','published'].includes(u.status))return false;const lb=blogFor(u);return lb&&String(lb.id)===String(b.id);}).length;
+  return {logged:(b.pins_count||0)+unitPins,cs};
 }
 async function pinAddPage(){
   let url=prompt('Full URL of the juneybyrd.com page (e.g. https://juneybyrd.com/hutch/)');
@@ -1597,11 +1599,11 @@ function renderPinBatch(){
   const goal=pinGoalWeek();
   const boards=S.csBoards;
   const savedBoard=S.settings.pin_batch_board||'';
-  const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?(ps.cs?ps.cs.fresh+ps.cs.evg:ps.logged):0;return esc((p.title||'').slice(0,44))+' \u00b7 '+n+' pin'+(n===1?'':'s');};
-  modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
+  const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?ps.logged:0;const c=ps&&ps.cs?ps.cs.fresh+ps.cs.evg:null;return esc((p.title||'').slice(0,40))+' \u00b7 Nest '+n+' / CS '+(c===null?'?':c);};
+  modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin Nest</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
   <div class="row" style="background:var(--bg);border-radius:10px;padding:9px 12px;margin:10px 0;gap:8px;flex-wrap:wrap">
     ${cp?`<span class="small"><b>Pins this week: ${cp.sch}/${goal} scheduled</b></span><div class="meter" style="max-width:160px;flex:1;margin-top:0"><i class="${cp.sch>=goal?'done':''}" style="width:${Math.min(100,Math.max(3,cp.sch/goal*100))}%"></i></div><span class="small" style="font-weight:800;color:${goal-cp.sch>0?'var(--coral-b)':'var(--good)'}">${goal-cp.sch>0?'gap: '+(goal-cp.sch):'goal met ✓'}</span>`:`<span class="small muted">Hit <a href="#" onclick="syncCS(null);return false">Sync CS</a> for live pin math</span>`}
-    <span class="small muted">· goal = Settings (${cad.pinterest_fresh_per_day||15}/day × 7)</span>
+    <span class="small muted">· goal = Settings (${cad.pinterest_fresh_per_day||15}/day × 7) · ${csSyncedLabel()}</span>
   </div>
   <div class="row" style="margin-bottom:8px;flex-wrap:wrap">
     <span class="small muted">Pins for</span>
@@ -1615,7 +1617,7 @@ function renderPinBatch(){
     ${boards?`<select id="pb-board" style="flex:1;min-width:170px" onchange="saveSetting('pin_batch_board',this.value)">${boards.map(x=>`<option value="${x.id}" ${x.id===savedBoard?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`:`<span class="small muted">loading boards…</span>`}
   </div>
   ${(()=>{const b2=allSrc.find(x=>String(x.id)===st.blogId);const ps=pinStatsFor(b2);if(!ps)return '';
-    return `<div class="small muted" style="margin:4px 0 2px">Pins for this ${b2.status==='page'?'page':'post'}: <b style="color:var(--navy)">${ps.logged} logged all-time</b>${ps.cs?` \u00b7 in CS planner (\u00b145d): <b style="color:var(--navy)">${ps.cs.fresh} fresh</b> + <b style="color:var(--teal)">${ps.cs.evg} evergreen</b>`:` \u00b7 <a href="#" onclick="syncCS(null);return false">Sync CS</a> for the fresh vs evergreen split`}</div>`;})()}
+    return `<div class="small muted" style="margin:4px 0 2px">Pins for this ${b2.status==='page'?'page':'post'}: <b style="color:var(--navy)">Nest ${ps.logged}</b> <span style="opacity:.8">(made here: batches + cards)</span>${ps.cs?` \u00b7 CS planner (\u00b145d): <b style="color:var(--navy)">${ps.cs.fresh} fresh</b> + <b style="color:var(--teal)">${ps.cs.evg} evergreen</b>`:` \u00b7 <a href="#" onclick="syncCS(null);return false">Sync CS</a> for the fresh vs evergreen split`}</div>`;})()}
   ${st.pins?st.pins.map((p,i)=>pinCard(p,i)).join(''):`<p class="small muted" style="margin:12px 0">No pins written yet. Each pin gets its own angle, image prompt, title, description, alt text and UTM link.</p>`}
   ${st.pins?`<div class="row" style="margin-top:14px;flex-wrap:wrap">
     <button class="btn sm" onclick="pinBatchSend(this)">Send all ${st.pins.length} to CS as drafts</button>
@@ -1671,8 +1673,9 @@ async function pinBatchSend(btn){
       ok++;
     }catch(e){fail++;}
   }
-  toast(ok+' draft'+(ok===1?'':'s')+' sent to CS'+(fail?' · '+fail+' FAILED':'')+'. Add each image, then schedule.');
+  if(ok){try{await syncCS(null);}catch(e){}}
   renderPinBatch();
+  toast(ok+' draft'+(ok===1?'':'s')+' sent to CS'+(fail?' · '+fail+' FAILED':'')+'. Add each image, then schedule.');
 }
 window.pinBatchSend=pinBatchSend;
 async function pinBatchMark(btn){
