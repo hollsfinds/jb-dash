@@ -1081,7 +1081,7 @@ window.pinsDueModal=function(){
   const rows=wfTree().rows.filter(r=>r.branches.some(x=>x.state==='stale'));
   modal(`<h3 style="margin-bottom:10px">Fresh pins due</h3>
   <p class="small muted" style="margin-bottom:8px">These published posts have pins older than 30 days.</p>
-  ${rows.map(r=>`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line)"><span class="small" style="flex:1">${esc(r.b.title)}</span><button class="btn sm" onclick="closeModal();wfBranch('${r.b.id}','pins')">Plan fresh pins</button></div>`).join('')||'<p class="muted small">Nothing due.</p>'}
+  ${rows.map(r=>`<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line)"><span class="small" style="flex:1">${esc(r.b.title)}</span><button class="btn sm" style="background:var(--coral-b)" onclick="closeModal();pinBatchModal('${r.b.id}')">${ic('pin')} Pin batch</button><button class="btn ghost sm" onclick="closeModal();wfBranch('${r.b.id}','pins')">Plan as card</button></div>`).join('')||'<p class="muted small">Nothing due.</p>'}
   <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
 };
 function vDash(){
@@ -1147,6 +1147,9 @@ function vDash(){
       `dashTogglePub()`)}
   </div>
   ${pinsDue.length?`<div class="alert" style="cursor:pointer" onclick="pinsDueModal()"><b>${pinsDue.length} blog post${pinsDue.length>1?'s':''}</b> due for fresh pins · click to plan</div>`:''}
+  ${(()=>{const ev=S.settings.evergreen||{};
+    if(ev.setup_done){const d=ev.last_fed_at?Math.floor((Date.now()-new Date(ev.last_fed_at))/864e5):999;return d>=30?`<div class="alert" style="cursor:pointer" onclick="pinBatchModal('')"><b>Evergreen is hungry</b> · time to add last month's winners to the loop · click for the how-to</div>`:'';}
+    return S.winners.length>=10?`<div class="alert prod" style="cursor:pointer" onclick="pinBatchModal('')"><b>Evergreen unlocked</b> · ${S.winners.length} winners banked · click to set it up</div>`:'';})()}
   <div class="dashcols">
     <div>
       <p class="secttitle">Planning</p>
@@ -1166,6 +1169,7 @@ function vDash(){
         <div class="row" style="margin-left:26px;margin-top:8px">
           <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
           ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
+          ${S.blog.some(b=>['published','waterfalled'].includes(b.status)&&b.url)?`<span class="rbtn" style="border-color:var(--coral);color:var(--coral-b)" onclick="pinBatchModal('${(weekFocus(wsIso)||{}).id||''}')">${ic('pin')} Pin batch</span>`:''}
         </div>
       </div>
       <div class="card stepcard" style="margin-top:18px">
@@ -1485,6 +1489,168 @@ async function markWinner(id){
   toast('Saved to winners vault!');loadAll().then(render);
 }
 window.markWinner=markWinner;
+/* ---- PIN BATCH ENGINE ---- */
+function pinGoalWeek(){return (((S.settings.cadence||{}).pinterest_fresh_per_day)||15)*7;}
+function evgState(){return S.settings.evergreen||{};}
+const PIN_ANGLES=['Main hook','The trick','The objection','Curiosity gap','The list'];
+async function loadBoards(){
+  if(S.csBoards)return S.csBoards;
+  const j=await csCall(`/workspaces/${CS_WS}/accounts?per_page=100`);
+  S.csBoards=(j.data||[]).filter(a=>a.platform==='pinterest'&&a.validity==='valid').map(a=>({id:a._id,name:a.account_name}));
+  return S.csBoards;
+}
+function pinCounter(key,val){const n=(val||'').length;
+  if(key==='title')return `<b style="color:${n<=90?'var(--good)':'var(--coral-b)'}">${n}/90</b>`;
+  if(key==='desc')return `<b style="color:${n>=220&&n<=232?'var(--good)':'var(--coral-b)'}">${n} · target 220-232</b>`;
+  if(key==='alt')return `<b style="color:${n<=200?'var(--good)':'var(--coral-b)'}">${n}/200</b>`;
+  return '';}
+window.pinFieldEdit=function(i,key,val){const st=window.__pinBatch;if(!st||!st.pins||!st.pins[i])return;st.pins[i][key]=val;const el=document.getElementById('pb-'+i+'-'+key+'-n');if(el)el.innerHTML=pinCounter(key,val);};
+function pinCard(p,i){
+  const f=(key,label,val,cnt)=>`<div class="copyfield"><label>${label}${cnt?` · <span id="pb-${i}-${key}-n">${pinCounter(key,val)}</span>`:''}</label><textarea oninput="pinFieldEdit(${i},'${key}',this.value)">${esc(val||'')}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
+  return `<div style="border-top:1.5px solid var(--line);margin-top:14px;padding-top:10px">
+  <div class="row"><b style="font-size:15px">Pin ${String.fromCharCode(65+i)}</b><span class="chip" style="background:var(--mint);color:#204430;border-color:transparent">${esc(p.angle||'')}</span><span class="small muted">skeleton: ${esc(p.skel_name||'')}</span></div>
+  ${f('img','Image prompt · AI Studio → CS media library',p.img)}
+  ${f('title','Pin title',p.title,1)}
+  ${f('desc','Description (with hashtags)',p.desc,1)}
+  ${f('alt','Alt text · middle icon on the image in CS media library',p.alt,1)}
+  ${f('url','Destination link (UTM)',p.url)}
+  </div>`;
+}
+function evergreenPanel(){
+  const n=S.winners.length,goal=10,ev=evgState();
+  const box=c=>`<div style="border:1.5px dashed var(--teal-lt);border-radius:12px;padding:13px 15px;margin-top:18px;background:#f4faf8">${c}</div>`;
+  if(ev.setup_done){
+    const days=ev.last_fed_at?Math.floor((Date.now()-new Date(ev.last_fed_at))/864e5):999;
+    return box(`<b style="color:var(--teal-dk,#1d6e64)">Evergreen is running</b> <span class="small muted">· last fed ${ev.last_fed_at?days+' day'+(days===1?'':'s')+' ago':'never'}</span>
+      ${days>=30?`<p class="small" style="color:var(--coral-b);font-weight:700;margin-top:5px">Feeding time: in ContentStudio, PAUSE each evergreen campaign, add last month's winners as new posts (a DIFFERENT pin image per Pinterest entry), then restart it. You cannot add posts to a running campaign.</p>`:`<p class="small muted" style="margin-top:5px">Next feed in ${Math.max(0,30-days)} days. Monthly ritual: pause campaign → add new winners → restart.</p>`}
+      <div class="row" style="margin-top:9px"><button class="btn ghost sm" onclick="evgFed()">✓ I fed it today</button><a class="btn ghost sm" style="text-decoration:none" href="https://app.contentstudio.io/juneybyrd/publisher/automation/evergreen" target="_blank" rel="noopener">Open CS Evergreen</a></div>`);
+  }
+  if(n>=goal){
+    return box(`<b style="color:var(--teal-dk,#1d6e64)">Evergreen unlocked · ${n} winners banked</b>
+      <p class="small" style="margin:6px 0 5px;line-height:1.55">Evergreen re-posts your proven winners on a loop, so the robot closes the pin gap instead of you. One-time setup, about 20 minutes:</p>
+      <ol class="small" style="margin:0 0 6px 18px;line-height:1.7;padding:0">
+      <li>Open <a href="https://app.contentstudio.io/juneybyrd/publisher/automation/evergreen" target="_blank" rel="noopener">CS → Publisher → Automations → Recycle Posts (Evergreen)</a> → Create Evergreen Schedule.</li>
+      <li>Make ONE campaign per board or niche group, named so you recognize it.</li>
+      <li>Add your winner posts (minimum 2). Pinterest entries each need a DIFFERENT image than the original, Pinterest buries duplicate pins. FB, IG and TikTok can recycle as-is.</li>
+      <li>Interval: 2-4 posts per day. Cycle gap: 30+ days so nothing repeats within a month.</li>
+      <li>No end date. Save and start it.</li>
+      </ol>
+      <p class="small muted">You CANNOT add posts to a running campaign. That is why feeding it is a monthly ritual: pause → add → restart.</p>
+      <div class="row" style="margin-top:9px"><button class="btn sm" onclick="evgSetupDone()">✓ It is set up, start the monthly clock</button></div>`);
+  }
+  return box(`<b style="color:var(--teal-dk,#1d6e64)">Evergreen · ${n}/${goal} winners banked — not yet</b>
+    <div class="meter" style="max-width:220px;margin:7px 0"><i style="width:${Math.max(4,Math.min(100,n/goal*100))}%;background:var(--teal-lt)"></i></div>
+    <p class="small muted" style="line-height:1.55">Evergreen is a ContentStudio robot that re-posts your PROVEN winners on a loop, forever. It closes the gap between your fresh pins and the weekly goal so you do not have to. It unlocks at ${goal} winners: bank them with the ⭐ Mark as winner button on published cards. When you hit ${goal}, this panel turns into the click-by-click setup guide.</p>`);
+}
+async function evgSetupDone(){await saveSetting('evergreen',{...evgState(),setup_done:true,last_fed_at:new Date().toISOString()});toast('Evergreen clock started!');renderPinBatch();}
+async function evgFed(){await saveSetting('evergreen',{...evgState(),last_fed_at:new Date().toISOString()});toast('Evergreen fed. See you next month!');renderPinBatch();}
+window.evgSetupDone=evgSetupDone;window.evgFed=evgFed;
+function pinBatchModal(blogId){
+  const bid=String(blogId||'');
+  const cur=window.__pinBatch;
+  if(!cur||(bid&&cur.blogId!==bid))window.__pinBatch={blogId:bid,count:3,pins:null};
+  renderPinBatch();
+  if(!S.csBoards)loadBoards().then(()=>renderPinBatch()).catch(()=>{});
+}
+window.pinBatchModal=pinBatchModal;
+function renderPinBatch(){
+  const st=window.__pinBatch;if(!st)return;
+  const pubs=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
+  if(!st.blogId||!pubs.some(p=>String(p.id)===st.blogId)){const wf=weekFocus(weekStart(new Date()));st.blogId=String(((wf&&wf.url?wf:null)||pubs[0]||{}).id||'');}
+  const cad=S.settings.cadence||{};
+  const cp=csPinsWeek(weekStart(new Date()));
+  const goal=pinGoalWeek();
+  const boards=S.csBoards;
+  const savedBoard=S.settings.pin_batch_board||'';
+  modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
+  <div class="row" style="background:var(--bg);border-radius:10px;padding:9px 12px;margin:10px 0;gap:8px;flex-wrap:wrap">
+    ${cp?`<span class="small"><b>Pins this week: ${cp.sch}/${goal} scheduled</b></span><div class="meter" style="max-width:160px;flex:1;margin-top:0"><i class="${cp.sch>=goal?'done':''}" style="width:${Math.min(100,Math.max(3,cp.sch/goal*100))}%"></i></div><span class="small" style="font-weight:800;color:${goal-cp.sch>0?'var(--coral-b)':'var(--good)'}">${goal-cp.sch>0?'gap: '+(goal-cp.sch):'goal met ✓'}</span>`:`<span class="small muted">Hit <a href="#" onclick="syncCS(null);return false">Sync CS</a> for live pin math</span>`}
+    <span class="small muted">· goal = Settings (${cad.pinterest_fresh_per_day||15}/day × 7)</span>
+  </div>
+  <div class="row" style="margin-bottom:8px;flex-wrap:wrap">
+    <span class="small muted">Pins for</span>
+    <select style="flex:1;min-width:170px" onchange="window.__pinBatch.blogId=this.value;window.__pinBatch.pins=null;renderPinBatch()">${pubs.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${esc((p.title||'').slice(0,52))}</option>`).join('')}</select>
+    <span class="small muted">Count</span>
+    <select onchange="window.__pinBatch.count=+this.value">${[3,4,5].map(x=>`<option ${st.count===x?'selected':''}>${x}</option>`).join('')}</select>
+    <button class="btn sm" style="background:var(--coral-b)" onclick="pinBatchWrite(this)">${st.pins?ic('refresh')+' Rewrite batch':ic('sparkle')+' Write the batch'}</button>
+  </div>
+  <div class="row" style="margin-bottom:4px">
+    <span class="small muted">Board for the CS drafts</span>
+    ${boards?`<select id="pb-board" style="flex:1;min-width:170px" onchange="saveSetting('pin_batch_board',this.value)">${boards.map(x=>`<option value="${x.id}" ${x.id===savedBoard?'selected':''}>${esc(x.name)}</option>`).join('')}</select>`:`<span class="small muted">loading boards…</span>`}
+  </div>
+  ${st.pins?st.pins.map((p,i)=>pinCard(p,i)).join(''):`<p class="small muted" style="margin:12px 0">No pins written yet. Each pin gets its own angle, image prompt, title, description, alt text and UTM link.</p>`}
+  ${st.pins?`<div class="row" style="margin-top:14px;flex-wrap:wrap">
+    <button class="btn sm" onclick="pinBatchSend(this)">Send all ${st.pins.length} to CS as drafts</button>
+    <button class="btn sm" style="background:var(--mint);color:#204430" onclick="pinBatchMark(this)">✓ Mark batch created</button>
+  </div>
+  <p class="small muted" style="margin-top:6px">Send = drafts land in CS with title, description and link filled. You make each image from its prompt, drop it on the draft, schedule. Mark = stamps ${st.pins.length} pins on this post so the 30-day fresh-pin clock resets.</p>`:''}
+  ${evergreenPanel()}
+  <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
+  $('#modal').classList.add('wide');
+}
+async function pinBatchWrite(btn){
+  const st=window.__pinBatch;if(!st)return;
+  const b=S.blog.find(x=>String(x.id)===st.blogId);
+  if(!b){toast('Pick a post first');return;}
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const n=st.count||3;
+    const angles=PIN_ANGLES.slice(0,n);
+    const kws=S.keywords.filter(k=>k.platform==='pinterest').flatMap(k=>k.items||[]).slice(0,25).join(', ');
+    const ask=`Create ${n} DIFFERENT Pinterest pin variations that all point to this blog post. Post: "${b.title}" (${b.url}).
+Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>String.fromCharCode(65+i)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
+Pinterest keywords to weave in naturally: ${kws||'n/a'}.
+Rules for EVERY pin:
+- "overlay": the short punchy text ON the image, under 12 words, every pin's overlay clearly different
+- "title": keyword-rich Pinterest title, UNDER 90 characters
+- "desc": 220-232 characters TOTAL including 3-4 hashtags at the end, natural keywords, one soft save-this CTA
+- "alt": literal plain description of a pin image that shows the overlay text, under 200 characters
+Reply as JSON only: {"pins":[{"overlay":"","title":"","desc":"","alt":""}]}`;
+    const out=await claude(VOICE,ask,1800);
+    const j=extractJSON(out);
+    const sks=[...S.skeletons].sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
+    st.pins=(j.pins||[]).slice(0,n).map((p,i)=>{
+      const sk=sks.length?sks[i%sks.length]:null;
+      const img=sk?buildImagePrompt(sk.id,{title:p.overlay}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+(p.overlay||'').toUpperCase()+'"');
+      return {...p,angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',img,url:utmize(b.url,'pinterest')};
+    });
+  }catch(e){toast('Pin batch failed: '+(e.message||e));}
+  renderPinBatch();
+}
+window.pinBatchWrite=pinBatchWrite;
+async function pinBatchSend(btn){
+  const st=window.__pinBatch;if(!st||!st.pins||!st.pins.length)return;
+  const sel=document.getElementById('pb-board');
+  const board=(sel&&sel.value)||S.settings.pin_batch_board;
+  if(!board){toast('Pick a board first');return;}
+  if(S.settings.pin_batch_board!==board)await saveSetting('pin_batch_board',board);
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Sending…';}
+  let ok=0,fail=0;
+  for(const p of st.pins){
+    try{
+      await csCall(`/workspaces/${CS_WS}/posts`,'POST',{accounts:[board],post_type:'feed',content:{text:p.desc||''},scheduling:{publish_type:'draft'},pinterest_options:{title:p.title||'',link:p.url||''}});
+      ok++;
+    }catch(e){fail++;}
+  }
+  toast(ok+' draft'+(ok===1?'':'s')+' sent to CS'+(fail?' · '+fail+' FAILED':'')+'. Add each image, then schedule.');
+  renderPinBatch();
+}
+window.pinBatchSend=pinBatchSend;
+async function pinBatchMark(btn){
+  const st=window.__pinBatch;if(!st||!st.pins||!st.pins.length)return;
+  const b=S.blog.find(x=>String(x.id)===st.blogId);if(!b)return;
+  if(btn)btn.disabled=true;
+  const now=new Date().toISOString();
+  await sb.from('jb_blog').update({pins_count:(b.pins_count||0)+st.pins.length,last_pin_at:now}).eq('id',b.id);
+  b.pins_count=(b.pins_count||0)+st.pins.length;b.last_pin_at=now;
+  for(const sid of [...new Set(st.pins.map(p=>p.skel_id).filter(Boolean))]){
+    await sb.from('jb_skeletons').update({last_used_at:now}).eq('id',sid);
+    const s=S.skeletons.find(x=>x.id===sid);if(s)s.last_used_at=now;
+  }
+  toast('Batch logged: +'+st.pins.length+' pins on this post. Fresh-pin clock reset.');
+  window.__pinBatch=null;closeModal();render();
+}
+window.pinBatchMark=pinBatchMark;
 async function genCopy(id,btn){
   const u=S.units.find(x=>x.id===id);
   if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
@@ -1786,7 +1952,7 @@ function vSet(){
   ${setTabs('set')}
   <div class="grid g2">
     <div class="card"><h3>Cadence targets (researched 2026 defaults, edit freely)</h3>
-      ${[['pinterest_fresh_per_day','Pinterest fresh pins / day'],['instagram_per_week','Instagram posts / week'],['facebook_per_week','Facebook posts / week'],['tiktok_per_week','TikTok posts / week'],['blog_per_month','Blog posts / month'],['stories_per_week','Stories / week']].map(([k,l])=>`
+      ${[['pinterest_fresh_per_day','Pinterest pins / day (total)'],['instagram_per_week','Instagram posts / week'],['facebook_per_week','Facebook posts / week'],['tiktok_per_week','TikTok posts / week'],['blog_per_month','Blog posts / month'],['stories_per_week','Stories / week']].map(([k,l])=>`
       <div class="row" style="margin-bottom:8px"><span class="small" style="flex:1">${l}</span><input type="number" style="width:80px" value="${c[k]??''}" onchange="setCadence('${k}',+this.value)"></div>`).join('')}
       <div class="row" style="margin-bottom:8px"><span class="small" style="flex:1">Pins per blog post (waterfall target)</span><input type="number" style="width:80px" value="${S.settings.pins_per_post??3}" onchange="saveSetting('pins_per_post',+this.value).then(()=>toast('Saved'))"></div>
     </div>
