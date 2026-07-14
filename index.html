@@ -1589,6 +1589,7 @@ async function loadBoards(){
   if(!S.settings.pin_batch_board||!S.csBoards.some(b=>b.id===S.settings.pin_batch_board)){const def=S.csBoards.find(b=>/entrepreneur/i.test(b.name||''));if(def){S.settings.pin_batch_board=def.id;saveSetting('pin_batch_board',def.id);}}
   return S.csBoards;
 }
+function capChars(s,n){s=String(s||'');if(s.length<=n)return s;const t=s.slice(0,n);const sp=t.lastIndexOf(' ');return (sp>n*0.6?t.slice(0,sp):t).trim();}
 function pinCounter(key,val){const n=(val||'').length;
   if(key==='title')return `<b style="color:${n<=100?'var(--good)':'var(--coral-b)'}">${n}/100</b>`;
   if(key==='desc')return `<b style="color:${n<=500?'var(--good)':'var(--coral-b)'}">${n}/500</b>`;
@@ -1750,7 +1751,7 @@ async function pinBatchWrite(btn){
       return `Pin ${i+1} (angle: ${x.angle}; layout: ${x.sk?x.sk.name:'simple overlay'}) image text slots to fill: ${spec}`;
     }).join('\n');
     const ask=`Create ${n} DIFFERENT Pinterest pins that all link to this ${kind}: "${b.title}" (${b.url}).
-BRAND TRUTH (never contradict): Holly runs her own freelance money with HER OWN products that she built and sells: the Hutch bookkeeping app and the Stash savings app. In first-person copy about tracking income, expenses, bookkeeping or savings, she uses Hutch and Stash, NEVER a spreadsheet or a generic tracker.
+BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. Reference them ONLY at a high level (name them or "my bookkeeping app" / "my savings app"). Do NOT describe how they work or invent features, screens, or workflows for them. NEVER portray her using a spreadsheet or a generic tracker.
 Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>(i+1)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
 Pinterest keywords to weave in naturally: ${kws||'n/a'}.
 
@@ -1770,7 +1771,7 @@ Reply as JSON only, with slots keyed by the exact slot names shown above:
       const slots=p.slots||{};
       const overlay=Object.values(slots).filter(Boolean)[0]||'';
       const img=sk?buildImagePrompt(sk.id,{slots}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+String(overlay).toUpperCase()+'"');
-      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:(p.title||'').slice(0,100),desc:(p.desc||'').slice(0,500),alt:(p.alt||'').slice(0,500),url:utmize(b.url,'pinterest'),done:false};
+      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:capChars(p.title,100),desc:capChars(p.desc,500),alt:capChars(p.alt,500),url:utmize(b.url,'pinterest'),done:false};
     });
     pbSave();
   }catch(e){toast('Pin batch failed: '+(e.message||e));}
@@ -1823,14 +1824,14 @@ async function genCopy(id,btn){
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
     const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
-BRAND TRUTH (never contradict): Holly runs her own freelance money with HER OWN products that she built and sells: the Hutch bookkeeping app and the Stash savings app. In any first-person copy about tracking income, expenses, bookkeeping or savings, she uses Hutch and Stash, NEVER a spreadsheet, a generic expense tracker, or another app. Do not imply she uses spreadsheets for her own books.
+BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. Reference them ONLY at a high level (name them, or say "my bookkeeping app" / "my savings app"). Do NOT describe how they work, and do NOT invent features, screens, categories, buttons, or step-by-step workflows for them. NEVER portray her using a spreadsheet or a generic tracker. Keep any tool reference vague and let the tip or story carry the value.
 Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
 Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
 ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.name}" layout with these text slots: ${slotSpec}. You MUST fill EVERY slot with real words about THIS exact topic ("${u.title}"). Never leave a slot blank. NEVER use generic filler like MADE SIMPLE, DONE, SIMPLE HONEST, NO OVERWHELM, YES, FINALLY, WORKS, FOR REAL LIFE. Each line reads like it was written for this post: a concrete hook or specific detail, in Juney & Byrd warm plain voice, within each length hint, clearly different from the caption.
 `:''}Reply as JSON ONLY:
-{${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"specific words about this topic, never blank, never generic filler"`).join(',')}},`:''}"caption":"main caption used for IG/FB, 60-120 words, ends with a soft CTA",
-"caption_b":"a second, different take on the caption",
+{${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"specific words about this topic, never blank, never generic filler"`).join(',')}},`:''}"caption":"caption used for IG/FB AND as the Pinterest pin description, 70 to 90 words, keep it UNDER 480 characters, ends with a soft CTA",
+"caption_b":"a second, different take on the caption, also under 480 characters",
 "pin_title":"Pinterest title, keyword-rich, 45 to 70 characters, never over 100",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
@@ -1839,6 +1840,9 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
     const out=await claude(VOICE,ask,1900);
     const j=extractJSON(out);
     const c={...(u.copy||{}),...j};
+    if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
+    if(c.caption)c.caption=capChars(c.caption,490);
+    if(c.caption_b)c.caption_b=capChars(c.caption_b,490);
     await updUnit(id,{copy:c,status:u.status==='idea'?'idea':u.status});
     if(u.skeleton_id)await sb.from('jb_skeletons').update({last_used_at:new Date().toISOString()}).eq('id',u.skeleton_id);
     render();toast('Copy pack written!');
