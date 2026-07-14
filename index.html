@@ -89,7 +89,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line)}
 td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .copyfield{position:relative;margin-bottom:10px}
-.copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:800;display:block;margin-bottom:4px}
+.copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--teal);font-weight:800;display:block;margin-bottom:4px}
 .copyfield textarea{min-height:64px;font-size:13.5px;padding-right:64px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}
 .copyfield .cp{position:absolute;right:8px;top:26px;background:var(--navy);color:#fff;padding:4px 10px;font-size:11px;border-radius:8px}
 .statusflow{display:flex;gap:5px;flex-wrap:wrap}
@@ -111,7 +111,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .flowlabels span.fcur{color:var(--coral-b)}
 .flowlabels span.fdone{color:var(--teal-lt)}
 .stepnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:900;margin-right:8px}
-.steptitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--navy);font-weight:900}
+.steptitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);font-weight:900}
 .stephint{font-size:11.5px;color:var(--muted);margin:2px 0 8px 28px}
 .stepbody{margin-left:28px}
 .ustep{border-top:1.5px solid var(--line);margin-top:16px;padding-top:12px}
@@ -1480,7 +1480,7 @@ function unitBody(u){
         <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
       </div>
       <label class="small" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" ${c.story_too?'checked':''} onchange="saveCopyField('${u.id}','story_too',this.checked?1:'').then(render)"> Also shared to Story in CS (counts IG/FB Stories in the mix)</label>
-      ${c.format?(()=>{const FS={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};const items=mixBuckets(u).map(k=>({t:FS[k]||k,c:k.indexOf('story')>-1?'story':''}));if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});items.sort((a,b)=>a.t.localeCompare(b.t));return `<div class="row" style="margin-top:8px"><span class="small muted" style="font-weight:700">Post as:</span><div class="fmts" style="margin-top:0">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div></div>`;})():''}
+      ${c.format?(()=>{const FS={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};const items=mixBuckets(u).map(k=>({t:FS[k]||k,c:k.indexOf('story')>-1?'story':''}));if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});items.sort((a,b)=>a.t.localeCompare(b.t));return `<div class="row" style="margin-top:8px;align-items:center"><span class="small muted" style="font-weight:700">Post as:</span><div class="fmts" style="margin-top:0">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div><span class="small" style="font-weight:800;color:var(--teal);margin-left:2px">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][u.day]||''}</span></div>`;})():''}
       ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:''}
       <p class="stephint" style="margin-top:6px">Reels = reach \u00b7 Posts = authority \u00b7 Stories = connection.</p>
     </div>
@@ -1488,6 +1488,7 @@ function unitBody(u){
       <span class="stepnum">3</span><span class="steptitle">Content \u00b7 the main caption box</span>
       ${c.caption?`
       <div style="margin-top:8px"></div>
+      ${field('Pinterest \u00b7 Title','pin_title',u)}
       ${field('Content (A)','caption',u)}
       ${c.caption_b?field('Content (B)','caption_b',u):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
@@ -1496,7 +1497,6 @@ function unitBody(u){
       <span class="stepnum">4</span><span class="steptitle">Per-platform fields \u00b7 CS order</span>
       ${c.caption?`
       <div style="margin-top:8px"></div>
-      ${field('Pinterest \u00b7 Title','pin_title',u)}
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
       ${field('TikTok \u00b7 Post title','tiktok_caption',u)}
       `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
@@ -1746,6 +1746,7 @@ async function pinBatchWrite(btn){
       return `Pin ${i+1} (angle: ${x.angle}; layout: ${x.sk?x.sk.name:'simple overlay'}) image text slots to fill: ${spec}`;
     }).join('\n');
     const ask=`Create ${n} DIFFERENT Pinterest pins that all link to this ${kind}: "${b.title}" (${b.url}).
+BRAND TRUTH (never contradict): Holly runs her own freelance money with HER OWN products that she built and sells: the Hutch bookkeeping app and the Stash savings app. In first-person copy about tracking income, expenses, bookkeeping or savings, she uses Hutch and Stash, NEVER a spreadsheet or a generic tracker.
 Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>(i+1)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
 Pinterest keywords to weave in naturally: ${kws||'n/a'}.
 
@@ -1818,6 +1819,7 @@ async function genCopy(id,btn){
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
     const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
+BRAND TRUTH (never contradict): Holly runs her own freelance money with HER OWN products that she built and sells: the Hutch bookkeeping app and the Stash savings app. In any first-person copy about tracking income, expenses, bookkeeping or savings, she uses Hutch and Stash, NEVER a spreadsheet, a generic expense tracker, or another app. Do not imply she uses spreadsheets for her own books.
 Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
 Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
