@@ -447,10 +447,18 @@ s2:'<div style="position:absolute;inset:0;background:#fff;border:1.5px solid #e8
 s3:'<div style="position:absolute;inset:0;background:#f2efe9"></div><div style="position:absolute;top:18%;left:12%;width:76%;height:4px;background:#22334f"></div><div style="position:absolute;top:30%;left:8%;width:84%;height:9px;background:#f2c4ae"></div><div style="position:absolute;top:48%;left:12%;width:76%;height:6px;background:#22334f"></div><div style="position:absolute;top:62%;left:20%;width:60%;height:4px;background:#22334f"></div>',
 s4:'<div style="position:absolute;top:0;left:0;right:0;height:60%;background:linear-gradient(160deg,#e9ecea,#9fb0b4)"></div><div style="position:absolute;bottom:0;left:0;right:0;height:40%;background:#22334f"></div><div style="position:absolute;bottom:26%;left:10%;width:55%;height:5px;background:#fff"></div><div style="position:absolute;bottom:16%;left:10%;width:40%;height:6px;background:#a9cbb7"></div><div style="position:absolute;bottom:7%;left:10%;width:70%;height:7px;background:#fff"></div>'
 };
+const SKELETON_SLOTS={
+s1:[{t:'HEADLINE',b:'main headline, the scroll-stopping hook',caps:1},{t:'HERO',b:'ONE short emotional word in script (finally, yes, breathe)'},{t:'LINE2',b:'second line finishing the headline thought',caps:1},{t:'KICKER',b:'short reassuring closer in script, under 4 words'}],
+s2:[{t:'SMALL',b:'tiny lead-in word in script (The, Your, This)'},{t:'HEADLINE',b:'main headline hook',caps:1},{t:'LINE2',b:'second line',caps:1},{t:'PUNCH',b:'ONE punchy payoff word',caps:1},{t:'BADGE1',b:'2 to 3 word benefit badge',caps:1},{t:'BADGE2',b:'2 to 3 word benefit badge',caps:1},{t:'CHECK1',b:'short checklist action, 2 to 3 words'},{t:'CHECK2',b:'short checklist action, 2 to 3 words'},{t:'CHECK3',b:'short checklist action, 2 to 3 words'}],
+s3:[{t:'L1',b:'small kicker line above the big line',caps:1},{t:'L2',b:'big bold line, the hook',caps:1},{t:'SCRIPT',b:'ONE script word bridging the two big lines'},{t:'L4',b:'small italic line',caps:1},{t:'L5',b:'big bold payoff line',caps:1},{t:'L6',b:'small footer line',caps:1}],
+s4:[{t:'TOP',b:'setup line, smaller caps, the hook',caps:1},{t:'SCRIPT',b:'ONE connective word/phrase, goes in brackets (finally, at last)'},{t:'HERO',b:'the biggest payoff line, the promise',caps:1},{t:'OVERLAY',b:'tiny label riding on the photo, 2 to 4 words',caps:1}]
+};
 function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
   const title=(unit.title||'').toUpperCase();
-  let edit=t.edit.replace(/\{[A-Z0-9]+\}/g,m=>({'{HEADLINE}':title,'{HERO}':'YES','{LINE2}':'MADE SIMPLE','{KICKER}':'you can do this','{SMALL}':'The','{PUNCH}':'DONE.','{BADGE1}':'SIMPLE. HONEST.','{BADGE2}':'NO OVERWHELM.','{CHECK1}':'Start small','{CHECK2}':'Stay honest','{CHECK3}':'Keep going','{L1}':'THE','{L2}':title,'{L4}':'THAT ACTUALLY','{L5}':'WORKS','{L6}':'FOR REAL LIFE','{SCRIPT}':'finally','{TOP}':title,'{OVERLAY}':'OVERWHELMING, MADE EASY'}[m]||m));
+  const DEF={'{HEADLINE}':title,'{HERO}':'YES','{LINE2}':'MADE SIMPLE','{KICKER}':'you can do this','{SMALL}':'The','{PUNCH}':'DONE.','{BADGE1}':'SIMPLE. HONEST.','{BADGE2}':'NO OVERWHELM.','{CHECK1}':'Start small','{CHECK2}':'Stay honest','{CHECK3}':'Keep going','{L1}':'THE','{L2}':title,'{L4}':'THAT ACTUALLY','{L5}':'WORKS','{L6}':'FOR REAL LIFE','{SCRIPT}':'finally','{TOP}':title,'{OVERLAY}':'OVERWHELMING, MADE EASY'};
+  const slots=unit.slots||{};const capsMap={};(SKELETON_SLOTS[skelId]||[]).forEach(x=>{capsMap[x.t]=!!x.caps;});
+  let edit=t.edit.replace(/\{[A-Z0-9]+\}/g,m=>{const key=m.slice(1,-1);if(slots[key]!=null&&String(slots[key]).trim()!==''){const v=String(slots[key]).trim();return capsMap[key]?v.toUpperCase():v;}return (DEF[m]!=null)?DEF[m]:m;});
   return edit+t.body+'\nTEXT RULES (critical): Render ONLY the exact text lines listed in the edit block, and render each line EXACTLY ONCE in its own described spot. The lines are DIFFERENT phrases: never copy one line into another, never repeat the same words anywhere else in the image, and never fill empty space by duplicating text from another line. Any circle badge shows only its own short badge words and must never repeat the headline or the top line. Do not add any words that are not in the edit block.'+'\nCROP SAFETY: keep every word of text, every badge, and the logo at least 8% away from the top and bottom edges. Only background scenery may touch the top and bottom edges. This image gets center-cropped to 3:4 for Instagram, so nothing important lives in the outer sliver top or bottom.';
 }
 </script>
@@ -718,11 +726,31 @@ function renderTodo(){
   const dayN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const auto=S.units.map(u=>({u,step:nextStepFor(u)})).filter(a=>a.step&&unitDate(a.u)>=horizon).sort((a,b)=>unitDate(a.u)-unitDate(b.u));
   window.todoOpen=window.todoOpen||{};
+  const _ws=S.week||weekStart(new Date());const _wi=iso(_ws);
+  const _wf=weekFocus(_wi);
+  const _pw=pillarWeek(_ws);const _slots=_pw.reduce((a,x)=>a+Math.min(x.done,x.goal),0);
+  const _hungry=_pw.filter(x=>x.done<x.goal).map(x=>'P'+x.p);
+  const _soc=weekUnits(_ws).filter(u=>u.kind==='social');
+  const _cardsDone=_soc.filter(u=>['scheduled','published'].includes(u.status)).length;const _cardTot=_soc.length;
+  const _s1=!!_wf,_s2=_slots>=7,_s3=_cardTot>0&&_cardsDone>=_cardTot;
+  const _cur=!_s1?1:(!_s2?2:(!_s3?3:4));
+  const _cp=csPinsWeek(_ws);const _pgoal=pinGoalWeek();
+  const _stepRow=(nn,label,detail,done,onc)=>`<div class="titem" style="align-items:center;gap:8px;cursor:pointer;${(nn>_cur&&!done)?'opacity:.5':''}" onclick="${onc}">
+    <span style="width:19px;height:19px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;background:${done?'var(--mint-d)':(nn===_cur?'var(--coral)':'var(--line)')};color:${done||nn===_cur?'#fff':'var(--muted)'}">${done?'✓':nn}</span>
+    <span style="flex:1;min-width:0"><b class="small">${label}</b> <span class="small muted">${detail}</span></span></div>`;
+  const weekBlock=`<h4>This week</h4>
+    ${_stepRow(1,'Pick the blog',_s1?('· '+esc((_wf.title||'').slice(0,22))):'· none picked yet',_s1,"go('dash')")}
+    ${_stepRow(2,'Feed the pillars','· '+_slots+'/7'+((_hungry.length&&_s1)?' ('+_hungry.join(' ')+')':''),_s2,"go('dash')")}
+    ${_stepRow(3,'Process the cards','· '+(_cardTot?_cardsDone+'/'+_cardTot+' out the door':'no cards yet'),_s3,"go('dash')")}
+    <div class="titem" style="align-items:center;gap:8px;cursor:pointer" onclick="pinBatchModal('${(_wf||{}).id||''}')">
+      <span style="width:19px;height:19px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;background:${(_cp&&_cp.sch>=_pgoal)?'var(--mint-d)':'var(--navy)'};color:#fff">${ic('pin')}</span>
+      <span style="flex:1"><b class="small">Weekly pins</b> <span class="small muted">${_cp?(_cp.sch+'/'+_pgoal+(_cp.sch>=_pgoal?' · goal met':' · '+(_pgoal-_cp.sch)+' to go')):'· Sync CS for count'}</span></span></div>
+    <div style="border-top:1.5px solid var(--line);margin:10px 0 2px"></div>`;
   const groups=[];
   auto.forEach(a=>{let g=groups.find(x=>x.step===a.step);if(!g){g={step:a.step,items:[]};groups.push(g);}g.items.push(a);});
   const item=(a,indent)=>{const f=a.u.kind==='blog-task'?'Blog post':(WF_FORMATS[guessFormat(a.u)]||'Post');const d=dayN[a.u.day]||'';return `<div class="titem" style="cursor:pointer${indent?';margin-left:14px':''}" onclick="jumpUnit('${a.u.id}')">
     <span class="pri hi"></span><span style="flex:1">${indent?'':`<span class="small"><b>${esc(a.step)}</b></span> `}<span class="small muted">${f} · ${d}</span><br><span class="small muted">${esc((a.u.title||'').slice(0,40))}${(a.u.title||'').length>40?'…':''}</span></span></div>`;};
-  el.innerHTML=`<h4>To-do</h4>
+  el.innerHTML=`${weekBlock}<h4>To-do</h4>
   ${groups.map((g,gi)=>{
     if(g.items.length===1)return item(g.items[0],false);
     const open=!!window.todoOpen[g.step];
@@ -1672,22 +1700,33 @@ async function pinBatchWrite(btn){
     const angles=PIN_ANGLES.slice(0,n);
     const kws=S.keywords.filter(k=>k.platform==='pinterest').flatMap(k=>k.items||[]).slice(0,25).join(', ');
     const kind=b.status==='page'?'juneybyrd.com page':'blog post';
-    const ask=`Create ${n} DIFFERENT Pinterest pin variations that all point to this ${kind}. It is: "${b.title}" (${b.url}).
+    const sks=[...S.skeletons].sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
+    const assign=angles.map((a,i)=>({angle:a,sk:sks.length?sks[i%sks.length]:null}));
+    const slotLines=assign.map((x,i)=>{
+      const spec=(x.sk&&SKELETON_SLOTS[x.sk.id])?SKELETON_SLOTS[x.sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):'OVERLAY = one punchy line under 12 words';
+      return `Pin ${i+1} (angle: ${x.angle}; layout: ${x.sk?x.sk.name:'simple overlay'}) image text slots to fill: ${spec}`;
+    }).join('\n');
+    const ask=`Create ${n} DIFFERENT Pinterest pins that all link to this ${kind}: "${b.title}" (${b.url}).
 Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>(i+1)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
 Pinterest keywords to weave in naturally: ${kws||'n/a'}.
-Rules for EVERY pin:
-- "overlay": the short punchy text ON the image, under 12 words, every pin's overlay clearly different
+
+THE IMAGE TEXT IS THE MOST IMPORTANT PART. For each pin, write the ACTUAL words for every image text slot of that pin's layout, listed below. Fill EVERY slot with real, specific copy about THIS post, never placeholder words like YES or DONE. Write it to CONVERT: a scroll-stopping hook, a concrete benefit or a curiosity gap, specific not generic, in Juney & Byrd's warm plain-spoken voice. Respect each slot's length hint. Every pin's image text is clearly different from the other pins and matches its angle.
+${slotLines}
+
+Also for EVERY pin write:
 - "title": keyword-rich Pinterest title, UNDER 90 characters
 - "desc": 220-232 characters TOTAL including 3-4 hashtags at the end, natural keywords, one soft save-this CTA
-- "alt": literal plain description of a pin image that shows the overlay text, under 200 characters
-Reply as JSON only: {"pins":[{"overlay":"","title":"","desc":"","alt":""}]}`;
-    const out=await claude(VOICE,ask,1800);
+- "alt": literal plain description of the finished pin image including the words shown on it, under 200 characters
+Reply as JSON only, with slots keyed by the exact slot names shown above:
+{"pins":[{"slots":{"SLOTNAME":"the words"},"title":"","desc":"","alt":""}]}`;
+    const out=await claude(VOICE,ask,2600);
     const j=extractJSON(out);
-    const sks=[...S.skeletons].sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
     st.pins=(j.pins||[]).slice(0,n).map((p,i)=>{
-      const sk=sks.length?sks[i%sks.length]:null;
-      const img=sk?buildImagePrompt(sk.id,{title:p.overlay}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+(p.overlay||'').toUpperCase()+'"');
-      return {...p,angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',img,url:utmize(b.url,'pinterest'),done:false};
+      const sk=assign[i].sk;
+      const slots=p.slots||{};
+      const overlay=Object.values(slots).filter(Boolean)[0]||'';
+      const img=sk?buildImagePrompt(sk.id,{slots}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+String(overlay).toUpperCase()+'"');
+      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:p.title||'',desc:p.desc||'',alt:p.alt||'',url:utmize(b.url,'pinterest'),done:false};
     });
     pbSave();
   }catch(e){toast('Pin batch failed: '+(e.message||e));}
