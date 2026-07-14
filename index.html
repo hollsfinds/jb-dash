@@ -89,7 +89,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--line)}
 td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .copyfield{position:relative;margin-bottom:10px}
-.copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--teal);font-weight:800;display:block;margin-bottom:4px}
+.copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--coral-b);font-weight:800;display:block;margin-bottom:4px}
 .copyfield textarea{min-height:64px;font-size:13.5px;padding-right:64px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}
 .copyfield textarea.grow{overflow:hidden}
 .copyfield .cp{position:absolute;right:8px;top:26px;background:var(--navy);color:#fff;padding:4px 10px;font-size:11px;border-radius:8px}
@@ -112,7 +112,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .flowlabels span.fcur{color:var(--coral-b)}
 .flowlabels span.fdone{color:var(--teal-lt)}
 .stepnum{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:900;margin-right:8px}
-.steptitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);font-weight:900}
+.steptitle{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--coral-b);font-weight:900}
 .stephint{font-size:11.5px;color:var(--muted);margin:2px 0 8px 28px}
 .stepbody{margin-left:28px}
 .ustep{border-top:1.5px solid var(--line);margin-top:16px;padding-top:12px}
@@ -1751,7 +1751,7 @@ async function pinBatchWrite(btn){
       return `Pin ${i+1} (angle: ${x.angle}; layout: ${x.sk?x.sk.name:'simple overlay'}) image text slots to fill: ${spec}`;
     }).join('\n');
     const ask=`Create ${n} DIFFERENT Pinterest pins that all link to this ${kind}: "${b.title}" (${b.url}).
-BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. Reference them ONLY at a high level (name them or "my bookkeeping app" / "my savings app"). Do NOT describe how they work or invent features, screens, or workflows for them. NEVER portray her using a spreadsheet or a generic tracker.
+BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. These are her ONLY real named products. Reference them ONLY at a high level (name them, or say "my bookkeeping app" / "my savings app"); do NOT describe how they work or invent features, screens, categories, or workflows for them. NEVER invent or name any OTHER tracker, app, system, method, named routine, or product (no made-up names like "the Weekly Money Moment tracker"). NEVER portray her using a spreadsheet or a generic tracker. Either use Hutch or Stash by name, or describe the habit with NO product name at all, and let the tip or story carry the value.
 Each pin attacks a different angle, in this exact order: ${angles.map((a,i)=>(i+1)+' = '+a).join('; ')}. Main hook = the post's core promise. The trick = one specific tactic or detail from the topic. The objection = talk to the reader who thinks it will not work for her.${n>3?' Curiosity gap = tease without revealing.':''}${n>4?' The list = frame it as a numbered list.':''}
 Pinterest keywords to weave in naturally: ${kws||'n/a'}.
 
@@ -1824,7 +1824,7 @@ async function genCopy(id,btn){
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
     const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
-BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. Reference them ONLY at a high level (name them, or say "my bookkeeping app" / "my savings app"). Do NOT describe how they work, and do NOT invent features, screens, categories, buttons, or step-by-step workflows for them. NEVER portray her using a spreadsheet or a generic tracker. Keep any tool reference vague and let the tip or story carry the value.
+BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. These are her ONLY real named products. Reference them ONLY at a high level (name them, or say "my bookkeeping app" / "my savings app"); do NOT describe how they work or invent features, screens, categories, or workflows for them. NEVER invent or name any OTHER tracker, app, system, method, named routine, or product (no made-up names like "the Weekly Money Moment tracker"). NEVER portray her using a spreadsheet or a generic tracker. Either use Hutch or Stash by name, or describe the habit with NO product name at all, and let the tip or story carry the value.
 Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
 Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
