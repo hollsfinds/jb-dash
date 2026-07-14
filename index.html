@@ -1782,7 +1782,7 @@ function vSkel(){
           <div class="small">${esc(i.note||'')}</div>
           <div class="small muted">${fmt(i.created_at)} · ${i.status}</div>
           <div class="row" style="margin-top:6px">
-            <button class="btn ghost sm" onclick="copyText('New skeleton idea in the J&B HQ inbox (id ${i.id}). Image: ${i.image_url||'none'}. Note: ${esc((i.note||'').replace(/'/g,''))}. Let\\'s discuss a new skeleton based on it.','Handoff copied! Paste to Claude.')">${ic('chat')} Discuss</button>
+            <button class="btn ghost sm" onclick="copyText('New skeleton idea in the J&B HQ inbox (id ${i.id}).\\nImage: ${i.image_url||'none'}. View it via my Chrome browser (cloud sandbox can\\'t reach supabase).\\nMy note: ${i.note?esc(i.note.replace(/'/g,'')):'none'}\\nFollow &quot;HANDOFF - Pin Skeleton Builder Agent.md&quot; (project folder). Before proposing anything: check the Pin Skeleton Library doc + locked color/border rules in project memory (contentstudio-pin-system). Discuss the layout with me FIRST, then write the EDIT-BLOCK prompt with the CROP SAFETY paragraph. 2:3 master, IG-crop safe.','Handoff copied! Paste to Claude.')">${ic('chat')} Discuss</button>
             <button class="btn ghost sm" onclick="updInbox('${i.id}','archived')">Archive</button>
           </div>
         </div>
