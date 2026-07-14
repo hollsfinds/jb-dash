@@ -280,6 +280,7 @@ async function loadAll(){
   ]);
   S.units=un.data||[];S.blog=bl.data||[];S.inbox=inb.data||[];S.winners=win.data||[];S.keywords=kw.data||[];
   S.anthKey=S.settings.anth_key||null;
+  try{const cc=JSON.parse(localStorage.getItem('cs_cache')||'null');if(cc&&cc.at&&cc.posts){S.csPosts=cc.posts;S.csSyncedAt=cc.at;}}catch(e){}
 }
 async function saveSetting(key,value){await sb.from('jb_settings').upsert({key,value,updated_at:new Date().toISOString()});S.settings[key]=value;}
 async function updUnit(id,patch){patch.updated_at=new Date().toISOString();await sb.from('jb_units').update(patch).eq('id',id);const u=S.units.find(x=>x.id===id);Object.assign(u,patch);}
@@ -675,6 +676,7 @@ async function syncCS(btn){
       posts=posts.concat(j.data||[]);last=j.last_page||1;page++;
     }while(page<=last&&page<=6);
     S.csPosts=posts;S.csSyncedAt=Date.now();
+    try{localStorage.setItem('cs_cache',JSON.stringify({at:S.csSyncedAt,posts:posts.map(p=>({id:p.id,status:p.status,campaign:p.campaign,accounts:(p.accounts||[]).map(a=>({platform:a.platform})),scheduling:{execute_time:(p.scheduling||{}).execute_time},pinterest_options:p.pinterest_options?{title:p.pinterest_options.title,link:p.pinterest_options.link}:null}))}));}catch(e){}
     let updated=0;
     for(const u of S.units.filter(x=>x.kind==='social')){
       const c=u.copy||{};
@@ -1129,7 +1131,7 @@ function vDash(){
     </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${fmtRange(ws)}</span></div>
-  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button></div>
+  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><span class="small muted" style="align-self:center">${csSyncedLabel()}</span><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;color:var(--navy)" onclick="syncCS(this)">${ic('refresh')} SYNC CS</button></div>
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?'':`<div class="tfix">→ plan a blog post</div>`,
@@ -1353,14 +1355,15 @@ function renderWeekGrid(units){
   const FSING={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};
   const chips=u=>{
     if(u.kind==='blog-task')return `<div class="fmts"><span style="background:var(--peach);color:var(--navy)">Blog</span></div>`;
-    if(u.kind!=='social'||!(u.copy||{}).format)return '';
+    if(u.kind!=='social')return '';
+    if(!(u.copy||{}).format){const sg=suggestFormat(u);return sg?`<div class="fmts"><span style="border:1px dashed var(--muted);background:transparent;color:var(--muted)">suggested: ${WF_FORMATS[sg.fkey]||sg.label}</span><span style="cursor:pointer;background:var(--navy);color:#fff" onclick="event.stopPropagation();saveCopyField('${u.id}','format','${sg.fkey}').then(render)">use</span></div>`:'';}
     const items=mixBuckets(u).map(k=>({t:FSING[k]||k,c:k.indexOf('story')>-1?'story':''}));
     if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});
     items.sort((a,b)=>a.t.localeCompare(b.t));
     return items.length?`<div class="fmts">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div>`:'';
   };
   const row=u=>`<tr${doneSt(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
-  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button><button class="btn ghost sm" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted">${csSyncedLabel()}</span></div>
+  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${open.map(row).join('')}
   ${done.length?`<tr class="done-divider"><td colspan="5">Completed \u00b7 ${done.length}</td></tr>${done.map(row).join('')}`:''}
@@ -1427,12 +1430,7 @@ function unitBody(u){
         <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
       </div>
       <label class="small" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" ${c.story_too?'checked':''} onchange="saveCopyField('${u.id}','story_too',this.checked?1:'').then(render)"> Also shared to Story in CS (counts IG/FB Stories in the mix)</label>
-      ${sg?`<div class="suggest">
-        <span style="font-size:12.5px;font-weight:800;color:var(--navy)">Suggested: ${WF_FORMATS[sg.fkey]||sg.label}</span>
-        <span class="small muted">\u00b7 ${esc(sg.reason)}</span>
-        ${MIX_KEY[cur]===MIX_KEY[sg.fkey]?`<b class="small" style="color:var(--teal-lt);margin-left:6px">set \u2713</b>`:`<button class="btn sm" style="margin-left:8px" onclick="saveCopyField('${u.id}','format','${sg.fkey}').then(render)">Use it</button>`}
-      </div>`:''}
-      ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:`<div class="owedline" style="color:var(--teal-lt)">Weekly format mix fully assigned \u2713</div>`}
+      ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:''}
       <p class="stephint" style="margin-top:6px">Reels = reach \u00b7 Posts = authority \u00b7 Stories = connection.</p>
     </div>
     <div class="ustep">
