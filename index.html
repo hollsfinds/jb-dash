@@ -455,7 +455,9 @@ s2:[{t:'SMALL',b:'tiny lead-in word in script (The, Your, This)'},{t:'HEADLINE',
 s3:[{t:'L1',b:'small kicker line above the big line',caps:1},{t:'L2',b:'big bold line, the hook',caps:1},{t:'SCRIPT',b:'ONE script word bridging the two big lines'},{t:'L4',b:'small italic line',caps:1},{t:'L5',b:'big bold payoff line',caps:1},{t:'L6',b:'small footer line',caps:1}],
 s4:[{t:'TOP',b:'setup line, smaller caps, the hook',caps:1},{t:'SCRIPT',b:'ONE connective word/phrase, goes in brackets (finally, at last)'},{t:'HERO',b:'the biggest payoff line, the promise',caps:1},{t:'OVERLAY',b:'tiny label riding on the photo, 2 to 4 words',caps:1}],
 s6:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}],
-s7:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}]
+s7:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}],
+s8:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}],
+s9:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}]
 };
 const SKEL_FILLERS={
 HERO:['YES','FINALLY','DONE','EASY','HANDLED','SORTED','AT LAST'],
@@ -477,7 +479,9 @@ OVERLAY:['SIMPLE MONEY MOVES','LESS STRESS, MORE DONE','THE EASY WAY','SMALL STE
 };
 const COWORK_SKELETONS=[
   {id:'s6',name:'Advice from Holls \u00b7 White Card',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-card.png',layout:'your photo full-bleed, white card in the lower third, coral frame, logo on the card',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'},
-  {id:'s7',name:'Advice from Holls \u00b7 Mint Pills',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-pills.png',layout:'your photo full-bleed, mint highlighter pills hugging each line, Havana script, coral frame',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'}
+  {id:'s7',name:'Advice from Holls \u00b7 Mint Pills',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-pills.png',layout:'your photo full-bleed, mint highlighter pills hugging each line, Havana script, coral frame',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'},
+  {id:'s8',name:'Advice from Holls \u00b7 Navy Split',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-navy-split.png',layout:'your photo on the RIGHT bleeding off the edge, a NAVY color block on the left holding the words, seamless navy-to-photo fade, coral frame, full-color logo on a small white chip',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'},
+  {id:'s9',name:'Advice from Holls \u00b7 White Split',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-white-split.png',layout:'same split as the navy version but a WHITE block on the left, navy headline + coral eyebrow + coral script, seamless white-to-photo fade, coral frame, full-color logo',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'}
 ];
 function coworkSkel(id){return COWORK_SKELETONS.find(s=>String(s.id)===String(id))||null;}
 function buildCoworkHandoff(sk,unit){
@@ -500,7 +504,9 @@ s3:{pillars:[1],tags:['bold','claim','result','tripled','doubled','how i','hook'
 s4:{pillars:[3],tags:['tool','app','hutch','stash','tracker','payoff','feature','minutes','system','setup']},
 s5:{pillars:[1,5],tags:['before','after','transformation','fix','honest','review','story','mess','used to','finally','went from']},
 s6:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']},
-s7:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']}
+s7:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']},
+s8:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']},
+s9:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']}
 };
 const COWORK_PHOTOS_DEFAULT=['Headshot 1','Headshot 2','Headshot 3','Headshot 4','Headshot 5','Headshot 6','HollsHeadShot2'];
 function coworkPhotos(){return (S.settings&&S.settings.cowork_photos&&S.settings.cowork_photos.length)?S.settings.cowork_photos:COWORK_PHOTOS_DEFAULT;}
