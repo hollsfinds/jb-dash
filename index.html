@@ -494,7 +494,7 @@ function buildCoworkHandoff(sk,unit){
   'EYEBROW: '+L('EYEBROW','(small caps topic hook)')+'\n'+
   'ADVICE: '+L('ADVICE','(the one-line takeaway, all caps)')+'\n'+
   'SCRIPT: '+L('SCRIPT','(tiny warm tag under it)')+'\n'+
-  'Headshot: '+((c.cowork_photo)?c.cowork_photo:'pick one from the Juney & Byrd Images folder (say which)')+'\n\n'+
+  'Headshot: rotation slot #'+(((c.cowork_slot!=null)?c.cowork_slot:0)+1)+' from your headshots folder "'+coworkPhotoFolder()+'" (Claude pulls that image and wraps past the end; add or remove headshots any time without breaking rotation)'+'\n\n'+
   'Paste this to Claude in Cowork. Claude renders the finished 1000x1500 PNG and sends it back. Download it, then upload THAT image to the ContentStudio composer as the pin image. Skip AI Studio entirely.';
 }
 const SKEL_MATCH={
@@ -508,9 +508,8 @@ s7:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson
 s8:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']},
 s9:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']}
 };
-const COWORK_PHOTOS_DEFAULT=['Headshot 1','Headshot 2','Headshot 3','Headshot 4','Headshot 5','Headshot 6','HollsHeadShot2'];
-function coworkPhotos(){return (S.settings&&S.settings.cowork_photos&&S.settings.cowork_photos.length)?S.settings.cowork_photos:COWORK_PHOTOS_DEFAULT;}
-function nextCoworkPhoto(){const ph=coworkPhotos();const i=(((S.settings&&S.settings.cowork_photo_idx)||0))%ph.length;return {photo:ph[i],idx:i};}
+function coworkPhotoFolder(){return (S.settings&&S.settings.cowork_photo_folder)?S.settings.cowork_photo_folder:'Advice from Holls - Headshots';}
+function nextCoworkSlot(){return ((S.settings&&S.settings.cowork_photo_idx)||0);}
 function scoreSkel(id,post){const m=SKEL_MATCH[id];if(!m)return 0;let sc=0;if(m.pillars&&m.pillars.includes(post.pillar))sc+=3;const hay=(((post.title||'')+' '+(post.theme||''))).toLowerCase();(m.tags||[]).forEach(t=>{if(hay.indexOf(t)>=0)sc+=1;});return sc;}
 function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
   const avail=S.skeletons.filter(s=>SKEL_MATCH[s.id]);if(!avail.length)return null;
@@ -529,11 +528,11 @@ window.switchPinMode=async function(id){
   if(isCw){
     const cand=S.skeletons.filter(x=>SKEL_MATCH[x.id]&&!SKEL_MATCH[x.id].cowork).sort((a,b)=>scoreSkel(b.id,post)-scoreSkel(a.id,post));
     newId=(cand[0]||S.skeletons.find(x=>!coworkSkel(x.id))||{id:'s1'}).id;
-    delete copy.cowork_photo;
+    delete copy.cowork_slot;
   }else{
     const idx=(S.settings.cowork_photo_idx||0);
     newId=(typeof COWORK_SKELETONS!=='undefined'&&COWORK_SKELETONS.length)?COWORK_SKELETONS[idx%COWORK_SKELETONS.length].id:'s6';
-    const np=nextCoworkPhoto();copy.cowork_photo=np.photo;await saveSetting('cowork_photo_idx',np.idx+1);
+    const _sl=nextCoworkSlot();copy.cowork_slot=_sl;await saveSetting('cowork_photo_idx',_sl+1);
   }
   delete copy.image_prompt;delete copy.slots;
   await updUnit(id,{skeleton_id:newId,copy});
@@ -1457,7 +1456,7 @@ async function savePlan(btn){
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
-    let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _np=nextCoworkPhoto();_cwCopy={cowork_photo:_np.photo};await saveSetting('cowork_photo_idx',_np.idx+1);}
+    let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=nextCoworkSlot();_cwCopy={cowork_slot:_sl};await saveSetting('cowork_photo_idx',_sl+1);}
     rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
