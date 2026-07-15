@@ -490,8 +490,30 @@ function buildCoworkHandoff(sk,unit){
   'EYEBROW: '+L('EYEBROW','(small caps topic hook)')+'\n'+
   'ADVICE: '+L('ADVICE','(the one-line takeaway, all caps)')+'\n'+
   'SCRIPT: '+L('SCRIPT','(tiny warm tag under it)')+'\n'+
-  'Headshot: pick one from the Juney & Byrd Images folder (say which)\n\n'+
+  'Headshot: '+((c.cowork_photo)?c.cowork_photo:'pick one from the Juney & Byrd Images folder (say which)')+'\n\n'+
   'Paste this to Claude in Cowork. Claude renders the finished 1000x1500 PNG and sends it back. Download it, then upload THAT image to the ContentStudio composer as the pin image. Skip AI Studio entirely.';
+}
+const SKEL_MATCH={
+s1:{pillars:[2],tags:['guide','how to','how-to','101','basics','beginner','explain','plain','step','what is']},
+s2:{pillars:[2],tags:['checklist','list','steps','tips','benefit','ways','things','rules']},
+s3:{pillars:[1],tags:['bold','claim','result','tripled','doubled','how i','hook','stop','number','grew','mistake']},
+s4:{pillars:[3],tags:['tool','app','hutch','stash','tracker','payoff','feature','minutes','system','setup']},
+s5:{pillars:[1,5],tags:['before','after','transformation','fix','honest','review','story','mess','used to','finally','went from']},
+s6:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']},
+s7:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']}
+};
+const COWORK_PHOTOS_DEFAULT=['Headshot 1','Headshot 2','Headshot 3','Headshot 4','Headshot 5','Headshot 6','HollsHeadShot2'];
+function coworkPhotos(){return (S.settings&&S.settings.cowork_photos&&S.settings.cowork_photos.length)?S.settings.cowork_photos:COWORK_PHOTOS_DEFAULT;}
+function nextCoworkPhoto(){const ph=coworkPhotos();const i=(((S.settings&&S.settings.cowork_photo_idx)||0))%ph.length;return {photo:ph[i],idx:i};}
+function scoreSkel(id,post){const m=SKEL_MATCH[id];if(!m)return 0;let sc=0;if(m.pillars&&m.pillars.includes(post.pillar))sc+=3;const hay=(((post.title||'')+' '+(post.theme||''))).toLowerCase();(m.tags||[]).forEach(t=>{if(hay.indexOf(t)>=0)sc+=1;});return sc;}
+function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
+  const avail=S.skeletons.filter(s=>SKEL_MATCH[s.id]);if(!avail.length)return null;
+  const scored=avail.map(s=>({s,sc:scoreSkel(s.id,post),cw:!!SKEL_MATCH[s.id].cowork,lru:new Date(s.last_used_at||0).getTime()}));
+  const eligible=scored.filter(x=>{if(x.cw){const fits=SKEL_MATCH[x.s.id].pillars.includes(post.pillar)||x.sc>=2;if(!fits)return false;if(portraitUsed>=maxPortrait)return false;}return true;});
+  const pool=eligible.length?eligible:scored.filter(x=>!x.cw);
+  pool.forEach(x=>{const ri=recent.indexOf(x.s.id);x.pen=ri>=0?(ri===0?100:20):0;});
+  pool.sort((a,b)=>((b.sc-b.pen)-(a.sc-a.pen))||(a.lru-b.lru));
+  return pool[0]?pool[0].s:null;
 }
 function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
@@ -1347,11 +1369,14 @@ function startWizard(){
   const slots=[];
   const mix=[byDeficit[0].p,byDeficit[1].p,byDeficit[0].p,3,byDeficit[2].p,4,5].slice(0,socialCount);
   const themes=S.settings.themes_rotation||THEMES;
+  const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(1,Math.round(socialCount/7));
   for(let i=0;i<socialCount;i++){
     const pillar=mix[i];
     const topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));
-    const sk=suggestSkeletonRotating(i);
-    slots.push({day:i%7,pillar,theme:themes[i%themes.length],kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
+    const theme=themes[i%themes.length];
+    const sk=(typeof pickSkelSmart==='function')?pickSkelSmart({pillar,theme,title:topic?topic.title:''},_recent,_portraitUsed,_maxPortrait):suggestSkeletonRotating(i);
+    if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
+    slots.push({day:i%7,pillar,theme,kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
   }
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
@@ -1372,7 +1397,7 @@ function renderWizard(){
       <span class="pill p${s.pillar}">P${s.pillar}</span>
       <span class="chip">${s.kind==='blog-task'?ic('pen')+' BLOG POST':s.theme}</span>
       <input placeholder="${s.kind==='blog-task'?'Blog post topic...':'Topic / headline...'}" value="${esc(s.title)}" style="flex:1;min-width:200px" onchange="planDraft.slots[${i}].title=this.value">
-      ${s.kind==='social'?`<select style="width:170px" onchange="planDraft.slots[${i}].skeleton_id=this.value">${S.skeletons.map(k=>`<option value="${k.id}" ${k.id===s.skeleton_id?'selected':''}>${k.name}</option>`).join('')}</select><select style="width:105px" onchange="planDraft.slots[${i}].format=this.value">${Object.entries(WF_FORMATS).map(([k,v])=>`<option value="${k}" ${k===s.format?'selected':''}>${v}</option>`).join('')}</select>`:''}
+      ${s.kind==='social'?`<select style="width:170px" onchange="planDraft.slots[${i}].skeleton_id=this.value">${S.skeletons.map(k=>`<option value="${k.id}" ${k.id===s.skeleton_id?'selected':''}>${k.name}</option>`).join('')}</select><select style="width:105px" onchange="planDraft.slots[${i}].format=this.value">${Object.entries(WF_FORMATS).map(([k,v])=>`<option value="${k}" ${k===s.format?'selected':''}>${v}</option>`).join('')}</select>${(typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id))?`<span class="chip" style="background:#cdeee1;color:#22334f;font-weight:700">Cowork pin \u00b7 made in Claude</span>`:''}`:''}
       <button class="btn ghost sm" onclick="planDraft.slots.splice(${i},1);render()">✕</button>
     </div>${s.needsTopic&&!s.title?'<div class="small muted" style="margin-top:6px">Needs a topic: type one, or use Suggest below</div>':''}</div>`).join('')}
   <div class="row" style="margin-top:14px;flex-wrap:wrap">
@@ -1408,7 +1433,8 @@ async function savePlan(btn){
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
-    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{})}});
+    let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _np=nextCoworkPhoto();_cwCopy={cowork_photo:_np.photo};await saveSetting('cowork_photo_idx',_np.idx+1);}
+    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
@@ -1484,8 +1510,8 @@ function unitBody(u){
     </div>
     ${u.kind==='social'?`
     <div class="ustep">
-      <span class="stepnum">1</span><span class="steptitle">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'Cowork (Claude)':'AI Studio'}</span>
-      <p class="stephint">${coworkSkel(u.skeleton_id)?'Cowork-rendered pin, no AI Studio. Copy the handoff, paste it to Claude in Cowork, and pick a headshot. Claude sends back the finished PNG; upload THAT to CS as the pin image.':'Copy the prompt into AI Studio, generate, save to the CS media library.'}</p>
+      <span class="stepnum">1</span><span class="steptitle" style="${coworkSkel(u.skeleton_id)?'color:var(--coral)':''}">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'COWORK (Claude)':'AI Studio'}</span>
+      ${coworkSkel(u.skeleton_id)?`<div class="alert" style="background:#f0faf5;border-left:4px solid var(--coral);margin:6px 0 4px"><b>This one is made in Cowork, not CS AI.</b> Copy the handoff below, paste it to Claude, and say which headshot. Claude sends back the finished PNG; upload THAT here as the image, then keep going with the caption.</div>`:`<p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>`}
       ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u))):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})))}
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
