@@ -509,7 +509,8 @@ function buildCoworkHandoff(sk,unit){
   else if(/type stack/i.test(sk.name)){asset='No photo needed (rendered on the flat navy or white background).';}
   else{asset='Headshot: rotation slot #'+slot+' from your "'+coworkPhotoFolder()+'" folder (Claude pulls that image and wraps past the end; add or remove headshots any time without breaking rotation)';}
   let page2='';
-  if(sk.bg&&Array.isArray(c.page2_items)&&c.page2_items.length){page2='\n\nPAGE 2 (TikTok content slide only — render in the numbered-list layout over the SAME background, same brand shell):\nHEADER: '+(c.page2_header||'')+'\n'+c.page2_items.map((it,i)=>(i+1)+'. '+it).join('\n');}
+  const _hasP2=sk.bg||/type stack/i.test(sk.name);
+  if(_hasP2&&Array.isArray(c.page2_items)&&c.page2_items.length){const _how=sk.bg?'render in the numbered-list layout over the SAME background, same brand shell':'render as a flat Type Stack list slide in the SAME theme (navy or white) as the cover';page2='\n\nPAGE 2 (TikTok content slide only — '+_how+'):\nHEADER: '+(c.page2_header||'')+'\n'+c.page2_items.map((it,i)=>(i+1)+'. '+it).join('\n');}
   return 'COWORK PIN HANDOFF: '+sk.name+'\n'+
   'Layout: '+sk.layout+'\n'+
   'Topic: '+((unit&&unit.title)||'')+'\n'+
@@ -1936,7 +1937,7 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: one punchy hook line under 85 characters that works as a photo-post title, end it with juneybyrd.com when it fits, no links, no hashtags",
-${(sk&&sk.bg)?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 8 words","page2_items":["written-out tip or step 1 for THIS topic, under 8 words","tip or step 2","tip or step 3","tip or step 4","tip or step 5"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
+${(sk&&(sk.bg||/type stack/i.test(sk.name)))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 8 words","page2_items":["written-out tip or step 1 for THIS topic, under 8 words","tip or step 2","tip or step 3","tip or step 4","tip or step 5"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
     const out=await claude(VOICE,ask,1900);
     const j=extractJSON(out);
     const c={...(u.copy||{}),...j};
