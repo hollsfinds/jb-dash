@@ -534,6 +534,7 @@ s15:{pillars:[1,4],cowork:true,tags:['statement','punchy','mantra','truth','refr
 };
 function coworkPhotoFolder(){return (S.settings&&S.settings.cowork_photo_folder)?S.settings.cowork_photo_folder:'Pin Headshots only';}
 function nextCoworkSlot(){return ((S.settings&&S.settings.cowork_photo_idx)||0);}
+async function takeCoworkSlot(skId){const sk=coworkSkel(skId);if(sk&&sk.bg){const s=(S.settings&&S.settings.cowork_bg_idx)||0;await saveSetting('cowork_bg_idx',s+1);return s;}const s=(S.settings&&S.settings.cowork_photo_idx)||0;await saveSetting('cowork_photo_idx',s+1);return s;}
 function scoreSkel(id,post){const m=SKEL_MATCH[id];if(!m)return 0;let sc=0;if(m.pillars&&m.pillars.includes(post.pillar))sc+=3;const hay=(((post.title||'')+' '+(post.theme||''))).toLowerCase();(m.tags||[]).forEach(t=>{if(hay.indexOf(t)>=0)sc+=1;});return sc;}
 function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
   const avail=S.skeletons.filter(s=>SKEL_MATCH[s.id]);if(!avail.length)return null;
@@ -556,7 +557,9 @@ window.switchPinMode=async function(id){
   }else{
     const idx=(S.settings.cowork_photo_idx||0);
     newId=(typeof COWORK_SKELETONS!=='undefined'&&COWORK_SKELETONS.length)?COWORK_SKELETONS[idx%COWORK_SKELETONS.length].id:'s6';
-    const _sl=nextCoworkSlot();copy.cowork_slot=_sl;await saveSetting('cowork_photo_idx',_sl+1);
+    const _bsk=coworkSkel(newId);
+    if(_bsk&&_bsk.bg){const _b=(S.settings.cowork_bg_idx||0);copy.cowork_slot=_b;await saveSetting('cowork_bg_idx',_b+1);await saveSetting('cowork_photo_idx',idx+1);}
+    else{copy.cowork_slot=idx;await saveSetting('cowork_photo_idx',idx+1);}
   }
   delete copy.image_prompt;delete copy.slots;
   await updUnit(id,{skeleton_id:newId,copy});
@@ -1480,7 +1483,7 @@ async function savePlan(btn){
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
-    let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=nextCoworkSlot();_cwCopy={cowork_slot:_sl};await saveSetting('cowork_photo_idx',_sl+1);}
+    let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=await takeCoworkSlot(s.skeleton_id);_cwCopy={cowork_slot:_sl};}
     rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
