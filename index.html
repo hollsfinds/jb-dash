@@ -508,7 +508,7 @@ s7:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson
 s8:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']},
 s9:{pillars:[4,5],cowork:true,tags:['advice','truth','mindset','opinion','lesson','real talk','honestly','confession','founder','my take','learned','i wish','why i','the thing','never','always']}
 };
-function coworkPhotoFolder(){return (S.settings&&S.settings.cowork_photo_folder)?S.settings.cowork_photo_folder:'Advice from Holls - Headshots';}
+function coworkPhotoFolder(){return (S.settings&&S.settings.cowork_photo_folder)?S.settings.cowork_photo_folder:'Pin Headshots only';}
 function nextCoworkSlot(){return ((S.settings&&S.settings.cowork_photo_idx)||0);}
 function scoreSkel(id,post){const m=SKEL_MATCH[id];if(!m)return 0;let sc=0;if(m.pillars&&m.pillars.includes(post.pillar))sc+=3;const hay=(((post.title||'')+' '+(post.theme||''))).toLowerCase();(m.tags||[]).forEach(t=>{if(hay.indexOf(t)>=0)sc+=1;});return sc;}
 function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
