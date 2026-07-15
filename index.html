@@ -272,6 +272,7 @@ async function loadAll(){
   ]);
   S.settings={};(set.data||[]).forEach(r=>S.settings[r.key]=r.value);
   S.topics=top.data||[];S.skeletons=sk.data||[];S.seasonal=se.data||[];
+  S.skeletons=[...S.skeletons,...(typeof COWORK_SKELETONS!=='undefined'?COWORK_SKELETONS:[]).filter(c=>!S.skeletons.some(x=>String(x.id)===String(c.id)))];
   const [un,bl,inb,win,kw]=await Promise.all([
     sb.from('jb_units').select('*').order('week_start').order('day'),
     sb.from('jb_blog').select('*').order('published_at',{ascending:false}),
@@ -335,7 +336,7 @@ function nextTheme(){
   return rot[0];
 }
 function suggestSkeleton(){
-  const sk=[...S.skeletons].sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
+  const sk=[...S.skeletons].filter(s=>!s.cowork).sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
   return sk[0]||null;
 }
 </script>
@@ -452,7 +453,9 @@ const SKELETON_SLOTS={
 s1:[{t:'HEADLINE',b:'main headline, the scroll-stopping hook',caps:1},{t:'HERO',b:'ONE short emotional word in script (finally, yes, breathe)'},{t:'LINE2',b:'second line finishing the headline thought',caps:1},{t:'KICKER',b:'short reassuring closer in script, under 4 words'}],
 s2:[{t:'SMALL',b:'tiny lead-in word in script (The, Your, This)'},{t:'HEADLINE',b:'main headline hook',caps:1},{t:'LINE2',b:'second line',caps:1},{t:'PUNCH',b:'ONE punchy payoff word',caps:1},{t:'BADGE1',b:'2 to 3 word benefit badge',caps:1},{t:'BADGE2',b:'2 to 3 word benefit badge',caps:1},{t:'CHECK1',b:'short checklist action, 2 to 3 words'},{t:'CHECK2',b:'short checklist action, 2 to 3 words'},{t:'CHECK3',b:'short checklist action, 2 to 3 words'}],
 s3:[{t:'L1',b:'small kicker line above the big line',caps:1},{t:'L2',b:'big bold line, the hook',caps:1},{t:'SCRIPT',b:'ONE script word bridging the two big lines'},{t:'L4',b:'small italic line',caps:1},{t:'L5',b:'big bold payoff line',caps:1},{t:'L6',b:'small footer line',caps:1}],
-s4:[{t:'TOP',b:'setup line, smaller caps, the hook',caps:1},{t:'SCRIPT',b:'ONE connective word/phrase, goes in brackets (finally, at last)'},{t:'HERO',b:'the biggest payoff line, the promise',caps:1},{t:'OVERLAY',b:'tiny label riding on the photo, 2 to 4 words',caps:1}]
+s4:[{t:'TOP',b:'setup line, smaller caps, the hook',caps:1},{t:'SCRIPT',b:'ONE connective word/phrase, goes in brackets (finally, at last)'},{t:'HERO',b:'the biggest payoff line, the promise',caps:1},{t:'OVERLAY',b:'tiny label riding on the photo, 2 to 4 words',caps:1}],
+s6:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}],
+s7:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'ADVICE',b:'the one-line takeaway, punchiest words, ALL CAPS',caps:1},{t:'SCRIPT',b:'tiny warm tag under it, lowercase, under 4 words'}]
 };
 const SKEL_FILLERS={
 HERO:['YES','FINALLY','DONE','EASY','HANDLED','SORTED','AT LAST'],
@@ -472,6 +475,24 @@ L6:['FOR REAL LIFE','FOR BUSY WEEKS','FOR FREELANCERS','FOR YOUR BOOKS','WITHOUT
 SCRIPT:['finally','at last','for real','made easy','no really','the simple way','honestly'],
 OVERLAY:['SIMPLE MONEY MOVES','LESS STRESS, MORE DONE','THE EASY WAY','SMALL STEPS, BIG CALM','MONEY, MADE SIMPLE','OVERWHELM, HANDLED']
 };
+const COWORK_SKELETONS=[
+  {id:'s6',name:'Advice from Holls \u00b7 White Card',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-card.png',layout:'your photo full-bleed, white card in the lower third, coral frame, logo on the card',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'},
+  {id:'s7',name:'Advice from Holls \u00b7 Mint Pills',best_for:'personal-brand, advice, founder POV, mindset + money-truth pins',cowork:true,locked:true,img:'skel/advice-pills.png',layout:'your photo full-bleed, mint highlighter pills hugging each line, Havana script, coral frame',quirks:'Rendered by Claude in Cowork from your photo + logo, not AI Studio. There is no prompt to copy. Hand Claude the three lines below and pick a headshot; Claude sends back the finished 1000x1500 PNG. Zero CS AI credits.'}
+];
+function coworkSkel(id){return COWORK_SKELETONS.find(s=>String(s.id)===String(id))||null;}
+function buildCoworkHandoff(sk,unit){
+  if(!sk)return '';
+  const c=(unit&&unit.copy)||{};const slots=c.slots||{};
+  const L=(k,d)=>slots[k]&&String(slots[k]).trim()?String(slots[k]).trim():d;
+  return 'COWORK PIN HANDOFF: '+sk.name+'\n'+
+  'Layout: '+sk.layout+'\n'+
+  'Topic: '+((unit&&unit.title)||'')+'\n'+
+  'EYEBROW: '+L('EYEBROW','(small caps topic hook)')+'\n'+
+  'ADVICE: '+L('ADVICE','(the one-line takeaway, all caps)')+'\n'+
+  'SCRIPT: '+L('SCRIPT','(tiny warm tag under it)')+'\n'+
+  'Headshot: pick one from the Juney & Byrd Images folder (say which)\n\n'+
+  'Paste this to Claude in Cowork. Claude renders the finished 1000x1500 PNG and sends it back. Download it, then upload THAT image to the ContentStudio composer as the pin image. Skip AI Studio entirely.';
+}
 function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
   const title=(unit.title||'').toUpperCase();
@@ -1340,7 +1361,7 @@ function startWizard(){
 }
 window.startWizard=startWizard;
 function suggestSkeletonRotating(i){
-  const sk=[...S.skeletons].sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
+  const sk=[...S.skeletons].filter(s=>!s.cowork).sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
   return sk[i%sk.length]||null;
 }
 function renderWizard(){
@@ -1463,9 +1484,9 @@ function unitBody(u){
     </div>
     ${u.kind==='social'?`
     <div class="ustep">
-      <span class="stepnum">1</span><span class="steptitle">Make the image \u00b7 AI Studio</span>
-      <p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>
-      ${field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})))}
+      <span class="stepnum">1</span><span class="steptitle">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'Cowork (Claude)':'AI Studio'}</span>
+      <p class="stephint">${coworkSkel(u.skeleton_id)?'Cowork-rendered pin, no AI Studio. Copy the handoff, paste it to Claude in Cowork, and pick a headshot. Claude sends back the finished PNG; upload THAT to CS as the pin image.':'Copy the prompt into AI Studio, generate, save to the CS media library.'}</p>
+      ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u))):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})))}
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
@@ -1744,7 +1765,7 @@ async function pinBatchWrite(btn){
     const angles=PIN_ANGLES.slice(0,n);
     const kws=S.keywords.filter(k=>k.platform==='pinterest').flatMap(k=>k.items||[]).slice(0,25).join(', ');
     const kind=b.status==='page'?'juneybyrd.com page':'blog post';
-    const sks=[...S.skeletons].sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
+    const sks=[...S.skeletons].filter(s=>!s.cowork).sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
     const assign=angles.map((a,i)=>({angle:a,sk:sks.length?sks[i%sks.length]:null}));
     const slotLines=assign.map((x,i)=>{
       const spec=(x.sk&&SKELETON_SLOTS[x.sk.id])?SKELETON_SLOTS[x.sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):'OVERLAY = one punchy line under 12 words';
@@ -1868,13 +1889,13 @@ function vSkel(){
   <div class="grid g2">
   ${S.skeletons.map(k=>{const img=(S.settings.skel_images||{})[k.id];return `
     <div class="card skel-card">
-      <div class="skel-prev">${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`:SKEL_PREVIEWS[k.id]||''}</div>
+      <div class="skel-prev">${(img||k.img)?`<img src="${img||k.img}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`:SKEL_PREVIEWS[k.id]||''}</div>
       <div style="flex:1">
         <b>${esc(k.name)}</b>
         <div class="small muted" style="margin:4px 0">${esc(k.best_for||'')}</div>
         <div class="small muted">last used: ${k.last_used_at?fmt(k.last_used_at):'never'}</div>
         <div class="row" style="margin-top:8px;flex-wrap:wrap">
-          <button class="btn sm" onclick="copyText(SKELETON_PROMPTS['${k.id}'].edit+SKELETON_PROMPTS['${k.id}'].body,'${esc(k.name)} prompt copied!')">Copy prompt</button>
+          ${k.cowork?`<button class="btn sm" onclick='copyText(buildCoworkHandoff(coworkSkel("${k.id}"),null),"Cowork handoff copied!")'>Copy Cowork handoff</button>`:`<button class="btn sm" onclick="copyText(SKELETON_PROMPTS['${k.id}'].edit+SKELETON_PROMPTS['${k.id}'].body,'${esc(k.name)} prompt copied!')">Copy prompt</button>`}
           <button class="btn ghost sm" onclick="modal('<h3 style=margin-bottom:10px>${esc(k.name)} · quirk fixes</h3><p class=small>${esc(k.quirks||'')}</p><br><button class=btn onclick=closeModal()>Close</button>')">Quirks</button>
           <label class="btn ghost sm" style="margin:0">${img?'Replace image':'Add real example'}<input type="file" accept="image/*" style="display:none" onchange="uploadSkelImage('${k.id}',this)"></label>
         </div>
