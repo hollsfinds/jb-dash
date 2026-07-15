@@ -515,6 +515,24 @@ function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
   pool.sort((a,b)=>((b.sc-b.pen)-(a.sc-a.pen))||(a.lru-b.lru));
   return pool[0]?pool[0].s:null;
 }
+window.switchPinMode=async function(id){
+  const u=S.units.find(x=>x.id===id);if(!u)return;
+  const isCw=!!coworkSkel(u.skeleton_id);
+  const post={pillar:u.pillar,theme:u.theme,title:u.title};
+  const copy={...(u.copy||{})};let newId;
+  if(isCw){
+    const cand=S.skeletons.filter(x=>SKEL_MATCH[x.id]&&!SKEL_MATCH[x.id].cowork).sort((a,b)=>scoreSkel(b.id,post)-scoreSkel(a.id,post));
+    newId=(cand[0]||S.skeletons.find(x=>!coworkSkel(x.id))||{id:'s1'}).id;
+    delete copy.cowork_photo;
+  }else{
+    const idx=(S.settings.cowork_photo_idx||0);
+    newId=(typeof COWORK_SKELETONS!=='undefined'&&COWORK_SKELETONS.length)?COWORK_SKELETONS[idx%COWORK_SKELETONS.length].id:'s6';
+    const np=nextCoworkPhoto();copy.cowork_photo=np.photo;await saveSetting('cowork_photo_idx',np.idx+1);
+  }
+  delete copy.image_prompt;delete copy.slots;
+  await updUnit(id,{skeleton_id:newId,copy});
+  render();toast(isCw?'Switched to a CS AI pin':'Switched to a Cowork face pin');
+};
 function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
   const title=(unit.title||'').toUpperCase();
@@ -1513,6 +1531,7 @@ function unitBody(u){
       <span class="stepnum">1</span><span class="steptitle" style="${coworkSkel(u.skeleton_id)?'color:var(--coral)':''}">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'COWORK (Claude)':'AI Studio'}</span>
       ${coworkSkel(u.skeleton_id)?`<div class="alert" style="background:#f0faf5;border-left:4px solid var(--coral);margin:6px 0 4px"><b>This one is made in Cowork, not CS AI.</b> Copy the handoff below, paste it to Claude, and say which headshot. Claude sends back the finished PNG; upload THAT here as the image, then keep going with the caption.</div>`:`<p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>`}
       ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u))):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})))}
+      <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">${coworkSkel(u.skeleton_id)?'Switch to a CS AI pin instead':'Switch to a face pin (Cowork)'}</button></div>
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
