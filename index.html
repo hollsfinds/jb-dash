@@ -622,9 +622,9 @@ async function ppSavePage(){const el=document.getElementById('pp_page');if(!el)r
 window.ppSavePage=ppSavePage;
 async function ppAddProduct(){const key=(prompt('Product key (lowercase, no spaces), e.g. stash')||'').trim().toLowerCase();if(!key)return;const label=(prompt('Product name shown in the picker')||key).trim();const P=ppProducts();if(!P[key])P[key]={label,page_url:'',screens:[]};await ppSaveProducts(P);window.__pp.product=key;ppAutoPick();modal(ppHTML());}
 window.ppAddProduct=ppAddProduct;
-async function ppAddScreen(){const P=ppProducts();const prod=P[window.__pp.product];const label=(prompt('Screen name, e.g. "Reports tab"')||'').trim();if(!label)return;const mac=(prompt('Mac filename under the product folder, e.g. Hutch App/help-reports.png')||'').trim();if(!mac)return;const hero=confirm('Is this a full-app / sidebar HERO screen? OK = yes, Cancel = no.');const key=label.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,18)+'-'+Math.random().toString(36).slice(2,5);prod.screens=prod.screens||[];prod.screens.push({key,label,hero,mac,crop:''});await ppSaveProducts(P);ppAutoPick();modal(ppHTML());toast('Screen added. Its crop is set in Cowork on first render.');}
+async function ppAddScreen(){ppAddScreenFor(window.__pp.product);}
 window.ppAddScreen=ppAddScreen;
-async function ppDraftCopy(btn){const P=ppProducts();const prod=P[window.__pp.product];if(btn)btn.textContent='Reading the page...';try{const sys='You write Pinterest pin copy in the Juney & Byrd voice: warm, witty, plain-English, never salesy, no em-dashes, no time or effort claims unless literally true. Product pins for the real app only.';const usr='Read this product page and write pin copy for a '+prod.label+' product pin: '+(prod.page_url||'(no page set; use what you know about '+prod.label+')')+'\nReturn JSON only: {"eyebrow":"2-4 word small-caps hook","headline":"3-6 word ALL CAPS headline","accent":"the ONE word inside the headline to color","sub":"one lowercase benefit line, no time claims"}';const out=await claude(sys,usr,600,!!prod.page_url);const j=extractJSON(out);const hl=(j.headline||'').toUpperCase();const acc=(j.accent||'').toUpperCase();window.__pp.copy.eyebrow=(j.eyebrow||'').toUpperCase();window.__pp.copy.headline=(acc&&hl.indexOf(acc)>=0)?hl.replace(acc,'*'+acc+'*'):hl;window.__pp.copy.sub=j.sub||'';modal(ppHTML());toast('Draft written from the page. Tweak as you like.');}catch(e){toast('Copy draft failed: '+e.message);if(btn)btn.textContent='Draft copy from the page';}}
+async function ppDraftCopy(btn){const P=ppProducts();const prod=P[window.__pp.product];if(btn)btn.textContent='Reading the page...';try{const sys='You write Pinterest pin copy in the Juney & Byrd voice: warm, witty, plain-English, never salesy, no em-dashes, no time or effort claims unless literally true. Product pins for the real app only.';const usr='Read this product page and write pin copy for a '+prod.label+' product pin: '+(prod.page_url||'(no page set; use what you know about '+prod.label+')')+'\nReturn JSON only: {"eyebrow":"2-4 word small-caps hook","headline":"3-6 word ALL CAPS headline","accent":"the ONE word inside the headline to color","sub":"one lowercase benefit line, no time claims"}';const out=await claude(sys,usr,900);const j=extractJSON(out);const hl=(j.headline||'').toUpperCase();const acc=(j.accent||'').toUpperCase();window.__pp.copy.eyebrow=(j.eyebrow||'').toUpperCase();window.__pp.copy.headline=(acc&&hl.indexOf(acc)>=0)?hl.replace(acc,'*'+acc+'*'):hl;window.__pp.copy.sub=j.sub||'';modal(ppHTML());toast('Draft written from the page. Tweak as you like.');}catch(e){toast('Copy draft failed: '+e.message);if(btn)btn.textContent='Draft copy from the page';}}
 window.ppDraftCopy=ppDraftCopy;
 function buildProductHandoff(){
   const P=ppProducts();const prod=P[window.__pp.product];const L=PP_LAYOUTS[window.__pp.layout];
@@ -1906,13 +1906,14 @@ window.pinAddPage=pinAddPage;
 function pinBatchModal(blogId){
   const bid=String(blogId||'');
   const cur=window.__pinBatch;
-  if(!cur||(bid&&cur.blogId!==bid))window.__pinBatch={blogId:bid,count:3,pins:null};
+  if(!cur||(bid&&cur.blogId!==bid))window.__pinBatch={blogId:bid,count:3,pins:null,mode:(bid?'blog':((cur&&cur.mode)||'blog'))};
   renderPinBatch();
   if(!S.csBoards)loadBoards().then(()=>renderPinBatch()).catch(()=>{});
 }
 window.pinBatchModal=pinBatchModal;
 function renderPinBatch(){
   const st=window.__pinBatch;if(!st)return;
+  if(st.mode==='product'){renderPinBatchProduct();return;}
   const pubs=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
   const pages=S.blog.filter(b=>b.status==='page'&&b.url);
   const allSrc=pubs.concat(pages);
@@ -1925,6 +1926,7 @@ function renderPinBatch(){
   const savedBoard=S.settings.pin_batch_board||pinDefaultBoard();
   const optLabel=p=>{const ps=pinStatsFor(p);const n=ps?ps.logged:0;const c=ps&&ps.cs?ps.cs.fresh+ps.cs.evg:null;return esc((p.title||'').slice(0,40))+' \u00b7 HQ '+n+' / CS '+(c===null?'?':c);};
   modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
+  ${pbToggle('blog')}
   <div class="row" style="background:var(--bg);border-radius:10px;padding:9px 12px;margin:10px 0;gap:8px;flex-wrap:wrap">
     ${cp?`<span class="small"><b>Pins this week: ${cp.sch}/${goal} scheduled</b></span><div class="meter" style="max-width:160px;flex:1;margin-top:0"><i class="${cp.sch>=goal?'done':''}" style="width:${Math.min(100,Math.max(3,cp.sch/goal*100))}%"></i></div><span class="small" style="font-weight:800;color:${goal-cp.sch>0?'var(--coral-b)':'var(--good)'}">${goal-cp.sch>0?'gap: '+(goal-cp.sch):'goal met ✓'}</span>`:`<span class="small muted">Hit <a href="#" onclick="syncCS(null);return false">Sync CS</a> for live pin math</span>`}
     <span class="small muted">· goal = Settings (${cad.pinterest_fresh_per_day||15}/day × 7) · ${csSyncedLabel()}</span>
@@ -2498,6 +2500,115 @@ window.saveAnthKey=saveAnthKey;
   try{await loadAll();}catch(e){$('#main').innerHTML=`<div class="card"><p><b>Could not load data.</b></p><p class="small muted">${esc(e.message)}. Did you run schema.sql in Supabase yet?</p></div>`;renderNav();return;}
   render();
 })();
+</script>
+<script>
+/* ===== PRODUCT PIN BATCH (s16 / library Skeleton 7) ===== */
+const PP_COMBOS=[['B','navy'],['A','white'],['B','white'],['A','navy'],['B','navy']];
+const PP_ACC_ROT=['coral','teal','sage','peach','coral'];
+function pbMode(m){const st=window.__pinBatch;if(!st)return;st.mode=m;st.pins=null;renderPinBatch();}
+window.pbMode=pbMode;
+function pbToggle(cur){return `<div class="row" style="gap:6px;margin-top:8px"><button class="btn ${cur==='blog'?'':'ghost'} sm" onclick="pbMode('blog')">Blog / Page pins</button><button class="btn ${cur==='product'?'':'ghost'} sm" onclick="pbMode('product')">Product pins</button></div>`;}
+window.pbToggle=pbToggle;
+function ppScreensForLayout(prod,layout){const sc=(prod.screens||[]).slice();const out=[];if(layout==='B'){const h=sc.find(s=>s.hero);if(h)out.push(h);}sc.forEach(s=>{if(out.length<3&&out.indexOf(s)<0)out.push(s);});return out.slice(0,3);}
+function ppHandoffFromSpec(sp){
+  const A=sp.accent;const L=[];
+  L.push('COWORK PRODUCT PIN — Skeleton 7 (app id s16)');
+  L.push('Product: '+sp.label+'  ·  Ground/refine the copy from this page: '+(sp.page_url||'(no page set)'));
+  L.push('Layout: '+(sp.layout==='B'?'B (tophero)':'A (stack)')+'   Theme: '+sp.theme+'   Accent word color: '+A+' ('+(PP_ACCENTS[A]||A)+')');
+  L.push('');
+  L.push('Screens (Mac files; crop keys in render-assets/s7-hutch-crops.json):');
+  (sp.screens||[]).forEach((s,i)=>L.push('  '+(i+1)+'. '+(s.hero?'[HERO] ':'')+s.label+' — '+s.mac+(s.crop?' [crop '+s.crop+']':' [crop on first render]')));
+  L.push('');
+  L.push('On-image copy (juneybyrd-voice; the *word* takes the accent color):');
+  L.push('  EYEBROW: '+(sp.copy.eyebrow||'(write it)'));
+  L.push('  HEADLINE: '+(sp.copy.headline||'(write it, mark one *word*)'));
+  L.push('  SUB: '+(sp.copy.sub||'(write it)'));
+  L.push('');
+  L.push('Pin fields for the CS composer:');
+  L.push('  TITLE: '+(sp.title||''));
+  L.push('  DESCRIPTION: '+(sp.desc||''));
+  L.push('  ALT: '+(sp.alt||''));
+  L.push('  LINK: '+(sp.url||sp.page_url||''));
+  L.push('');
+  L.push('Render with render-assets/s7-render.cjs (layout '+(sp.layout==='B'?'tophero':'stack')+', theme '+sp.theme+', accent '+(PP_ACCENTS[A]||A)+', those screens). Send the 1000x1500 PNG. Then upload to CS, paste the title/description/link, save the draft.');
+  return L.join('\n');
+}
+window.ppHandoffFromSpec=ppHandoffFromSpec;
+function pinProductCard(p,i){
+  const open=p._open!==undefined?p._open:(i===0);
+  return `<div class="unit" style="border-left:4px solid var(--coral)">
+    <div class="row" style="cursor:pointer" onclick="pinToggleOpen(${i})">
+      <label onclick="event.stopPropagation()"><input type="checkbox" ${p.done?'checked':''} onchange="pinToggleDone(${i})"> </label>
+      <b class="small" style="flex:1">Pin ${i+1} · ${esc(p.layout==='B'?'Hero':'Filmstrip')} · ${esc(p.theme)} · ${esc(p.accent)}</b>
+      <span class="small muted">${open?'▲':'▼'}</span>
+    </div>
+    ${open?`<div style="margin-top:8px">
+      <div class="small" style="margin:3px 0"><b>On-image:</b> ${esc(p.copy.eyebrow)} / ${esc(p.copy.headline)} / ${esc(p.copy.sub)}</div>
+      <div class="small muted" style="margin:3px 0">Screens: ${(p.screens||[]).map(s=>esc(s.label)).join(' · ')}</div>
+      <div class="small" style="margin:3px 0"><b>Title:</b> ${esc(p.title||'')}</div>
+      <div class="small" style="margin:3px 0"><b>Desc:</b> ${esc(p.desc||'')}</div>
+      <div class="row" style="margin-top:6px;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" style="background:var(--coral-b)" onclick="copyText(window.__pinBatch.pins[${i}].handoff,'Cowork handoff for pin ${i+1} copied!')">${ic('sparkle')} Copy Cowork handoff</button>
+        <button class="btn ghost sm" onclick="copyText(window.__pinBatch.pins[${i}].title||'','Title copied')">Copy title</button>
+        <button class="btn ghost sm" onclick="copyText(window.__pinBatch.pins[${i}].desc||'','Description copied')">Copy description</button>
+      </div>
+    </div>`:''}
+  </div>`;
+}
+window.pinProductCard=pinProductCard;
+async function ppAddScreenFor(pk){const P=ppProducts();const prod=P[pk]||{label:pk};const handoff='COWORK: set up / add product screens for '+(prod.label||pk)+' (Skeleton 7 / s16).\nStage the app screenshots from the Mac folder, cut the hero (full-app + sidebar) crop and the feature crops, register them in the product_screens manifest (jb_settings key product_screens) + render-assets/s7-hutch-crops.json, then redeploy. Product page: '+(prod.page_url||'(set it)')+'.';copyText(handoff,'Screen-setup handoff copied! Paste to Claude in Cowork.');}
+window.ppAddScreenFor=ppAddScreenFor;
+function renderPinBatchProduct(){
+  const st=window.__pinBatch;const P=ppProducts();const keys=Object.keys(P);
+  if(!st.product||!P[st.product])st.product=keys[0];
+  const prod=P[st.product];
+  const stA=ppImageStatus(prod,'A');const stB=ppImageStatus(prod,'B');const ok=stA.ok&&stB.ok;
+  const warn=ok?`<div class="small" style="color:var(--teal)">✓ ${esc(prod.label)} has the screens these pins need.</div>`
+    :`<div class="alert" style="border-color:var(--coral)"><b>Can't build ${esc(prod.label)} pins yet.</b> ${esc((stB.ok?stA.msg:stB.msg)||'needs screens')}.<br><span class="small">Add screens with the button below (Claude sets them up from your Mac), then write the batch.</span></div>`;
+  modal(`<div class="row"><h3 style="margin:0">${ic('pin')} Pin batch</h3><div class="spacer"></div><span onclick="closeModal()" style="cursor:pointer;font-weight:800;padding:0 4px">✕</span></div>
+  ${pbToggle('product')}
+  <div class="row" style="margin:10px 0 8px;flex-wrap:wrap">
+    <span class="small muted">Product</span>
+    <select style="flex:1;min-width:160px" onchange="window.__pinBatch.product=this.value;window.__pinBatch.pins=null;renderPinBatch()">${keys.map(k=>`<option value="${k}" ${k===st.product?'selected':''}>${esc(P[k].label)}</option>`).join('')}</select>
+    <span class="small muted">Count</span>
+    <select onchange="window.__pinBatch.count=+this.value">${[3,4,5].map(x=>`<option ${st.count===x?'selected':''}>${x}</option>`).join('')}</select>
+    <button class="btn sm" style="background:var(--coral-b)" ${ok?'':'disabled'} onclick="pinBatchWriteProduct(this)">${st.pins?ic('refresh')+' Rewrite batch':ic('sparkle')+' Write the batch'}</button>
+  </div>
+  <div class="small muted" style="margin-bottom:6px">Page for copy + link: ${esc(prod.page_url||'(none set — add it in the Product Pin Builder on the Skeletons page)')}</div>
+  <div class="row" style="margin-bottom:8px"><button class="btn ghost sm" onclick="ppAddScreenFor('${st.product}')">+ Add / set up screens (hands it to Claude)</button></div>
+  ${warn}
+  ${st.pins?st.pins.map((p,i)=>pinProductCard(p,i)).join(''):`<p class="small muted" style="margin:12px 0">Each pin gets a rotated layout + theme, on-image copy, a Pinterest title + description, and a Cowork handoff to render.</p>`}
+  <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
+  $('#modal').classList.add('wide');
+}
+window.renderPinBatchProduct=renderPinBatchProduct;
+async function pinBatchWriteProduct(btn){
+  const st=window.__pinBatch;const P=ppProducts();const prod=P[st.product];if(!prod)return;
+  const stA=ppImageStatus(prod,'A');const stB=ppImageStatus(prod,'B');
+  if(!(stA.ok&&stB.ok)){toast('Add the missing screens first.');return;}
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const n=st.count||3;
+    const combos=[];for(let i=0;i<n;i++)combos.push({layout:PP_COMBOS[i%PP_COMBOS.length][0],theme:PP_COMBOS[i%PP_COMBOS.length][1],accent:PP_ACC_ROT[i%PP_ACC_ROT.length]});
+    const ask=`Write ${n} DIFFERENT Pinterest product pins for ${prod.label} (${prod.page_url||'a Juney & Byrd app'}). ${prod.label} is one of Holly's real apps; keep every claim true to a real bookkeeping/savings app and NEVER invent features, screens, or workflows. Juney & Byrd voice: warm, witty, plain, never salesy, NO em-dashes, NO time or effort claims (no "in minutes", "quick", "one tap"). Each pin is a clearly different angle.
+For EACH pin write: eyebrow (2-4 word small-caps hook), headline (3-6 words ALL CAPS), accent (the ONE word inside the headline to color), sub (one lowercase benefit line), title (Pinterest title 45-70 chars, keyword-rich, never over 100), desc (150-230 chars, 3-4 hashtags at the end, one soft save-this CTA, never over 500), alt (literal description of the finished pin, under 300 chars).
+Reply as JSON only: {"pins":[{"eyebrow":"","headline":"","accent":"","sub":"","title":"","desc":"","alt":""}]}`;
+    const out=await claude(VOICE,ask,2200);
+    const j=extractJSON(out);
+    st.pins=(j.pins||[]).slice(0,n).map((pp,i)=>{
+      const c=combos[i];const screens=ppScreensForLayout(prod,c.layout);
+      const hl=(pp.headline||'').toUpperCase();const acc=(pp.accent||'').toUpperCase();
+      const headline=(acc&&hl.indexOf(acc)>=0)?hl.replace(acc,'*'+acc+'*'):hl;
+      const spec={product:st.product,label:prod.label,page_url:prod.page_url,layout:c.layout,theme:c.theme,accent:c.accent,screens,copy:{eyebrow:(pp.eyebrow||'').toUpperCase(),headline,sub:pp.sub||''},title:capChars(pp.title,100),desc:capChars(pp.desc,500),alt:capChars(pp.alt,500),url:utmize(prod.page_url||'https://juneybyrd.com','pinterest')};
+      spec.handoff=ppHandoffFromSpec(spec);spec.done=false;spec._product=true;
+      return spec;
+    });
+    pbSave();
+  }catch(e){toast('Product batch failed: '+(e.message||e));}
+  renderPinBatch();
+}
+window.pinBatchWriteProduct=pinBatchWriteProduct;
+
 </script>
 </body>
 </html>
