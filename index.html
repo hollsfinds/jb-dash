@@ -1661,7 +1661,12 @@ window.saveCopyField=saveCopyField;
 async function togglePlat(id,p){
   const u=S.units.find(x=>x.id===id);
   const pl={...(u.platforms||{})};pl[p]=!pl[p];
-  await updUnit(id,{platforms:pl});render();
+  const upd={platforms:pl};
+  if(p==='tiktok'&&pl.tiktok&&typeof coworkSkel==='function'&&!coworkSkel(u.skeleton_id)){
+    const cw=(typeof pickCoworkSkel==='function')?pickCoworkSkel({pillar:u.pillar,theme:u.theme,title:u.title}):null;
+    if(cw){const c={...(u.copy||{})};delete c.slots;delete c.image_prompt;c.cowork_slot=await takeCoworkSlot(cw.id);upd.skeleton_id=cw.id;upd.copy=c;toast('TikTok on: switched to a Cowork pin ('+cw.name+') so it gets the carousel');}
+  }
+  await updUnit(id,upd);render();
 }
 window.togglePlat=togglePlat;
 const CS_COMPOSER_URL='https://app.contentstudio.io/juneybyrd/publisher/';
