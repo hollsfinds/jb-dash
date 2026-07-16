@@ -511,6 +511,7 @@ function pickCoworkSkel(post){
 }
 function buildCoworkHandoff(sk,unit){
   if(!sk)return '';
+  if(sk.product){const c0=(unit&&unit.copy)||{};const sl0=c0.slots||{};const Pp=ppProducts();const prod=Pp[c0.product]||Pp[Object.keys(Pp)[0]]||{label:c0.product||'Product',page_url:'',screens:[]};const lay=c0.layout||'B',th=c0.ptheme||'navy',ac=c0.accent||'coral';const spec={product:c0.product,label:prod.label,page_url:prod.page_url,layout:lay,theme:th,accent:ac,screens:ppScreensForLayout(prod,lay),copy:{eyebrow:sl0.EYEBROW||'',headline:sl0.HEADLINE||'',sub:sl0.SUB||''},title:c0.pin_title||'',desc:c0.caption||'',alt:c0.alt_text||'',url:utmize(prod.page_url||'https://juneybyrd.com','pinterest')};return ppHandoffFromSpec(spec);}
   const c=(unit&&unit.copy)||{};const slots=c.slots||{};
   const spec=(typeof SKELETON_SLOTS!=='undefined'&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id]:[];
   const L=s=>{const v=slots[s.t];return (v!=null&&String(v).trim()!=='')?String(v).trim():'('+s.b+')';};
@@ -1527,6 +1528,7 @@ window.setWeek=setWeek;
 function startWizard(){
   const cad=S.settings.cadence||{};
   const socialCount=7;
+  const prodPer=(cad.product_per_week!=null)?cad.product_per_week:2;const readyProd=Object.keys(ppProducts()).filter(k=>ppImageStatus(ppProducts()[k],'A').ok);const useProd=readyProd.length?Math.min(prodPer,4):0;const topicCount=Math.max(0,socialCount-useProd);
   const blogPerWeek=Math.max(1,Math.round((cad.blog_per_month||4)/4));
   const {stats}=pillarStats();
   const byDeficit=[...stats].sort((a,b)=>b.deficit-a.deficit);
@@ -1535,7 +1537,7 @@ function startWizard(){
   const mix=[byDeficit[0].p,byDeficit[1].p,byDeficit[0].p,3,byDeficit[2].p,4,5].slice(0,socialCount);
   const themes=S.settings.themes_rotation||THEMES;
   const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(1,Math.round(socialCount/7));
-  for(let i=0;i<socialCount;i++){
+  for(let i=0;i<topicCount;i++){
     const pillar=mix[i];
     const topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));
     const theme=themes[i%themes.length];
@@ -1543,9 +1545,11 @@ function startWizard(){
     if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
     slots.push({day:i%7,pillar,theme,kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
   }
+  const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
+  for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
-  slots.forEach(s=>{const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
+  slots.forEach(s=>{if(s.isProduct)return;const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
   planDraft={week:iso(S.week),slots};
   render();
 }
@@ -1556,7 +1560,8 @@ function suggestSkeletonRotating(i){
 }
 function renderWizard(){
   return `<div class="card"><h3>Draft plan · approve, swap, or clear each slot</h3>
-  ${planDraft.slots.map((s,i)=>`
+  <div class="row" style="margin-bottom:8px"><span class="small muted">Product spotlights this week</span><select onchange="setProdPerWeek(this.value)">${[0,1,2,3].map(x=>`<option value="${x}" ${((S.settings.cadence||{}).product_per_week!=null?(S.settings.cadence||{}).product_per_week:2)==x?'selected':''}>${x}</option>`).join('')}</select><span class="small muted">(auto-rotates product, layout & theme)</span></div>
+  ${planDraft.slots.map((s,i)=>s.isProduct?ppWizRow(s,i):`
     <div class="unit"><div class="row" style="flex-wrap:wrap">
       <select style="width:110px" onchange="planDraft.slots[${i}].day=+this.value">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
       <span class="pill p${s.pillar}">P${s.pillar}</span>
@@ -1590,6 +1595,7 @@ async function savePlan(btn){
   const rows=[];
   for(const s of planDraft.slots){
     if(!s.title)continue;
+    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:'s16',kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});continue;}
     let topic_id=s.topic_id;
     if(!topic_id){
       const {data}=await sb.from('jb_topics').insert({title:s.title,pillar:s.pillar,theme:s.theme,source:'wizard',status:'planned'}).select();
@@ -2608,6 +2614,25 @@ Reply as JSON only: {"pins":[{"eyebrow":"","headline":"","accent":"","sub":"","t
   renderPinBatch();
 }
 window.pinBatchWriteProduct=pinBatchWriteProduct;
+
+</script>
+<script>
+/* ===== PRODUCT PIN WEEKLY CADENCE (wizard helpers) ===== */
+function setProdPerWeek(v){const cad=Object.assign({},S.settings.cadence||{});cad.product_per_week=+v;S.settings.cadence=cad;saveSetting('cadence',cad);startWizard();}
+window.setProdPerWeek=setProdPerWeek;
+function ppWizRow(s,i){const P=ppProducts();const keys=Object.keys(P);
+  const pr=P[s.product];const gap=pr&&ppImageStatus(pr,s.layout||'B').ok?'':'<div class="small" style="color:var(--coral-b);margin-top:4px">Needs screens — set them up before rendering (Skeletons page or ask Claude).</div>';
+  return `
+  <div class="unit" style="border-left:4px solid var(--coral)"><div class="row" style="flex-wrap:wrap;align-items:center">
+    <select style="width:104px" onchange="planDraft.slots[${i}].day=+this.value">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
+    <span class="chip" style="background:#cdeee1;color:#22334f;font-weight:700">Product pin · s16</span>
+    <select style="min-width:118px" onchange="planDraft.slots[${i}].product=this.value;render()">${keys.map(k=>`<option value="${k}" ${k===s.product?'selected':''}>${esc(P[k].label)}</option>`).join('')}</select>
+    <select onchange="planDraft.slots[${i}].layout=this.value;render()">${[['A','Filmstrip'],['B','Hero']].map(o=>`<option value="${o[0]}" ${o[0]===s.layout?'selected':''}>${o[1]}</option>`).join('')}</select>
+    <select onchange="planDraft.slots[${i}].ptheme=this.value">${[['white','White'],['navy','Navy']].map(o=>`<option value="${o[0]}" ${o[0]===s.ptheme?'selected':''}>${o[1]}</option>`).join('')}</select>
+    <select onchange="planDraft.slots[${i}].accent=this.value">${['coral','sage','teal','peach'].map(a=>`<option value="${a}" ${a===s.accent?'selected':''}>${a}</option>`).join('')}</select>
+    <button class="btn ghost sm" onclick="planDraft.slots.splice(${i},1);render()">✕</button>
+  </div>${gap}</div>`;}
+window.ppWizRow=ppWizRow;
 
 </script>
 </body>
