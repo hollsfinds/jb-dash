@@ -1650,6 +1650,8 @@ window.blogIdeaStatus=async function(id,st){
   toast(st==='denied'?'Banned from future research':st==='idea'?'Back in the idea pile':'Snoozed');
   if($('#overlay').style.display==='flex')blogIdeasModal();else render();
 };
+window.blogAssign=async function(ws,id){if(!id)return;const m={...(S.settings.blog_assign||{})};m[ws]=[...(m[ws]||[]).map(String),String(id)];await saveSetting('blog_assign',m);toast('Counted toward this week\u2019s blog goal');render();};
+window.blogUnassign=async function(ws,id){const m={...(S.settings.blog_assign||{})};m[ws]=(m[ws]||[]).map(String).filter(x=>x!==String(id));if(!m[ws].length)delete m[ws];await saveSetting('blog_assign',m);render();};
 /* ---- the dashboard ---- */
 let dashSocOpen=false;
 let dashWkOff=0;
@@ -1688,7 +1690,9 @@ function vDash(){
   const pinsDue=wfTree().rows.filter(r=>r.branches.some(x=>x.state==='stale'));
   const cad=S.settings.cadence||{};
   const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));
-  const blogsPub=blogTasks.filter(u=>u.status==='published').length+S.blog.filter(b=>b.status==='published'&&b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso).length;
+  const _pubWkIds=new Set(S.blog.filter(b=>b.status==='published'&&b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso).map(b=>String(b.id)));
+  const _asgIds=((S.settings.blog_assign||{})[wsIso]||[]).filter(id=>!_pubWkIds.has(String(id))&&S.blog.some(b=>String(b.id)===String(id)));
+  const blogsPub=blogTasks.filter(u=>u.status==='published').length+_pubWkIds.size+_asgIds.length;
   const pw=pillarWeek(ws);
   const slotsFilled=pw.reduce((a,s)=>a+Math.min(s.done,s.goal),0);
   const hungry=pw.filter(s=>s.done<s.goal).map(s=>'P'+s.p);
@@ -1757,6 +1761,13 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
           const procd=all.filter(b=>!cands.includes(b));
           if(!all.length)return '';
           return `<div class="row small" style="margin:8px 0 0 26px"><select style="flex:1;max-width:360px" onchange="if(this.value)setWeekFocus('${wsIso}',this.value)"><option value="">Process a post this week\u2026</option>${cands.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}</optgroup>`:''}</select></div>`;})()}
+        ${(()=>{const m=S.settings.blog_assign||{};const asg=(m[wsIso]||[]);
+          const usedAnywhere=new Set([].concat(...Object.values(m)).map(String));
+          const curWk=b=>b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso;
+          const cands2=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&!curWk(b)&&!usedAnywhere.has(String(b.id))).sort((a,b2)=>new Date(b2.published_at||0)-new Date(a.published_at||0));
+          const chips=asg.map(id=>{const b=S.blog.find(x=>String(x.id)===String(id));return b?`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800">${esc((b.title||'').slice(0,26))} <span style="cursor:pointer;font-weight:900" title="Stop counting this post toward the goal" onclick="blogUnassign('${wsIso}','${id}')">&times;</span></span>`:'';}).join(' ');
+          if(!cands2.length&&!asg.length)return '';
+          return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap"><span class="muted" title="Credit an earlier unused post toward this week's blog goal (separate from processing)">Count toward goal:</span>${chips}${cands2.length?`<select style="flex:1;min-width:150px;max-width:320px" onchange="if(this.value)blogAssign('${wsIso}',this.value)"><option value="">+ an earlier post\u2026</option>${cands2.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,44))}${b.published_at?' ('+(new Date(b.published_at).getMonth()+1)+'/'+new Date(b.published_at).getDate()+')':''}</option>`).join('')}</select>`:''}</div>`;})()}
         <div class="row" style="margin-left:26px;margin-top:8px">
           <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
           ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
