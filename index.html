@@ -1095,7 +1095,12 @@ const MKTG_ASKS={
 const MKTG_SEED={
  kpis:{proof:0,proof_goal:5,pitch_goal:10,pitches:{wk:'',n:0}},
  tracks:[
-  {id:'reddit',title:'Reddit seeding',tier:'Tier 1',tasks:[
+  {id:'reddit',title:'Reddit seeding',tier:'Tier 1',links:[
+    {id:'l1',label:'r/freelance',url:'https://www.reddit.com/r/freelance/'},
+    {id:'l2',label:'r/EtsySellers',url:'https://www.reddit.com/r/EtsySellers/'},
+    {id:'l3',label:'r/alphaandbetausers',url:'https://www.reddit.com/r/alphaandbetausers/'},
+    {id:'l4',label:'r/SideProject',url:'https://www.reddit.com/r/SideProject/'},
+    {id:'l5',label:'r/indiehackers',url:'https://www.reddit.com/r/indiehackers/'}],tasks:[
     {id:'r1',title:'Create Reddit account',link:'https://www.reddit.com/register/',done:false},
     {id:'r2',title:'Warm up: 3-5 real comments a day in r/freelance and r/EtsySellers',link:'https://www.reddit.com/r/freelance/',done:false},
     {id:'r3',title:'Post the r/alphaandbetausers draft',link:'https://www.reddit.com/r/alphaandbetausers/',done:false},
@@ -1149,6 +1154,7 @@ function vMktg(){
   if(rt&&pf){const ri=(rt.tasks||[]).findIndex(t=>t.id==='r6');
     if(ri>-1){const mv=rt.tasks.splice(ri,1)[0];if(!(pf.tasks||[]).some(t=>t.id==='r6'||t.id==='p0')){mv.ask=mv.ask||MKTG_ASKS.p0;pf.tasks.unshift(mv);}mig=true;}}
   (p.tracks||[]).forEach(T=>(T.tasks||[]).forEach(t=>{if(MKTG_ASKS[t.id]&&!t.ask){t.ask=MKTG_ASKS[t.id];mig=true;}}));
+  if(rt&&!rt.links){rt.links=JSON.parse(JSON.stringify((MKTG_SEED.tracks.find(x=>x.id==='reddit')||{}).links||[]));mig=true;}
   if(mig)saveSetting('marketing_plan',p);
   const wk=iso(weekStart(new Date()));
   const pitches=(p.kpis.pitches&&p.kpis.pitches.wk===wk)?p.kpis.pitches.n:0;
@@ -1174,6 +1180,13 @@ function vMktg(){
     ${tot?`<div style="height:6px;background:#eef0f3;border-radius:5px;margin-top:8px;overflow:hidden"><i style="display:block;height:100%;border-radius:5px;background:var(--teal);width:${pct}%"></i></div>`:''}
     ${T.note?`<div class="small muted" style="margin-top:6px">${esc(T.note)}</div>`:''}
     ${open?`<div style="margin-top:8px">
+      ${(T.links&&T.links.length)||T.id==='reddit'?`<div style="padding:4px 0 10px;border-top:1px dashed var(--line)">
+        <div class="small" style="font-weight:900;color:var(--muted);letter-spacing:.04em;margin-bottom:6px">QUICK LINKS <span style="font-weight:700">· browse for posts to comment on</span></div>
+        <div class="row" style="flex-wrap:wrap;gap:6px">
+          ${(T.links||[]).map(L=>`<span class="chip" style="display:inline-flex;align-items:center;gap:6px;background:var(--mist);border-color:var(--mist)"><a href="${esc(L.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:800;text-decoration:none;color:var(--navy)">${esc(L.label||L.url)}</a><span style="cursor:pointer;font-weight:900;color:var(--muted)" title="Remove" onclick="event.stopPropagation();mpDelLink('${T.id}','${L.id}')">&times;</span></span>`).join('')}
+          <button class="btn ghost sm" style="padding:2px 10px" onclick="event.stopPropagation();mpAddLink('${T.id}')">+ link</button>
+        </div>
+      </div>`:''}
       ${(T.tasks||[]).map(t=>`<div class="row" style="padding:7px 0;border-top:1px dashed var(--line);gap:9px">
         <input type="checkbox" ${t.done?'checked':''} onchange="mpToggle('${T.id}','${t.id}')" style="width:16px;height:16px;flex:none">
         <span style="flex:1;min-width:0"><span class="small" style="font-weight:700;${t.done?'color:var(--muted);text-decoration:line-through':''}">${esc(t.title)}${t.link?` <a href="${esc(t.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:900">&#8599;</a>`:''}</span>${t.notes?`<div class="small muted" style="margin-top:2px;font-style:italic">${esc(t.notes)}</div>`:''}</span>
@@ -1256,6 +1269,30 @@ window.mpDelTask=async function(tr,ta){
   if(t&&t.todo_id){await saveSetting('sidebar_todos',todos().filter(x=>x.id!==t.todo_id));}
   T.tasks=(T.tasks||[]).filter(x=>x.id!==ta);
   await saveMp(p);closeModal();
+};
+window.mpAddLink=function(tr){
+  modal(`<h3 style="margin-bottom:10px">Add a quick link</h3>
+  <label class="small" style="font-weight:800">URL</label>
+  <input type="text" id="mp-lurl" placeholder="https://www.reddit.com/r/..." style="margin:4px 0 10px" onkeydown="if(event.key==='Enter')mpSaveLink('${tr}')">
+  <label class="small" style="font-weight:800">Label (optional, auto-fills for subreddits)</label>
+  <input type="text" id="mp-llabel" placeholder="r/whatever" style="margin-top:4px" onkeydown="if(event.key==='Enter')mpSaveLink('${tr}')">
+  <div class="row" style="margin-top:14px"><div class="spacer"></div>
+  <button class="btn ghost" onclick="closeModal()">Cancel</button>
+  <button class="btn" onclick="mpSaveLink('${tr}')">Add</button></div>`);
+};
+window.mpSaveLink=async function(tr){
+  const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
+  let url=($('#mp-lurl').value||'').trim();if(!url)return;
+  if(!/^https?:/i.test(url))url='https://'+url;
+  let label=($('#mp-llabel').value||'').trim();
+  if(!label){const m=url.match(/reddit\.com\/(r\/[^\/?#]+)/i);label=m?m[1]:url.replace(/^https?:\/\/(www\.)?/i,'').slice(0,30);}
+  T.links=T.links||[];T.links.push({id:'l'+Date.now(),label,url});
+  await saveMp(p);closeModal();
+};
+window.mpDelLink=async function(tr,id){
+  const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
+  T.links=(T.links||[]).filter(x=>x.id!==id);
+  await saveMp(p);
 };
 window.mpAddTrack=function(){
   modal(`<h3 style="margin-bottom:10px">New track</h3>
