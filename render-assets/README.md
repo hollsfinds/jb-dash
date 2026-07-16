@@ -34,3 +34,10 @@ on session end. They live here now so any session can render immediately.
 - If the logo wordmark ever changes, rebuild both .b64 from the new PNG:
   `base64 -w0 logo.png > assets/logo_color.b64` (color), and recolor to white for logo_white.
 - Colors baked into the scripts: navy #22334f, coral #e8836f, mint #cdeee1, teal #2f8f7d, sage #b7d6c4.
+
+## S7 — Product Filmstrip (added 2026-07-16)
+`s7-render.cjs` renders the code-rendered product pins. `node s7-render.cjs cfg.json out.png`.
+- cfg.layout: `stack` (A, equal filmstrip) | `tophero` (B, big hero + 2 smaller) | `herostack`.
+- cfg.theme: `white` | `navy`. cfg.accent: hex of the one accent word (coral default).
+- cfg.images: array of pre-cropped screenshot PNGs (hero first). cfg.eyebrow, cfg.headline (lines of {t,a} segments; a:true = accent word), cfg.sub.
+- Hero/feature crop boxes per product in `s7-hutch-crops.json` (regenerate crops from the Mac 'Hutch App/' screenshots with PIL).
