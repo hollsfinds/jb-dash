@@ -41,3 +41,9 @@ on session end. They live here now so any session can render immediately.
 - cfg.theme: `white` | `navy`. cfg.accent: hex of the one accent word (coral default).
 - cfg.images: array of pre-cropped screenshot PNGs (hero first). cfg.eyebrow, cfg.headline (lines of {t,a} segments; a:true = accent word), cfg.sub.
 - Hero/feature crop boxes per product in `s7-hutch-crops.json` (regenerate crops from the Mac 'Hutch App/' screenshots with PIL).
+
+## S8 / s17 — Product Grid (added 2026-07-16)
+Same engine, `cfg.layout: 'grid'`. 2x2 of 4 screens + bold Anton title + cursive Pacifico bubble sticker + CTA pill.
+- cfg: `layout:'grid'`, `theme` white|navy, `size` (title px), `titleBold:true` (Anton), `images` (4 tile crops), `headline` ({t,a} lines), `badge` (sticker phrase string), `cta` (segments; {t,hi} where hi=coral pill), `accent`.
+- Fonts added: Pacifico (sticker), Anton (title), Poppins-Black. Grid crops + `C_grid` layout in `s7-hutch-crops.json`.
+- Sticker fill flips by theme (cream on navy, navy on white); bubble = thick coral text-stroke, paint-order stroke fill.

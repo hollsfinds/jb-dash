@@ -1,13 +1,112 @@
 {
   "_note": "Reproducible hero/feature crops for S7 product pins. Boxes are [x0,y0,x1,y1] in the ORIGINAL screenshot pixels. Source screenshots live in the Mac 'Hutch App/' folder.",
   "hutch": {
-    "help-dashboard.png":  {"hero_sidebar":[0,0,1366,794], "card1_side":[0,0,1072,794], "numbers":[200,25,1100,692]},
-    "help-money-date.png": {"card2":[195,0,1295,800]},
-    "help-csv-import.png": {"card3":[25,30,770,582]}
+    "help-dashboard.png": {
+      "hero_sidebar": [
+        0,
+        0,
+        1366,
+        794
+      ],
+      "card1_side": [
+        0,
+        0,
+        1072,
+        794
+      ],
+      "numbers": [
+        200,
+        25,
+        1100,
+        692
+      ],
+      "grid_dash": [
+        0,
+        10,
+        890,
+        770
+      ]
+    },
+    "help-money-date.png": {
+      "card2": [
+        195,
+        0,
+        1295,
+        800
+      ],
+      "grid_money": [
+        300,
+        60,
+        1170,
+        800
+      ]
+    },
+    "help-csv-import.png": {
+      "card3": [
+        25,
+        30,
+        770,
+        582
+      ],
+      "grid_csv": [
+        25,
+        40,
+        790,
+        694
+      ]
+    },
+    "help-reports.png": {
+      "reports": [
+        25,
+        95,
+        1175,
+        1055
+      ]
+    }
   },
   "layouts": {
-    "A_filmstrip": {"layout":"stack","slotRatio":1.35,"stripW":420,"images":["card1_side","card2","card3"]},
-    "B_hero":      {"layout":"tophero","heroRatio":1.72,"heroW":824,"smRatio":1.35,"smW":344,"gap":26,"images":["hero_sidebar","card2","card3"]}
+    "A_filmstrip": {
+      "layout": "stack",
+      "slotRatio": 1.35,
+      "stripW": 420,
+      "images": [
+        "card1_side",
+        "card2",
+        "card3"
+      ]
+    },
+    "B_hero": {
+      "layout": "tophero",
+      "heroRatio": 1.72,
+      "heroW": 824,
+      "smRatio": 1.35,
+      "smW": 344,
+      "gap": 26,
+      "images": [
+        "hero_sidebar",
+        "card2",
+        "card3"
+      ]
+    },
+    "C_grid": {
+      "layout": "grid",
+      "tileW": 398,
+      "tileH": 320,
+      "gridTop": 432,
+      "headTop": 150,
+      "size": 122,
+      "titleBold": true,
+      "badge": "cursive Pacifico sticker phrase",
+      "images": [
+        "grid_dash",
+        "grid_money",
+        "grid_csv",
+        "reports"
+      ]
+    }
   },
-  "themes": {"white":"coral border, teal eyebrow, navy type, color logo", "navy":"mint border, mint eyebrow, white type, white logo"}
+  "themes": {
+    "white": "coral border, teal eyebrow, navy type, color logo",
+    "navy": "mint border, mint eyebrow, white type, white logo"
+  }
 }

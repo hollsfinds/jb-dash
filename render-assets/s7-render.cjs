@@ -20,9 +20,11 @@ const shot = (p,w,h,extra='')=>`<div class="shot" style="${extra}width:${w}px;he
 function theme(cfg){
   const t = cfg.theme||'white';
   if(t==='navy') return {page:NAVY, text:'#ffffff', eb:MINT, sub:'#cbd6e4', border:MINT, logo:LOGO_WHITE,
+    stickerFill:'#fff6ea', stickerFx:'drop-shadow(0 0 6px #fff) drop-shadow(0 0 6px #fff) drop-shadow(0 16px 24px rgba(20,30,50,.42))',
     blob:`radial-gradient(1100px 950px at 82% 6%, #34507288, transparent 60%), radial-gradient(900px 800px at 8% 98%, ${TEAL}55, transparent 60%)`,
     wash:'rgba(34,51,79,.52)'};
   return {page:'#ffffff', text:NAVY, eb:TEAL, sub:'#6c7a8c', border:CORAL, logo:LOGO_COLOR,
+    stickerFill:NAVY, stickerFx:'drop-shadow(0 3px 0 #fff) drop-shadow(0 16px 22px rgba(20,30,50,.26))',
     blob:`radial-gradient(1000px 900px at 88% 6%, ${MINT}44, transparent 60%), radial-gradient(800px 800px at 6% 98%, ${CORAL}18, transparent 60%)`,
     wash:'rgba(255,255,255,.46)'};
 }
@@ -70,10 +72,24 @@ function topHero(cfg, T){
     </div>`;
 }
 
+function gridLayout(cfg,T,accent){
+  const imgs=(cfg.images||[]).slice(0,4);
+  const gw=cfg.tileW||398, gh=cfg.tileH||340, gap=18;
+  const gridW=gw*2+gap, gLeft=Math.round((1000-gridW)/2), gTop=cfg.gridTop||430;
+  const tiles=imgs.map((p,i)=>{const r=Math.floor(i/2),c=i%2;return shot(p,gw,gh,`position:absolute;left:${gLeft+c*(gw+gap)}px;top:${gTop+r*(gh+gap)}px;z-index:4;`);}).join('');
+  const ctaTop=gTop+gh*2+gap+42;
+  const cta=(cfg.cta||[]).map(s=>s.hi?`<span class="hi">${s.t}</span>`:`<span>${s.t}</span>`).join(' ');
+  const badge=cfg.badge?`<div class="sticker" style="top:${(cfg.badgeTop!=null?cfg.badgeTop:(gTop-104))}px">${cfg.badge}</div>`:'';
+  return `
+    <div class="ctac" style="top:${cfg.headTop||150}px">${cfg.eyebrow?`<div class="eyebrow" style="margin-bottom:14px">${cfg.eyebrow}</div>`:''}<div class="head${cfg.titleBold?' gt':''}">${hl(cfg.headline)}</div></div>
+    ${badge}
+    ${tiles}
+    ${cfg.cta?`<div class="ctac" style="top:${ctaTop}px"><div class="cta">${cta}</div></div>`:''}`;
+}
 function html(cfg){
   const T=theme(cfg);
   const accent=cfg.accent||CORAL;
-  const inner = cfg.layout==='tophero' ? topHero(cfg,T) : panelStrip(cfg,T);
+  const inner = cfg.layout==='grid' ? gridLayout(cfg,T,accent) : cfg.layout==='tophero' ? topHero(cfg,T) : panelStrip(cfg,T);
   const bgLayer = cfg.bg
     ? `<div class="bgphoto" style="background-image:url('${imgURI(cfg.bg)}')"></div><div class="wash"></div><div class="lift"></div>`
     : `<div class="blob"></div>`;
@@ -81,6 +97,9 @@ function html(cfg){
   ${font('Poppins','Poppins-SemiBold.ttf','600')}
   ${font('PoppinsMed','Poppins-Medium.ttf','500')}
   @font-face{font-family:'Bebas';src:url(data:font/otf;base64,${b64('fonts/BebasNeue-Regular.otf')});font-display:block;}
+  @font-face{font-family:'Pacifico';src:url(data:font/ttf;base64,${b64('fonts/Pacifico-Regular.ttf')});font-display:block;}
+  @font-face{font-family:'PoppinsBlack';src:url(data:font/ttf;base64,${b64('fonts/Poppins-Black.ttf')});font-weight:900;font-display:block;}
+  @font-face{font-family:'Anton';src:url(data:font/ttf;base64,${b64('fonts/Anton.ttf')});font-display:block;}
   *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
   html,body{width:1000px;height:1500px;}
   .pin{position:relative;width:1000px;height:1500px;overflow:hidden;background:${T.page};}
@@ -97,7 +116,12 @@ function html(cfg){
   .head{font-family:'Bebas';color:${T.text};line-height:.9;letter-spacing:.01em;}
   .line{font-size:${cfg.size||90}px;}
   .acc{color:${accent};}
+  .gt{font-family:'Anton';font-weight:400;letter-spacing:.01em;line-height:1.0;}
   .sub{font-family:'PoppinsMed';font-weight:500;color:${T.sub};font-size:31px;line-height:1.4;margin-top:28px;max-width:400px;}
+  .ctac{position:absolute;left:64px;right:64px;text-align:center;z-index:5;}
+  .cta{font-family:'Bebas';color:${T.text};font-size:62px;line-height:1.02;letter-spacing:.01em;}
+  .hi{background:${accent};color:#fff;border-radius:14px;padding:.10em .26em .02em;-webkit-box-decoration-break:clone;box-decoration-break:clone;}
+  .sticker{position:absolute;left:50%;transform:translateX(-50%) rotate(-5deg);white-space:nowrap;z-index:5;font-family:'Pacifico';font-size:${cfg.badgeSize||84}px;line-height:1.2;color:${T.stickerFill};-webkit-text-stroke:30px ${accent};paint-order:stroke fill;filter:${T.stickerFx};}
   .logo{position:absolute;bottom:158px;left:50%;transform:translateX(-50%);width:250px;z-index:7;}
   </style></head><body>
   <div class="pin">${bgLayer}${inner}<img class="logo" src="${T.logo}"><div class="frame"></div></div></body></html>`;

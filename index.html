@@ -467,7 +467,8 @@ s12:[{t:'EYEBROW',b:'small-caps topic hook, 2 to 4 words',caps:1},{t:'HEADLINE',
 s13:[{t:'KICKER',b:'tiny lead-in line above the block, small caps, under 4 words',caps:1},{t:'HEADLINE',b:'the punchy hook, 1 to 2 short lines, ALL CAPS',caps:1},{t:'TAG',b:'tiny script tag under it, lowercase, under 3 words'}],
 s14:[{t:'HEADLINE',b:'the hook, 2 short lines, ALL CAPS',caps:1},{t:'HIGHLIGHT',b:'the ONE word from the headline that gets the coral pill',caps:1},{t:'CAPTION',b:'one warm line for the bottom band, sentence case, soft CTA'}],
 s15:[{t:'SCRIPT',b:'tiny script lead-in, lowercase, 1 to 2 words'},{t:'WORDS',b:'3 to 4 short punchy words, one per line, ALL CAPS',caps:1}],
-s16:[{t:'EYEBROW',b:'small-caps product hook, 2 to 4 words',caps:1},{t:'HEADLINE',b:'the product promise, 3 to 6 words, ALL CAPS, mark ONE word for the accent color',caps:1},{t:'SUB',b:'one lowercase benefit line, no time or effort claims'}]
+s16:[{t:'EYEBROW',b:'small-caps product hook, 2 to 4 words',caps:1},{t:'HEADLINE',b:'the product promise, 3 to 6 words, ALL CAPS, mark ONE word for the accent color',caps:1},{t:'SUB',b:'one lowercase benefit line, no time or effort claims'}],
+s17:[{t:'TITLE',b:'the big product title, 2 to 4 words, ALL CAPS, mark ONE word for the accent color',caps:1},{t:'BADGE',b:'a short cursive sticker phrase, 2 to 4 lowercase words like books, handled'},{t:'CTA',b:'the bottom call to action, ALL CAPS, ending in the destination e.g. GET IT AT JUNEYBYRD.COM',caps:1}]
 };
 const SKEL_FILLERS={
 HERO:['YES','FINALLY','DONE','EASY','HANDLED','SORTED','AT LAST'],
@@ -498,7 +499,8 @@ const COWORK_SKELETONS=[
   {id:'s13',name:'Photo · Sticker',best_for:'loud, high-scroll-stop list or number pins over a lifestyle photo',cowork:true,locked:true,bg:true,img:'skel/photo-sticker.png',layout:'Scandi background under a white overlay, a bold coral sticker block with a white ring holding a white Bebas headline, a tiny white kicker above and a Havana script tag below, full-color logo on a white chip, coral frame',quirks:'Rendered by Claude in Cowork from the photo-card pipeline. Pulls the next image from your "Pin Backgrounds only" folder. Hand Claude the kicker, the headline, and the script tag; Claude returns the finished PNG. Zero CS AI credits.'},
   {id:'s14',name:'Photo · Highlight Band',best_for:'list, how-to, or checklist pins that need a readable CTA over a lifestyle photo',cowork:true,locked:true,bg:true,img:'skel/photo-band.png',layout:'Scandi background under a white overlay, a navy Bebas headline up top with ONE word inside a coral pill, a solid navy caption band across the bottom holding a soft CTA and the white logo, coral frame',quirks:'Rendered by Claude in Cowork from the photo-card pipeline. Pulls the next image from your "Pin Backgrounds only" folder. Hand Claude the headline, the word to highlight, and the bottom caption; Claude returns the finished PNG. Zero CS AI credits.'},
   {id:'s15',name:'Photo · Stacked',best_for:'a punchy 3 to 4 word statement over a lifestyle photo',cowork:true,locked:true,bg:true,img:'skel/photo-stacked.png',layout:'Scandi background under a white overlay, a Havana script lead-in on a white pill, then 3 to 4 short navy Bebas words each on its own white pill, right-aligned, a naked full-color logo bottom-center, coral frame',quirks:'Rendered by Claude in Cowork from the photo-card pipeline. Pulls the next image from your "Pin Backgrounds only" folder. Hand Claude the script lead-in and the stacked words; Claude returns the finished PNG. Zero CS AI credits.'},
-  {id:'s16',name:'Product Filmstrip · Hutch/Stash',best_for:'product pins, feature spotlights, app launches (Hutch, Stash, any J&B product page)',cowork:true,product:true,locked:true,img:'skel/product-filmstrip.png',layout:'real app screenshots on the brand shell; A = 3-screen filmstrip with text on the right, B = one big full-app hero on top with two smaller screens + text below; white or navy theme',quirks:'Rendered by Claude in Cowork from your REAL app screenshots, not AI Studio. Use the Product Pin Builder button: pick a product + its screens + layout/theme and it hands Claude a spec. Claude writes the copy from the product page and renders the 1000x1500 PNG. Zero CS AI credits. If a needed screenshot is missing, the builder tells you exactly what to add.'}
+  {id:'s16',name:'Product Filmstrip · Hutch/Stash',best_for:'product pins, feature spotlights, app launches (Hutch, Stash, any J&B product page)',cowork:true,product:true,locked:true,img:'skel/product-filmstrip.png',layout:'real app screenshots on the brand shell; A = 3-screen filmstrip with text on the right, B = one big full-app hero on top with two smaller screens + text below; white or navy theme',quirks:'Rendered by Claude in Cowork from your REAL app screenshots, not AI Studio. Use the Product Pin Builder button: pick a product + its screens + layout/theme and it hands Claude a spec. Claude writes the copy from the product page and renders the 1000x1500 PNG. Zero CS AI credits. If a needed screenshot is missing, the builder tells you exactly what to add.'},
+  {id:'s17',name:'Product Grid · Hutch/Stash',best_for:'product showcase pins, meet-the-app, multi-feature spotlights (Hutch, Stash, any J&B product page)',cowork:true,product:true,grid:true,locked:true,img:'skel/product-grid.png',layout:'a 2x2 grid of 4 real app screens on the brand shell, bold Anton title on top, cursive Pacifico bubble sticker, a get-it CTA at the bottom; white or navy theme',quirks:'Rendered by Claude in Cowork from your REAL app screenshots, not AI Studio. Use the Product Pin Builder, choose the Grid layout; it needs 4 distinct screens. Claude writes the title/sticker/CTA from the product page and renders the 1000x1500 PNG. Zero CS AI credits.'}
 ];
 function coworkSkel(id){return COWORK_SKELETONS.find(s=>String(s.id)===String(id))||null;}
 function coworkBgFolder(){return (S.settings&&S.settings.cowork_bg_folder)?S.settings.cowork_bg_folder:'Pin Backgrounds only';}
@@ -593,20 +595,21 @@ function buildImagePrompt(skelId,unit){
 }
 /* ============ PRODUCT PIN BUILDER (s16 / library Skeleton 7) ============ */
 const PP_ACCENTS={coral:'#e8836f',sage:'#b7d6c4',teal:'#2f8f7d',peach:'#f0b9a6'};
-const PP_LAYOUTS={A:{label:'A · Filmstrip',need:3,heroReq:false},B:{label:'B · Hero',need:3,heroReq:true}};
+const PP_LAYOUTS={A:{label:'A · Filmstrip',need:3,heroReq:false},B:{label:'B · Hero',need:3,heroReq:true},C:{label:'C · Grid',need:4,heroReq:false,grid:true}};
 const PP_DEFAULTS={
   hutch:{label:'Hutch',page_url:'https://juneybyrd.com/hutch',screens:[
     {key:'side',label:'Dashboard + sidebar',hero:false,mac:'Hutch App/help-dashboard.png',crop:'card1_side'},
     {key:'hero',label:'Full dashboard (hero, with sidebar)',hero:true,mac:'Hutch App/help-dashboard.png',crop:'hero_sidebar'},
     {key:'moneydate',label:'Money Date checklist',hero:false,mac:'Hutch App/help-money-date.png',crop:'card2'},
-    {key:'csv',label:'CSV import',hero:false,mac:'Hutch App/help-csv-import.png',crop:'card3'}
+    {key:'csv',label:'CSV import',hero:false,mac:'Hutch App/help-csv-import.png',crop:'card3'},
+    {key:'reports',label:'Profit & Loss report',hero:false,mac:'Hutch App/help-reports.png',crop:'reports'}
   ]},
   stash:{label:'Stash',page_url:'',screens:[]}
 };
 function ppProducts(){if(!S.settings.product_screens)return JSON.parse(JSON.stringify(PP_DEFAULTS));const P=S.settings.product_screens;/* migrate old default: the card1_side crop was wrongly hero-flagged (it duplicates the real hero) */if(P.hutch&&Array.isArray(P.hutch.screens))P.hutch.screens.forEach(s=>{if(s.key==='side'&&s.crop==='card1_side')s.hero=false;});return P;}
 async function ppSaveProducts(map){await saveSetting('product_screens',map);}
 function ppImageStatus(prod,layout){
-  const L=PP_LAYOUTS[layout];const sc=(prod&&prod.screens)||[];const n=sc.length;const hero=sc.some(s=>s.hero);
+  const L=PP_LAYOUTS[layout];const sc=(prod&&prod.screens)||[];const n=new Set(sc.map(s=>s.mac||s.key)).size;const hero=sc.some(s=>s.hero);
   const short=Math.max(0,L.need-n);const heroMissing=L.heroReq&&!hero;const ok=short===0&&!heroMissing;
   let msg='';if(!ok){const parts=[];if(short>0)parts.push('needs '+short+' more screenshot'+(short>1?'s':'')+' ('+prod.label+' has '+n+' of '+L.need+')');if(heroMissing)parts.push('the Hero layout needs at least one full-app / sidebar screen (mark it a hero)');msg=parts.join('; and ');}
   return {ok,short,heroMissing,msg,n,need:L.need};
@@ -632,6 +635,19 @@ function buildProductHandoff(){
   const P=ppProducts();const prod=P[window.__pp.product];const L=PP_LAYOUTS[window.__pp.layout];
   const picked=window.__pp.picked.map(k=>(prod.screens||[]).find(s=>s.key===k)).filter(Boolean);
   const st=ppImageStatus(prod,window.__pp.layout);const cp=window.__pp.copy;const A=window.__pp.accent;
+  if(window.__pp.layout==='C'){const G=[];
+    G.push('COWORK PRODUCT PIN — Skeleton 8 (app id s17, GRID)');
+    G.push('Product: '+prod.label+'  ·  Ground/refine the copy from this page: '+(prod.page_url||'(no page set)'));
+    G.push('Layout: Grid (2x2 of 4 screens)   Theme: '+window.__pp.theme+'   Accent word color: '+A+' ('+PP_ACCENTS[A]+')');
+    G.push('');G.push('Screens (4; Mac files; grid crops = C_grid in render-assets/s7-hutch-crops.json):');
+    picked.forEach((s,i)=>G.push('  '+(i+1)+'. '+s.label+' — '+s.mac));
+    if(!st.ok)G.push('  !! IMAGE GAP: '+st.msg+'.');
+    G.push('');G.push('On-image copy (juneybyrd-voice; the *word* takes the accent color):');
+    G.push('  TITLE: '+(cp.title||'(write it, mark one *word*)'));
+    G.push('  STICKER: '+(cp.badge||'(a short cursive phrase, e.g. books, handled)'));
+    G.push('  CTA: '+(cp.cta||'(write it, e.g. GET IT AT JUNEYBYRD.COM)'));
+    G.push('');G.push('Render with render-assets/s7-render.cjs — layout grid (see C_grid in s7-hutch-crops.json), theme '+window.__pp.theme+', accent '+PP_ACCENTS[A]+', those 4 screens. Send the 1000x1500 PNG, then upload to CS with the Pinterest title + '+(prod.page_url||'the product page')+' as Source URL, save the draft.');
+    return G.join('\n');}
   const L2=[];
   L2.push('COWORK PRODUCT PIN — Skeleton 7 (app id s16)');
   L2.push('Product: '+prod.label+'  ·  Ground the copy in this page: '+(prod.page_url||'(no page set — use what you know about '+prod.label+')'));
@@ -660,7 +676,7 @@ function ppHTML(){
     :`<div class="alert" style="border-color:var(--coral)"><b>Can't build this pin yet.</b> ${esc(st.msg)}.<br><span class="small">Fix it: capture the screen in ${esc(prod.label)}, save it into the product folder on your Mac, then <b>+ Add screen</b> below (or ask Claude to register it). Then rebuild.</span></div>`;
   const cp=window.__pp.copy;
   return `<div style="max-width:640px">
-    <h3 style="margin-bottom:4px">Product Pin Builder <span class="small muted">· Skeleton 7 / s16</span></h3>
+    <h3 style="margin-bottom:4px">Product Pin Builder <span class="small muted">· ${window.__pp.layout==='C'?'Skeleton 8 / s17 (Grid)':'Skeleton 7 / s16'}</span></h3>
     <p class="small muted" style="margin-bottom:12px">Pick a product and its screens, choose the look, copy a Cowork handoff. Claude writes the copy from the product page and renders the pin.</p>
     <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
       <select onchange="ppSet('product',this.value)">${Object.keys(P).map(k=>`<option value="${k}" ${k===window.__pp.product?'selected':''}>${esc(P[k].label)}</option>`).join('')}</select>
@@ -668,15 +684,21 @@ function ppHTML(){
     </div>
     <label class="small muted">Product page (copy is written from this)</label>
     <div class="row" style="gap:6px;margin:4px 0 12px"><input id="pp_page" style="flex:1" value="${esc(prod.page_url||'')}" placeholder="https://juneybyrd.com/hutch"><button class="btn ghost sm" onclick="ppSavePage()">Save</button></div>
-    <div style="margin-bottom:10px"><label class="small muted">Layout</label><br>${seg('layout',window.__pp.layout,[['A','A · Filmstrip'],['B','B · Hero']])}</div>
+    <div style="margin-bottom:10px"><label class="small muted">Layout</label><br>${seg('layout',window.__pp.layout,[['A','A · Filmstrip'],['B','B · Hero'],['C','C · Grid']])}</div>
     <div style="margin-bottom:10px"><label class="small muted">Theme</label><br>${seg('theme',window.__pp.theme,[['white','White'],['navy','Navy']])}</div>
     <div style="margin-bottom:10px"><label class="small muted">Accent word color</label><br>${seg('accent',window.__pp.accent,[['coral','Coral'],['sage','Sage'],['teal','Teal'],['peach','Peach']])}</div>
     <div style="margin:12px 0"><div class="row"><label class="small muted" style="flex:1">Screens (pick ${st.need})</label><button class="btn ghost sm" onclick="ppAddScreen()">+ Add screen</button></div>${scHTML}</div>
     ${warn}
     <div style="margin:12px 0"><label class="small muted">Copy (optional — Claude writes it from the page if blank)</label>
-      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="EYEBROW" value="${esc(cp.eyebrow)}" oninput="ppSetCopy('eyebrow',this)"></div>
-      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="HEADLINE (mark one *word*)" value="${esc(cp.headline)}" oninput="ppSetCopy('headline',this)"></div>
-      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="sub line" value="${esc(cp.sub)}" oninput="ppSetCopy('sub',this)"></div>
+${window.__pp.layout==='C'?`
+      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="TITLE (mark one *word*)" value="${esc(cp.title||'')}" oninput="ppSetCopy('title',this)"></div>
+      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="sticker phrase (cursive, lowercase)" value="${esc(cp.badge||'')}" oninput="ppSetCopy('badge',this)"></div>
+      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="CTA line (e.g. GET IT AT JUNEYBYRD.COM)" value="${esc(cp.cta||'')}" oninput="ppSetCopy('cta',this)"></div>
+      `:`
+      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="EYEBROW" value="${esc(cp.eyebrow||'')}" oninput="ppSetCopy('eyebrow',this)"></div>
+      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="HEADLINE (mark one *word*)" value="${esc(cp.headline||'')}" oninput="ppSetCopy('headline',this)"></div>
+      <div class="row" style="margin:4px 0"><input style="flex:1" placeholder="sub line" value="${esc(cp.sub||'')}" oninput="ppSetCopy('sub',this)"></div>
+      `}
       <button class="btn ghost sm" onclick="ppDraftCopy(this)">Draft copy from the page</button>
     </div>
     <div class="row" style="gap:8px;margin-top:14px">
@@ -2530,7 +2552,7 @@ function pbMode(m){const st=window.__pinBatch;if(!st)return;st.mode=m;st.pins=nu
 window.pbMode=pbMode;
 function pbToggle(cur){return `<div class="row" style="gap:6px;margin-top:8px"><button class="btn ${cur==='blog'?'':'ghost'} sm" onclick="pbMode('blog')">Blog / Page pins</button><button class="btn ${cur==='product'?'':'ghost'} sm" onclick="pbMode('product')">Product pins</button></div>`;}
 window.pbToggle=pbToggle;
-function ppScreensForLayout(prod,layout){const sc=(prod.screens||[]).slice();const out=[];const add=s=>{if(s&&out.length<3&&out.indexOf(s)<0&&!out.some(x=>x.mac&&s.mac&&x.mac===s.mac))out.push(s);};if(layout==='B'){add(sc.find(s=>s.hero));sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}else{sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}return out.slice(0,3);}
+function ppScreensForLayout(prod,layout){const cap=layout==='C'?4:3;const sc=(prod.screens||[]).slice();const out=[];const add=s=>{if(s&&out.length<cap&&out.indexOf(s)<0&&!out.some(x=>x.mac&&s.mac&&x.mac===s.mac))out.push(s);};if(layout==='B'){add(sc.find(s=>s.hero));sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}else{sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}return out.slice(0,cap);}
 function ppHandoffFromSpec(sp){
   const A=sp.accent;const L=[];
   L.push('COWORK PRODUCT PIN — Skeleton 7 (app id s16)');
