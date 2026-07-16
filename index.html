@@ -497,6 +497,13 @@ const COWORK_SKELETONS=[
 ];
 function coworkSkel(id){return COWORK_SKELETONS.find(s=>String(s.id)===String(id))||null;}
 function coworkBgFolder(){return (S.settings&&S.settings.cowork_bg_folder)?S.settings.cowork_bg_folder:'Pin Backgrounds only';}
+function pickCoworkSkel(post){
+  const cw=S.skeletons.filter(s=>(typeof coworkSkel==='function'&&coworkSkel(s.id))&&SKEL_MATCH[s.id]);
+  if(!cw.length)return null;
+  const scored=cw.map(s=>({s,sc:(typeof scoreSkel==='function'?scoreSkel(s.id,post):0),lru:new Date(s.last_used_at||0).getTime()}));
+  scored.sort((a,b)=>((b.sc-a.sc)||(a.lru-b.lru)));
+  return scored[0]?scored[0].s:null;
+}
 function buildCoworkHandoff(sk,unit){
   if(!sk)return '';
   const c=(unit&&unit.copy)||{};const slots=c.slots||{};
@@ -951,9 +958,14 @@ async function dealFormats(btn){
       if(!p.instagram&&!p.facebook&&!p.tiktok)p[k.indexOf('fb')===0?'facebook':'instagram']=true;
       const st=(fam!=='story'&&((p.instagram&&need.ig_story>0)||(p.facebook&&need.fb_story>0)))?1:'';
       const copy={...(u.copy||{}),format:fmt,story_too:st};
+      const _upd={copy,platforms:p};
+      if(p.tiktok&&typeof coworkSkel==='function'&&!coworkSkel(u.skeleton_id)){
+        const _cw=(typeof pickCoworkSkel==='function')?pickCoworkSkel({pillar:u.pillar,theme:u.theme,title:u.title}):null;
+        if(_cw){_upd.skeleton_id=_cw.id;delete copy.slots;delete copy.image_prompt;copy.cowork_slot=await takeCoworkSlot(_cw.id);}
+      }
       const sim={...u,copy,platforms:p};
       mixBuckets(sim).forEach(x=>{if(need[x]!=null)need[x]--;});
-      await updUnit(u.id,{copy,platforms:p});
+      await updUnit(u.id,_upd);
     }
     render();toast('Formats dealt. Every open card now says exactly what to make.');
   }catch(e){toast('Deal failed: '+e.message);render();}
