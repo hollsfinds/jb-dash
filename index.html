@@ -712,7 +712,7 @@ window.ppHTML=ppHTML;
 </script>
 <script>
 /* ================= NAV / ROUTER ================= */
-const VIEWS=[['dash','home','Dashboard'],['brain','brain','Brain'],['season','leaf','Seasonal'],['numbers','chart','Numbers'],['set','gear','Settings']];
+const VIEWS=[['dash','home','Dashboard'],['brain','brain','Brain'],['season','leaf','Seasonal'],['numbers','chart','Numbers'],['mktg','star','Marketing'],['set','gear','Settings']];
 function renderNav(){
   const newInbox=S.inbox.filter(i=>i.status==='new').length;
   $('#nav').innerHTML=VIEWS.map(([id,icn,label])=>
@@ -720,7 +720,7 @@ function renderNav(){
 }
 function go(v){S.view=v;render();}
 window.go=go;
-function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vDash,wfall:vSet,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,info:vInfo,set:vSet})[S.view]();
+function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vDash,wfall:vSet,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,mktg:vMktg,info:vInfo,set:vSet})[S.view]();
   if(window.__unitModalId&&$('#overlay').style.display==='flex'){const u=S.units.find(x=>x.id===window.__unitModalId);if(u){$('#modal').innerHTML=unitBody(u);sizeGrowAreas();}else closeModal();}}
 
 /* ---------- NUMBERS (native HQ dashboard, data from hutch-api worker) ---------- */
@@ -1031,10 +1031,209 @@ async function addTodo(){
   inp.value='';await saveTodos(list);
 }
 window.addTodo=addTodo;
-async function toggleTodo(id){const list=todos().map(t=>t.id===id?{...t,done:!t.done}:t);await saveTodos(list);}
+async function toggleTodo(id){const list=todos().map(t=>t.id===id?{...t,done:!t.done}:t);await saveTodos(list);const td=list.find(t=>t.id===id);if(td&&td.mp){const p=mp();if(p){const f=mpFindTask(p,td.mp.tr,td.mp.ta);if(f.t){f.t.done=td.done;await saveSetting('marketing_plan',p);if(S.view==='mktg')render();}}}}
 window.toggleTodo=toggleTodo;
-async function delTodo(id){await saveTodos(todos().filter(t=>t.id!==id));}
+async function delTodo(id){const td=todos().find(t=>t.id===id);await saveTodos(todos().filter(t=>t.id!==id));if(td&&td.mp){const p=mp();if(p){const f=mpFindTask(p,td.mp.tr,td.mp.ta);if(f.t&&f.t.todo_id===id){f.t.todo_id=null;await saveSetting('marketing_plan',p);if(S.view==='mktg')render();}}}}
 window.delTodo=delTodo;
+
+/* ---------- PINS BY DAY (dash Pins line) ---------- */
+window.pinDaysOpen=false;
+window.togglePinDays=function(){window.pinDaysOpen=!window.pinDaysOpen;render();};
+function csPinsByDay(ws){
+  if(!S.csPosts)return null;
+  const days=[0,1,2,3,4,5,6].map(()=>({n:0,posts:[]}));
+  const isPin=p=>(p.accounts||[]).some(a=>a.platform==='pinterest');
+  S.csPosts.forEach(p=>{
+    if(!isPin(p)||!['scheduled','queued','published','partially_failed'].includes(p.status))return;
+    const et=p.scheduling&&p.scheduling.execute_time;if(!et)return;
+    const t=new Date(et);if(isNaN(t))return;
+    const local=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+    const di=Math.round((local-ws)/864e5);
+    if(di<0||di>6)return;
+    days[di].n++;days[di].posts.push(p);
+  });
+  return days;
+}
+window.pinDayModal=function(di){
+  const ws=S.week||weekStart(new Date());
+  const bd=csPinsByDay(ws);if(!bd)return;
+  const d=new Date(ws);d.setDate(d.getDate()+di);
+  const dayLabel=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][di]+' '+(d.getMonth()+1)+'/'+d.getDate();
+  const pd=((S.settings.cadence||{}).pinterest_fresh_per_day)||15;
+  const posts=[...bd[di].posts].sort((a,b)=>new Date(a.scheduling.execute_time)-new Date(b.scheduling.execute_time));
+  const stCol={scheduled:'var(--teal)',queued:'var(--warn)',published:'var(--good)',partially_failed:'var(--bad)'};
+  const wf=weekFocus(iso(ws));
+  modal(`<h3 style="margin-bottom:2px">Pins · ${dayLabel}</h3>
+  <p class="small muted" style="margin-bottom:10px">${bd[di].n} of ${pd} for the day · from your last ContentStudio sync (${csSyncedLabel()})</p>
+  <div style="max-height:340px;overflow-y:auto">
+  ${posts.map(p=>{const t=new Date(p.scheduling.execute_time);const tm=t.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});const ti=(p.pinterest_options&&p.pinterest_options.title)||'(untitled pin)';const lk=p.pinterest_options&&p.pinterest_options.link;
+    return `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--line);gap:8px"><span class="small" style="width:64px;font-weight:800;color:var(--muted)">${tm}</span><span class="small" style="flex:1;font-weight:700">${esc(ti)}</span><span class="small" style="font-weight:800;color:${stCol[p.status]||'var(--muted)'}">${esc(p.status)}</span>${lk?`<a class="small" href="${esc(lk)}" target="_blank" rel="noopener" style="font-weight:800">link</a>`:''}</div>`;}).join('')||'<p class="small muted" style="padding:10px 0">No pins on this day yet.</p>'}
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button class="btn sm" style="background:var(--coral-b)" onclick="closeModal();pinBatchModal('${(wf||{}).id||''}')">${ic('pin')} Pin batch</button>
+    <a class="btn ghost sm" href="https://app.contentstudio.io/juneybyrd/publisher/" target="_blank" rel="noopener" style="text-decoration:none">Open CS planner</a>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" onclick="closeModal()">Close</button>
+  </div>`);
+};
+
+/* ---------- MARKETING PLAN TAB ---------- */
+const MKTG_SEED={
+ kpis:{proof:0,proof_goal:5,pitch_goal:10,pitches:{wk:'',n:0}},
+ tracks:[
+  {id:'reddit',title:'Reddit seeding',tier:'Tier 1',tasks:[
+    {id:'r1',title:'Create Reddit account',link:'https://www.reddit.com/register/',done:false},
+    {id:'r2',title:'Warm up: 3-5 real comments a day in r/freelance and r/EtsySellers',link:'https://www.reddit.com/r/freelance/',done:false},
+    {id:'r3',title:'Post the r/alphaandbetausers draft',link:'https://www.reddit.com/r/alphaandbetausers/',done:false},
+    {id:'r4',title:'Post the r/SideProject draft (attach dashboard screenshot)',link:'https://www.reddit.com/r/SideProject/',done:false},
+    {id:'r5',title:'Post the r/indiehackers draft',link:'https://www.reddit.com/r/indiehackers/',done:false},
+    {id:'r6',title:'Reach 10 seeded Free users, ask each for one specific line of feedback',done:false}]},
+  {id:'directories',title:'Directories and capture',tier:'Tier 1',tasks:[
+    {id:'d1',title:'Submit Hutch to BetaList',link:'https://betalist.com/submit',dir:true,done:false},
+    {id:'d2',title:'List Hutch on Capterra',link:'https://www.capterra.com',dir:true,done:false},
+    {id:'d3',title:'List Hutch on G2',link:'https://www.g2.com',dir:true,done:false},
+    {id:'d4',title:'List Hutch on AlternativeTo (alt to QBSE, Solopreneur, Mint)',link:'https://alternativeto.net',dir:true,done:false},
+    {id:'d5',title:'QBSE blog post 1: QuickBooks Self-Employed is gone, now what',done:false},
+    {id:'d6',title:'QBSE blog post 2: Hutch vs QuickBooks Solopreneur',done:false}]},
+  {id:'proof',title:'Proof engine',tier:'Tier 1',tasks:[
+    {id:'p1',title:'In-app testimonial ask at the win moment (build task)',done:false},
+    {id:'p2',title:'Founding member wall on /hutch once quotes exist',done:false},
+    {id:'p3',title:'Etsy review insert in delivery PDFs',done:false}]},
+  {id:'outreach',title:'Blogger and roundup outreach',tier:'Tier 2',tasks:[
+    {id:'o1',title:'Build target list: QBSE roundup authors + freelance and Etsy bloggers (Claude)',done:false},
+    {id:'o2',title:'Pitch email template in Holly voice (Claude)',done:false},
+    {id:'o3',title:'Send 10 pitches a week, log replies',done:false}]},
+  {id:'video',title:'YouTube Shorts mirror',tier:'Tier 2',tasks:[
+    {id:'y1',title:'Create the J&B YouTube channel',link:'https://www.youtube.com',done:false},
+    {id:'y2',title:'Add Shorts upload to the posting routine (same vertical videos)',done:false}]},
+  {id:'etsyads',title:'Etsy ads test',tier:'Tier 2',tasks:[
+    {id:'e1',title:'Start $2-3/day on the best listing, run 30 days',link:'https://www.etsy.com/your/shops/me/advertising',done:false},
+    {id:'e2',title:'Check ROAS at day 30: 2x or better scale, under 2x kill',done:false}]},
+  {id:'january',title:'January founding campaign',tier:'Q4',tasks:[
+    {id:'j1',title:'Nov: publish 3-4 new year money reset blog posts',done:false},
+    {id:'j2',title:'Early Dec: founding heads-up email to the list',done:false},
+    {id:'j3',title:'Dec 26 to Jan 7: daily crescendo + small paid push on proven pins',done:false},
+    {id:'j4',title:'Product Hunt launch during the window',link:'https://www.producthunt.com',done:false},
+    {id:'j5',title:'Jan 8: founding members locked in story',done:false}]},
+  {id:'affiliate',title:'Affiliate program',tier:'Parked',parked:true,note:'Revisit at first customers. Saved: manual ref-link v1, FirstPromoter works with Paddle Billing, 50% for the first 12 months.',tasks:[]}
+ ]};
+function mp(){return S.settings.marketing_plan;}
+async function saveMp(p){await saveSetting('marketing_plan',p);render();}
+function mpFindTask(p,tr,ta){const T=(p.tracks||[]).find(x=>x.id===tr)||null;const t=T?(T.tasks||[]).find(x=>x.id===ta)||null:null;return {T,t};}
+window.mpOpenState=window.mpOpenState||{};
+let mpNumTried=false;
+function vMktg(){
+  let p=mp();
+  if(!p){
+    $('#main').innerHTML='<p class="muted small" style="padding:20px 4px">Setting up your marketing plan…</p>';
+    saveSetting('marketing_plan',JSON.parse(JSON.stringify(MKTG_SEED))).then(()=>render());
+    return;
+  }
+  p.kpis=p.kpis||JSON.parse(JSON.stringify(MKTG_SEED.kpis));
+  const wk=iso(weekStart(new Date()));
+  const pitches=(p.kpis.pitches&&p.kpis.pitches.wk===wk)?p.kpis.pitches.n:0;
+  const dirT=((p.tracks.find(t=>t.id==='directories')||{}).tasks||[]).filter(t=>t.dir);
+  const dirDone=dirT.filter(t=>t.done).length;
+  const acct=(NUM.data&&NUM.data.products&&NUM.data.products.hutch)?NUM.data.products.hutch.accounts.length:null;
+  if(acct===null&&!mpNumTried&&hqKey()){mpNumTried=true;numFetch(hqKey()).then(d=>{NUM.data=d;if(S.view==='mktg')render();}).catch(()=>{});}
+  const daysLeft=Math.max(0,Math.ceil((new Date('2027-01-07T23:59:59-07:00')-new Date())/864e5));
+  const kpi=(n,l,d,extra)=>`<div class="card" style="margin-top:0;padding:12px 16px;flex:1;min-width:150px"><div class="row" style="gap:6px"><b style="font-size:21px;color:var(--navy)">${n}</b>${extra||''}</div><div class="small" style="font-weight:800">${l}</div><div style="font-size:11px;color:var(--muted);font-weight:700">${d}</div></div>`;
+  const bump=(fn)=>`<span style="margin-left:auto;display:inline-flex;gap:4px"><button class="btn ghost sm" style="padding:1px 8px" onclick="${fn}(-1)">&minus;</button><button class="btn sm" style="padding:1px 8px" onclick="${fn}(1)">+</button></span>`;
+  const trackCard=T=>{
+    const open=window.mpOpenState[T.id]!==undefined?window.mpOpenState[T.id]:!T.parked;
+    const tot=(T.tasks||[]).length,dn=(T.tasks||[]).filter(t=>t.done).length;
+    const pct=tot?Math.round(dn/tot*100):0;
+    return `<div class="card" style="${T.parked?'opacity:.65':''}">
+    <div class="row" style="cursor:pointer" onclick="mpToggleTrack('${T.id}')">
+      <b style="color:var(--navy);font-size:15px">${T.parked?'&#9208; ':''}${esc(T.title)}</b>
+      ${T.tier?`<span class="chip">${esc(T.tier)}</span>`:''}
+      <div class="spacer"></div>
+      ${tot?`<span class="small" style="font-weight:900;color:${dn===tot?'var(--good)':'var(--warn)'}">${dn} of ${tot} done</span>`:''}
+      <span class="small">${open?'&#9650;':'&#9660;'}</span>
+    </div>
+    ${tot?`<div style="height:6px;background:#eef0f3;border-radius:5px;margin-top:8px;overflow:hidden"><i style="display:block;height:100%;border-radius:5px;background:var(--teal);width:${pct}%"></i></div>`:''}
+    ${T.note?`<div class="small muted" style="margin-top:6px">${esc(T.note)}</div>`:''}
+    ${open?`<div style="margin-top:8px">
+      ${(T.tasks||[]).map(t=>`<div class="row" style="padding:7px 0;border-top:1px dashed var(--line);gap:9px">
+        <input type="checkbox" ${t.done?'checked':''} onchange="mpToggle('${T.id}','${t.id}')" style="width:16px;height:16px;flex:none">
+        <span class="small" style="flex:1;font-weight:700;${t.done?'color:var(--muted);text-decoration:line-through':''}">${esc(t.title)}${t.link?` <a href="${esc(t.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:900">&#8599;</a>`:''}</span>
+        ${t.due?`<span class="chip" style="background:#fdeee9;color:var(--coral-d)">${esc(t.due)}</span>`:''}
+        <button class="btn ghost sm" style="padding:2px 8px" title="Edit" onclick="mpEditTask('${T.id}','${t.id}')">&#9998;</button>
+        <button class="btn ${t.todo_id?'':'ghost '}sm" style="padding:2px 8px;${t.todo_id?'background:var(--navy)':''}" title="${t.todo_id?'Remove from sidebar to-do':'Add to sidebar to-do'}" onclick="mpPinTask('${T.id}','${t.id}')">&#128204;</button>
+      </div>`).join('')}
+      <div style="margin-top:8px"><button class="btn ghost sm" onclick="mpEditTask('${T.id}','')">+ Add task</button></div>
+    </div>`:''}
+  </div>`;};
+  $('#main').innerHTML=`
+  <div class="viewtitle"><h1>Marketing</h1><span class="sub">the plan, the pipeline, the proof</span>
+    <div class="spacer"></div>
+    <span class="chip" style="background:var(--mint);color:var(--teal-dk);font-weight:900">Founding deadline Jan 7 · ${daysLeft} days</span></div>
+  <p class="small muted" style="margin:2px 0 10px">Tasks with &#128204; also live in the sidebar to-do. Check off in either place, both update.</p>
+  <div class="row" style="gap:12px;flex-wrap:wrap;align-items:stretch">
+    ${kpi(`${p.kpis.proof||0}<span style="font-size:13px;color:var(--muted)">/${p.kpis.proof_goal||5}</span>`,'proof collected','testimonials + reviews · goal Sept 1',bump('mpProof'))}
+    ${kpi(`${dirDone}<span style="font-size:13px;color:var(--muted)">/${dirT.length}</span>`,'directories live','BetaList · Capterra · G2 · AlternativeTo','')}
+    ${kpi(`${pitches}<span style="font-size:13px;color:var(--muted)">/${p.kpis.pitch_goal||10}</span>`,'pitches sent this week','resets every Sunday',bump('mpPitch'))}
+    ${kpi(acct===null?'&ndash;':acct,'seeded app accounts',acct===null?'open Numbers once to load':'live from Numbers',acct===null?`<span style="margin-left:auto"><button class="btn ghost sm" style="padding:1px 8px" onclick="go('numbers')">Numbers</button></span>`:'')}
+  </div>
+  <div style="margin-top:2px">${p.tracks.map(trackCard).join('')}</div>
+  <div style="margin-top:12px"><button class="btn ghost sm" onclick="mpAddTrack()">+ Add track</button></div>`;
+}
+window.mpToggleTrack=function(id){const cur=window.mpOpenState[id];const p=mp();const T=(p.tracks||[]).find(x=>x.id===id)||{};const def=!T.parked;window.mpOpenState[id]=cur===undefined?!def:!cur;render();};
+window.mpToggle=async function(tr,ta){const p=mp();const f=mpFindTask(p,tr,ta);if(!f.t)return;f.t.done=!f.t.done;
+  if(f.t.todo_id){const list=todos().map(x=>x.id===f.t.todo_id?{...x,done:f.t.done}:x);await saveSetting('sidebar_todos',list);}
+  await saveMp(p);};
+window.mpPinTask=async function(tr,ta){const p=mp();const f=mpFindTask(p,tr,ta);if(!f.t)return;
+  if(f.t.todo_id){const list=todos().filter(x=>x.id!==f.t.todo_id);f.t.todo_id=null;await saveSetting('sidebar_todos',list);}
+  else{const id='mp'+Date.now();f.t.todo_id=id;const list=[...todos(),{id,text:'PLAN · '+f.t.title,pri:'md',done:!!f.t.done,mp:{tr,ta}}];await saveSetting('sidebar_todos',list);}
+  await saveMp(p);};
+window.mpProof=async function(d){const p=mp();p.kpis.proof=Math.max(0,(p.kpis.proof||0)+d);await saveMp(p);};
+window.mpPitch=async function(d){const p=mp();const wk=iso(weekStart(new Date()));if(!p.kpis.pitches||p.kpis.pitches.wk!==wk)p.kpis.pitches={wk,n:0};p.kpis.pitches.n=Math.max(0,p.kpis.pitches.n+d);await saveMp(p);};
+window.mpEditTask=function(tr,ta){
+  const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
+  const t=ta?(T.tasks||[]).find(x=>x.id===ta):null;
+  modal(`<h3 style="margin-bottom:10px">${t?'Edit task':'New task'} · ${esc(T.title)}</h3>
+  <label class="small" style="font-weight:800">Task</label>
+  <input type="text" id="mp-title" value="${esc(t?t.title:'')}" style="margin:4px 0 10px">
+  <div class="row" style="gap:10px;align-items:flex-start">
+    <div style="flex:1"><label class="small" style="font-weight:800">Due (optional)</label><input type="text" id="mp-due" placeholder="e.g. Jul 19" value="${esc((t&&t.due)||'')}" style="margin-top:4px"></div>
+    <div style="flex:2"><label class="small" style="font-weight:800">Link (optional)</label><input type="text" id="mp-link" placeholder="https://" value="${esc((t&&t.link)||'')}" style="margin-top:4px"></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    ${t?`<button class="btn ghost sm" style="color:var(--bad)" onclick="mpDelTask('${tr}','${ta}')">Delete</button>`:''}
+    <div class="spacer"></div>
+    <button class="btn ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn" onclick="mpSaveTask('${tr}','${ta||''}')">Save</button>
+  </div>`);
+};
+window.mpSaveTask=async function(tr,ta){
+  const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
+  const title=($('#mp-title').value||'').trim();if(!title)return;
+  const due=($('#mp-due').value||'').trim();const link=($('#mp-link').value||'').trim();
+  if(ta){const t=(T.tasks||[]).find(x=>x.id===ta);if(!t)return;t.title=title;t.due=due;t.link=link;
+    if(t.todo_id){const list=todos().map(x=>x.id===t.todo_id?{...x,text:'PLAN · '+title}:x);await saveSetting('sidebar_todos',list);}}
+  else{T.tasks=T.tasks||[];T.tasks.push({id:'t'+Date.now(),title,due,link,done:false});}
+  await saveMp(p);closeModal();
+};
+window.mpDelTask=async function(tr,ta){
+  const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
+  const t=(T.tasks||[]).find(x=>x.id===ta);
+  if(t&&t.todo_id){await saveSetting('sidebar_todos',todos().filter(x=>x.id!==t.todo_id));}
+  T.tasks=(T.tasks||[]).filter(x=>x.id!==ta);
+  await saveMp(p);closeModal();
+};
+window.mpAddTrack=function(){
+  modal(`<h3 style="margin-bottom:10px">New track</h3>
+  <input type="text" id="mp-trtitle" placeholder="Track name" onkeydown="if(event.key==='Enter')mpSaveTrack()">
+  <div class="row" style="margin-top:14px"><div class="spacer"></div>
+  <button class="btn ghost" onclick="closeModal()">Cancel</button>
+  <button class="btn" onclick="mpSaveTrack()">Add</button></div>`);
+};
+window.mpSaveTrack=async function(){
+  const v=($('#mp-trtitle').value||'').trim();if(!v)return;
+  const p=mp();p.tracks.push({id:'t'+Date.now(),title:v,tier:'',tasks:[]});
+  await saveMp(p);closeModal();
+};
+
 
 /* ---------- SIDEBAR RESIZE (saved) ---------- */
 function initResizer(){
@@ -1427,7 +1626,8 @@ function vDash(){
       '',`dashToggleSoc()`)}
     ${tally(outdoor,7,'Socials scheduled · wk',
       `<div class="tfix" style="color:var(--muted)">${[outdoor?`${sched} scheduled · ${pub} live`:'',dashPubOpen?'':'▾ format mix'].filter(Boolean).join(' · ')}</div>`,
-      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;return `<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins</span><div class="meter ${!cp||cp.sch===0?'zero':''}" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>pg?'over':cp&&cp.sch>=pg?'done':''}" style="width:${cp&&cp.sch?Math.min(100,Math.max(3,(cp.sch/pg)*100)):0}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:''}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>`;})()}${(()=>{const mc=mixCounts(ws,true);return Object.keys(mc).map(k=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">${MIX_LABEL[k]}</span><div class="meter ${mc[k].n===0?'zero':''}" style="flex:1;margin-top:0"><i class="${mc[k].n>mc[k].goal?'over':mc[k].n>=mc[k].goal?'done':''}" style="width:${mc[k].n===0?0:Math.min(100,Math.max(3,(mc[k].n/(mc[k].goal||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${mc[k].n}/${mc[k].goal}</span></div>`).join('');})()}<div class="small muted" style="margin-top:5px">${csSyncedLabel()}</div></div>`:'',
+      dashPubOpen?`<div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px">${(()=>{const cp=csPinsWeek(ws);const pg=(cad.pinterest_fresh_per_day||15)*7;const pd=(cad.pinterest_fresh_per_day||15);const bd=(window.pinDaysOpen&&S.csPosts)?csPinsByDay(ws):null;
+return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':''}" ${cp?`onclick="event.stopPropagation();togglePinDays()" title="Pins by day"`:''}><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">Pins ${cp?(window.pinDaysOpen?'&#9650;':'&#9660;'):''}</span><div class="meter ${!cp||cp.sch===0?'zero':''}" style="flex:1;margin-top:0"><i class="${cp&&cp.sch>pg?'over':cp&&cp.sch>=pg?'done':''}" style="width:${cp&&cp.sch?Math.min(100,Math.max(3,(cp.sch/pg)*100)):0}%"></i></div><span style="text-align:right;font-size:10.5px;font-weight:800;color:var(--muted);white-space:nowrap">${cp?`${cp.sch}/${pg}${cp.drafts?` · ${cp.drafts} drafts`:``}`:`<span style="cursor:pointer;color:var(--navy);text-decoration:underline" onclick="event.stopPropagation();syncCS(null)">Sync CS</span>`}</span></div>${bd?`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:2px 0 8px">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((dn,di)=>{const n=bd[di].n;const col=n>=pd?'var(--good)':(n>0?'var(--warn)':'var(--bad)');return `<div onclick="event.stopPropagation();pinDayModal(${di})" title="See this day's pins" style="cursor:pointer;text-align:center;border:1.5px solid ${n===0?'#f0c9c0':'var(--line)'};background:${n===0?'#fdf6f4':'#fff'};border-radius:9px;padding:4px 2px"><div style="font-size:9px;font-weight:900;letter-spacing:.06em;color:var(--muted)">${dn.toUpperCase()}</div><b style="font-size:13.5px;color:${n===0?'var(--coral-d)':'var(--navy)'}">${n}</b><span style="font-size:9px;font-weight:800;color:var(--muted)">/${pd}</span><div style="height:4px;background:#eef0f3;border-radius:3px;margin-top:3px;overflow:hidden"><i style="display:block;height:100%;border-radius:3px;background:${col};width:${n===0?4:Math.min(100,Math.round(n/pd*100))}%"></i></div></div>`;}).join('')}</div>`:``}`;})()}${(()=>{const mc=mixCounts(ws,true);return Object.keys(mc).map(k=>`<div class="row" style="gap:6px;margin-bottom:4px"><span style="width:60px;font-size:10.5px;font-weight:800;color:var(--muted)">${MIX_LABEL[k]}</span><div class="meter ${mc[k].n===0?'zero':''}" style="flex:1;margin-top:0"><i class="${mc[k].n>mc[k].goal?'over':mc[k].n>=mc[k].goal?'done':''}" style="width:${mc[k].n===0?0:Math.min(100,Math.max(3,(mc[k].n/(mc[k].goal||1))*100))}%"></i></div><span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;color:var(--muted)">${mc[k].n}/${mc[k].goal}</span></div>`).join('');})()}<div class="small muted" style="margin-top:5px">${csSyncedLabel()}</div></div>`:'',
       `dashTogglePub()`)}
   </div>
   ${pinsDue.length?`<div class="alert" style="cursor:pointer" onclick="pinsDueModal()"><b>${pinsDue.length} blog post${pinsDue.length>1?'s':''}</b> due for fresh pins · click to plan</div>`:''}
@@ -1568,8 +1768,8 @@ function startWizard(){
     if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
     slots.push({day:i%7,pillar,theme,kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
   }
-  const PCOMB=[['B','navy','coral'],['A','white','teal'],['C','navy','sage'],['B','white','sage'],['A','navy','coral'],['C','white','coral']];
-  for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];let _lay=pcx[0];if(_lay==='C'&&!ppImageStatus(ppProducts()[pk],'C').ok)_lay='B';slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:_lay,ptheme:pcx[1],accent:pcx[2],skeleton_id:_lay==='C'?'s17':'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
+  const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
+  for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
   slots.forEach(s=>{if(s.isProduct)return;const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
@@ -1618,7 +1818,7 @@ async function savePlan(btn){
   const rows=[];
   for(const s of planDraft.slots){
     if(!s.title)continue;
-    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:(s.skeleton_id||'s16'),kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});continue;}
+    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:'s16',kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});continue;}
     let topic_id=s.topic_id;
     if(!topic_id){
       const {data}=await sb.from('jb_topics').insert({title:s.title,pillar:s.pillar,theme:s.theme,source:'wizard',status:'planned'}).select();
@@ -2073,7 +2273,7 @@ async function genCopy(id,btn,opts){
     const blogs=S.blog.filter(b=>b.status==='published').map(b=>b.title+' → '+b.url).join(' | ');
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
-    const isProd=!!((u.copy||{}).is_product)||String(u.skeleton_id||'')==='s16'||String(u.skeleton_id||'')==='s17';
+    const isProd=!!((u.copy||{}).is_product)||String(u.skeleton_id||'')==='s16';
     let artBlock='';
     try{
       const _b=(typeof blogFor==='function')?blogFor(u):null;
@@ -2546,32 +2746,14 @@ window.saveAnthKey=saveAnthKey;
 </script>
 <script>
 /* ===== PRODUCT PIN BATCH (s16 / library Skeleton 7) ===== */
-const PP_COMBOS=[['B','navy'],['A','white'],['C','navy'],['B','white'],['A','navy'],['C','white']];
+const PP_COMBOS=[['B','navy'],['A','white'],['B','white'],['A','navy'],['B','navy']];
 const PP_ACC_ROT=['coral','teal','sage','peach','coral'];
 function pbMode(m){const st=window.__pinBatch;if(!st)return;st.mode=m;st.pins=null;renderPinBatch();}
 window.pbMode=pbMode;
 function pbToggle(cur){return `<div class="row" style="gap:6px;margin-top:8px"><button class="btn ${cur==='blog'?'':'ghost'} sm" onclick="pbMode('blog')">Blog / Page pins</button><button class="btn ${cur==='product'?'':'ghost'} sm" onclick="pbMode('product')">Product pins</button></div>`;}
 window.pbToggle=pbToggle;
 function ppScreensForLayout(prod,layout){const cap=layout==='C'?4:3;const sc=(prod.screens||[]).slice();const out=[];const add=s=>{if(s&&out.length<cap&&out.indexOf(s)<0&&!out.some(x=>x.mac&&s.mac&&x.mac===s.mac))out.push(s);};if(layout==='B'){add(sc.find(s=>s.hero));sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}else{sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}return out.slice(0,cap);}
-function ppGridHandoff(sp){
-  const A=sp.accent;let dom='JUNEYBYRD.COM';try{dom=new URL(sp.url||sp.page_url||'https://juneybyrd.com').hostname.replace(/^www\./,'').toUpperCase();}catch(e){}
-  const title=(sp.copy.title||sp.copy.headline||'').trim();const badge=(sp.copy.badge||(sp.copy.eyebrow||'').toLowerCase()).trim();const cta=(sp.copy.cta||sp.copy.sub||('GET IT AT '+dom)).trim();
-  const G=[];
-  G.push('COWORK PRODUCT PIN — Skeleton 8 (app id s17, GRID)');
-  G.push('Product: '+sp.label+'  ·  Ground/refine the copy from this page: '+(sp.page_url||'(no page set)'));
-  G.push('Layout: Grid (2x2 of 4 screens)   Theme: '+sp.theme+'   Accent word color: '+A+' ('+(PP_ACCENTS[A]||A)+')');
-  G.push('');G.push('Screens (4; Mac files; grid crops = C_grid in render-assets/s7-hutch-crops.json):');
-  (sp.screens||[]).forEach((s,i)=>G.push('  '+(i+1)+'. '+s.label+' — '+s.mac));
-  G.push('');G.push('On-image copy (juneybyrd-voice; the *word* takes the accent color):');
-  G.push('  TITLE: '+(title||'(write it, mark one *word*)'));
-  G.push('  STICKER: '+(badge||'(short cursive phrase, e.g. books, handled)'));
-  G.push('  CTA: '+cta);
-  G.push('');G.push('Pin fields for CS — TITLE: '+(sp.title||'')+' | DESC: '+(sp.desc||'')+' | ALT: '+(sp.alt||'')+' | LINK: '+(sp.url||sp.page_url||''));
-  G.push('Render with render-assets/s7-render.cjs layout grid (see C_grid in s7-hutch-crops.json), theme '+sp.theme+', accent '+(PP_ACCENTS[A]||A)+', those 4 screens. Send the 1000x1500 PNG, upload to CS with the title/desc/link, save the draft.');
-  return G.join('\n');
-}
 function ppHandoffFromSpec(sp){
-  if(sp.layout==='C')return ppGridHandoff(sp);
   const A=sp.accent;const L=[];
   L.push('COWORK PRODUCT PIN — Skeleton 7 (app id s16)');
   L.push('Product: '+sp.label+'  ·  Ground/refine the copy from this page: '+(sp.page_url||'(no page set)'));
@@ -2600,7 +2782,7 @@ function pinProductCard(p,i){
   return `<div class="unit" style="border-left:4px solid var(--coral)">
     <div class="row" style="cursor:pointer" onclick="pinToggleOpen(${i})">
       <label onclick="event.stopPropagation()"><input type="checkbox" ${p.done?'checked':''} onchange="pinToggleDone(${i})"> </label>
-      <b class="small" style="flex:1">Pin ${i+1} · ${esc(p.layout==='C'?'Grid':p.layout==='B'?'Hero':'Filmstrip')} · ${esc(p.theme)} · ${esc(p.accent)}</b>
+      <b class="small" style="flex:1">Pin ${i+1} · ${esc(p.layout==='B'?'Hero':'Filmstrip')} · ${esc(p.theme)} · ${esc(p.accent)}</b>
       <span class="small muted">${open?'▲':'▼'}</span>
     </div>
     ${open?`<div style="margin-top:8px">
@@ -2650,7 +2832,7 @@ async function pinBatchWriteProduct(btn){
   if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
   try{
     const n=st.count||3;
-    const cReady=ppImageStatus(prod,'C').ok;const combos=[];for(let i=0;i<n;i++){let _l=PP_COMBOS[i%PP_COMBOS.length][0];if(_l==='C'&&!cReady)_l='B';combos.push({layout:_l,theme:PP_COMBOS[i%PP_COMBOS.length][1],accent:PP_ACC_ROT[i%PP_ACC_ROT.length]});}
+    const combos=[];for(let i=0;i<n;i++)combos.push({layout:PP_COMBOS[i%PP_COMBOS.length][0],theme:PP_COMBOS[i%PP_COMBOS.length][1],accent:PP_ACC_ROT[i%PP_ACC_ROT.length]});
     const ask=`Write ${n} DIFFERENT Pinterest product pins for ${prod.label} (${prod.page_url||'a Juney & Byrd app'}). ${prod.label} is one of Holly's real apps; keep every claim true to a real bookkeeping/savings app and NEVER invent features, screens, or workflows. Juney & Byrd voice: warm, witty, plain, never salesy, NO em-dashes, NO time or effort claims (no "in minutes", "quick", "one tap"). Each pin is a clearly different angle.
 For EACH pin write: eyebrow (2-4 word small-caps hook), headline (3-6 words ALL CAPS), accent (the ONE word inside the headline to color), sub (one lowercase benefit line), title (Pinterest title 45-70 chars, keyword-rich, never over 100), desc (150-230 chars, 3-4 hashtags at the end, one soft save-this CTA, never over 500), alt (literal description of the finished pin, under 300 chars).
 Reply as JSON only: {"pins":[{"eyebrow":"","headline":"","accent":"","sub":"","title":"","desc":"","alt":""}]}`;
@@ -2682,7 +2864,7 @@ function ppWizRow(s,i){const P=ppProducts();const keys=Object.keys(P);
     <select style="width:104px" onchange="planDraft.slots[${i}].day=+this.value">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
     <span class="chip" style="background:#cdeee1;color:#22334f;font-weight:700">Product pin · s16</span>
     <select style="min-width:118px" onchange="planDraft.slots[${i}].product=this.value;render()">${keys.map(k=>`<option value="${k}" ${k===s.product?'selected':''}>${esc(P[k].label)}</option>`).join('')}</select>
-    <select onchange="planDraft.slots[${i}].layout=this.value;planDraft.slots[${i}].skeleton_id=this.value==='C'?'s17':'s16';render()">${[['A','Filmstrip'],['B','Hero'],['C','Grid']].map(o=>`<option value="${o[0]}" ${o[0]===s.layout?'selected':''}>${o[1]}</option>`).join('')}</select>
+    <select onchange="planDraft.slots[${i}].layout=this.value;render()">${[['A','Filmstrip'],['B','Hero']].map(o=>`<option value="${o[0]}" ${o[0]===s.layout?'selected':''}>${o[1]}</option>`).join('')}</select>
     <select onchange="planDraft.slots[${i}].ptheme=this.value">${[['white','White'],['navy','Navy']].map(o=>`<option value="${o[0]}" ${o[0]===s.ptheme?'selected':''}>${o[1]}</option>`).join('')}</select>
     <select onchange="planDraft.slots[${i}].accent=this.value">${['coral','sage','teal','peach'].map(a=>`<option value="${a}" ${a===s.accent?'selected':''}>${a}</option>`).join('')}</select>
     <button class="btn ghost sm" onclick="planDraft.slots.splice(${i},1);render()">✕</button>
