@@ -181,6 +181,9 @@ tr.donerow .fmts{opacity:.6}
   .main{padding:16px}
   .g2,.g3{grid-template-columns:1fr}
 }
+.mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;margin-top:20px}
+.mp-grid .card{margin:0}
+@media(max-width:980px){.mp-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1099,16 +1102,13 @@ const MKTG_SEED={
     {id:'p1',title:'In-app testimonial ask at the win moment (build task)',done:false},
     {id:'p2',title:'Founding member wall on /hutch once quotes exist',done:false},
     {id:'p3',title:'Etsy review insert in delivery PDFs',done:false}]},
-  {id:'outreach',title:'Blogger and roundup outreach',tier:'Tier 2',tasks:[
+  {id:'outreach',title:'Blogger and roundup outreach',tier:'Tier 1',tasks:[
     {id:'o1',title:'Build target list: QBSE roundup authors + freelance and Etsy bloggers (Claude)',done:false},
     {id:'o2',title:'Pitch email template in Holly voice (Claude)',done:false},
     {id:'o3',title:'Send 10 pitches a week, log replies',done:false}]},
   {id:'video',title:'YouTube Shorts mirror',tier:'Tier 2',tasks:[
     {id:'y1',title:'Create the J&B YouTube channel',link:'https://www.youtube.com',done:false},
     {id:'y2',title:'Add Shorts upload to the posting routine (same vertical videos)',done:false}]},
-  {id:'etsyads',title:'Etsy ads test',tier:'Tier 2',tasks:[
-    {id:'e1',title:'Start $2-3/day on the best listing, run 30 days',link:'https://www.etsy.com/your/shops/me/advertising',done:false},
-    {id:'e2',title:'Check ROAS at day 30: 2x or better scale, under 2x kill',done:false}]},
   {id:'january',title:'January founding campaign',tier:'Q4',tasks:[
     {id:'j1',title:'Nov: publish 3-4 new year money reset blog posts',done:false},
     {id:'j2',title:'Early Dec: founding heads-up email to the list',done:false},
@@ -1130,6 +1130,11 @@ function vMktg(){
     return;
   }
   p.kpis=p.kpis||JSON.parse(JSON.stringify(MKTG_SEED.kpis));
+  let mig=false;
+  if((p.tracks||[]).some(t=>t.id==='etsyads')){p.tracks=p.tracks.filter(t=>t.id!=='etsyads');mig=true;}
+  const otr=(p.tracks||[]).find(t=>t.id==='outreach');
+  if(otr&&otr.tier!=='Tier 1'){otr.tier='Tier 1';mig=true;}
+  if(mig)saveSetting('marketing_plan',p);
   const wk=iso(weekStart(new Date()));
   const pitches=(p.kpis.pitches&&p.kpis.pitches.wk===wk)?p.kpis.pitches.n:0;
   const dirT=((p.tracks.find(t=>t.id==='directories')||{}).tasks||[]).filter(t=>t.dir);
@@ -1140,7 +1145,7 @@ function vMktg(){
   const kpi=(n,l,d,extra)=>`<div class="card" style="margin-top:0;padding:12px 16px;flex:1;min-width:150px"><div class="row" style="gap:6px"><b style="font-size:21px;color:var(--navy)">${n}</b>${extra||''}</div><div class="small" style="font-weight:800">${l}</div><div style="font-size:11px;color:var(--muted);font-weight:700">${d}</div></div>`;
   const bump=(fn)=>`<span style="margin-left:auto;display:inline-flex;gap:4px"><button class="btn ghost sm" style="padding:1px 8px" onclick="${fn}(-1)">&minus;</button><button class="btn sm" style="padding:1px 8px" onclick="${fn}(1)">+</button></span>`;
   const trackCard=T=>{
-    const open=window.mpOpenState[T.id]!==undefined?window.mpOpenState[T.id]:!T.parked;
+    const open=window.mpOpenState[T.id]===true;
     const tot=(T.tasks||[]).length,dn=(T.tasks||[]).filter(t=>t.done).length;
     const pct=tot?Math.round(dn/tot*100):0;
     return `<div class="card" style="${T.parked?'opacity:.65':''}">
@@ -1156,7 +1161,7 @@ function vMktg(){
     ${open?`<div style="margin-top:8px">
       ${(T.tasks||[]).map(t=>`<div class="row" style="padding:7px 0;border-top:1px dashed var(--line);gap:9px">
         <input type="checkbox" ${t.done?'checked':''} onchange="mpToggle('${T.id}','${t.id}')" style="width:16px;height:16px;flex:none">
-        <span class="small" style="flex:1;font-weight:700;${t.done?'color:var(--muted);text-decoration:line-through':''}">${esc(t.title)}${t.link?` <a href="${esc(t.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:900">&#8599;</a>`:''}</span>
+        <span style="flex:1;min-width:0"><span class="small" style="font-weight:700;${t.done?'color:var(--muted);text-decoration:line-through':''}">${esc(t.title)}${t.link?` <a href="${esc(t.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:900">&#8599;</a>`:''}</span>${t.notes?`<div class="small muted" style="margin-top:2px;font-style:italic">${esc(t.notes)}</div>`:''}</span>
         ${t.due?`<span class="chip" style="background:#fdeee9;color:var(--coral-d)">${esc(t.due)}</span>`:''}
         <button class="btn ghost sm" style="padding:2px 8px" title="Edit" onclick="mpEditTask('${T.id}','${t.id}')">&#9998;</button>
         <button class="btn ${t.todo_id?'':'ghost '}sm" style="padding:2px 8px;${t.todo_id?'background:var(--navy)':''}" title="${t.todo_id?'Remove from sidebar to-do':'Add to sidebar to-do'}" onclick="mpPinTask('${T.id}','${t.id}')">&#128204;</button>
@@ -1175,16 +1180,16 @@ function vMktg(){
     ${kpi(`${pitches}<span style="font-size:13px;color:var(--muted)">/${p.kpis.pitch_goal||10}</span>`,'pitches sent this week','resets every Sunday',bump('mpPitch'))}
     ${kpi(acct===null?'&ndash;':acct,'seeded app accounts',acct===null?'open Numbers once to load':'live from Numbers',acct===null?`<span style="margin-left:auto"><button class="btn ghost sm" style="padding:1px 8px" onclick="go('numbers')">Numbers</button></span>`:'')}
   </div>
-  <div style="margin-top:2px">${p.tracks.map(trackCard).join('')}</div>
+  <div class="mp-grid">${p.tracks.map(trackCard).join('')}</div>
   <div style="margin-top:12px"><button class="btn ghost sm" onclick="mpAddTrack()">+ Add track</button></div>`;
 }
-window.mpToggleTrack=function(id){const cur=window.mpOpenState[id];const p=mp();const T=(p.tracks||[]).find(x=>x.id===id)||{};const def=!T.parked;window.mpOpenState[id]=cur===undefined?!def:!cur;render();};
+window.mpToggleTrack=function(id){window.mpOpenState[id]=!window.mpOpenState[id];render();};
 window.mpToggle=async function(tr,ta){const p=mp();const f=mpFindTask(p,tr,ta);if(!f.t)return;f.t.done=!f.t.done;
   if(f.t.todo_id){const list=todos().map(x=>x.id===f.t.todo_id?{...x,done:f.t.done}:x);await saveSetting('sidebar_todos',list);}
   await saveMp(p);};
 window.mpPinTask=async function(tr,ta){const p=mp();const f=mpFindTask(p,tr,ta);if(!f.t)return;
   if(f.t.todo_id){const list=todos().filter(x=>x.id!==f.t.todo_id);f.t.todo_id=null;await saveSetting('sidebar_todos',list);}
-  else{const id='mp'+Date.now();f.t.todo_id=id;const list=[...todos(),{id,text:'PLAN · '+f.t.title,pri:'md',done:!!f.t.done,mp:{tr,ta}}];await saveSetting('sidebar_todos',list);}
+  else{const id='mp'+Date.now();f.t.todo_id=id;const list=[...todos(),{id,text:mpTodoText(f.t),pri:'md',done:!!f.t.done,mp:{tr,ta}}];await saveSetting('sidebar_todos',list);}
   await saveMp(p);};
 window.mpProof=async function(d){const p=mp();p.kpis.proof=Math.max(0,(p.kpis.proof||0)+d);await saveMp(p);};
 window.mpPitch=async function(d){const p=mp();const wk=iso(weekStart(new Date()));if(!p.kpis.pitches||p.kpis.pitches.wk!==wk)p.kpis.pitches={wk,n:0};p.kpis.pitches.n=Math.max(0,p.kpis.pitches.n+d);await saveMp(p);};
@@ -1198,6 +1203,8 @@ window.mpEditTask=function(tr,ta){
     <div style="flex:1"><label class="small" style="font-weight:800">Due (optional)</label><input type="text" id="mp-due" placeholder="e.g. Jul 19" value="${esc((t&&t.due)||'')}" style="margin-top:4px"></div>
     <div style="flex:2"><label class="small" style="font-weight:800">Link (optional)</label><input type="text" id="mp-link" placeholder="https://" value="${esc((t&&t.link)||'')}" style="margin-top:4px"></div>
   </div>
+  <label class="small" style="font-weight:800;display:block;margin-top:10px">Notes (optional)</label>
+  <textarea id="mp-notes" rows="3" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px;resize:vertical">${esc((t&&t.notes)||'')}</textarea>
   <div class="row" style="margin-top:14px">
     ${t?`<button class="btn ghost sm" style="color:var(--bad)" onclick="mpDelTask('${tr}','${ta}')">Delete</button>`:''}
     <div class="spacer"></div>
@@ -1205,13 +1212,23 @@ window.mpEditTask=function(tr,ta){
     <button class="btn" onclick="mpSaveTask('${tr}','${ta||''}')">Save</button>
   </div>`);
 };
+function mpTodoText(t){return 'PLAN · '+t.title+(t.due?' · due '+t.due:'');}
+async function mpEnsureTodo(t,tr){
+  if(t.todo_id){const list=todos().map(x=>x.id===t.todo_id?{...x,text:mpTodoText(t),done:!!t.done}:x);await saveSetting('sidebar_todos',list);return;}
+  const id='mp'+Date.now();t.todo_id=id;
+  const list=[...todos(),{id,text:mpTodoText(t),pri:'md',done:!!t.done,mp:{tr,ta:t.id}}];
+  await saveSetting('sidebar_todos',list);
+}
 window.mpSaveTask=async function(tr,ta){
   const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
   const title=($('#mp-title').value||'').trim();if(!title)return;
   const due=($('#mp-due').value||'').trim();const link=($('#mp-link').value||'').trim();
-  if(ta){const t=(T.tasks||[]).find(x=>x.id===ta);if(!t)return;t.title=title;t.due=due;t.link=link;
-    if(t.todo_id){const list=todos().map(x=>x.id===t.todo_id?{...x,text:'PLAN · '+title}:x);await saveSetting('sidebar_todos',list);}}
-  else{T.tasks=T.tasks||[];T.tasks.push({id:'t'+Date.now(),title,due,link,done:false});}
+  const notes=($('#mp-notes').value||'').trim();
+  let t;
+  if(ta){t=(T.tasks||[]).find(x=>x.id===ta);if(!t)return;t.title=title;t.due=due;t.link=link;t.notes=notes;}
+  else{t={id:'t'+Date.now(),title,due,link,notes,done:false};T.tasks=T.tasks||[];T.tasks.push(t);}
+  if(due)await mpEnsureTodo(t,tr);
+  else if(t.todo_id){const list=todos().map(x=>x.id===t.todo_id?{...x,text:mpTodoText(t)}:x);await saveSetting('sidebar_todos',list);}
   await saveMp(p);closeModal();
 };
 window.mpDelTask=async function(tr,ta){
