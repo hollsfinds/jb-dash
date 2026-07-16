@@ -1998,23 +1998,48 @@ async function testCopyRun(btn){
 }
 function testCopyRewrite(btn){if(window.__tc)testCopyGen(window.__tc.topic,window.__tc.pillar,window.__tc.skId,btn);}
 async function testCopyGen(topic,pillar,skId,btn){
-  window.__tc={topic,pillar,skId};
+  window.__tc={topic,pillar,skId,pack:null};
   const synth={id:'__test',title:topic,pillar,theme:'',skeleton_id:skId||null,copy:{}};
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Writing…';}
   let j=null;try{j=await genCopy('__test',null,{unit:synth,noSave:true});}catch(e){}
   if(!j){toast('Test failed, try again');if(btn){btn.disabled=false;}return;}
+  window.__tc.pack=j;testCopyRender();
+}
+function testCopyRender(){
+  const st=window.__tc;if(!st||!st.pack)return;const j=st.pack,topic=st.topic,pillar=st.pillar,skId=st.skId;
   const skName=skId?((S.skeletons.find(s=>String(s.id)===String(skId))||{}).name||skId):'no skeleton';
   const e2=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const row=(k,v)=>v?('<div style="margin:10px 0"><b class="small" style="color:var(--coral-b);letter-spacing:.04em">'+k+'</b><div style="white-space:pre-wrap;margin-top:2px">'+e2(Array.isArray(v)?v.map((x,i)=>(i+1)+'. '+x).join('\n'):v)+'</div></div>'):'';
+  const rw=fk=>'<button class="btn ghost sm" style="padding:1px 8px;margin-left:8px" title="Rewrite just this field" onclick="testFieldRewrite(\''+fk+'\',this)">'+ic('refresh')+'</button>';
+  const row=(k,v,fk)=>v?('<div style="margin:10px 0"><div class="row" style="align-items:center;gap:0"><b class="small" style="color:var(--coral-b);letter-spacing:.04em">'+k+'</b>'+(fk?rw(fk):'')+'</div><div style="white-space:pre-wrap;margin-top:3px">'+e2(Array.isArray(v)?v.map((x,i)=>(i+1)+'. '+x).join('\n'):v)+'</div></div>'):'';
   let html='<h3 style="margin-bottom:4px">Test copy</h3><div class="small muted" style="margin-bottom:8px">'+e2(topic)+' · P'+pillar+' · '+e2(skName)+' · nothing saved</div>';
-  if(j.slots)html+=row('IMAGE TEXT (the hook)',Object.entries(j.slots).map(([k,v])=>k+': '+v).join('\n'));
-  html+=row('Pin title (SEO)',j.pin_title)+row('TikTok title',j.tiktok_caption)+row('Caption',j.caption)+row('Caption B',j.caption_b);
-  if(j.page2_items&&j.page2_items.length)html+=row('PAGE 2 · '+(j.page2_header||''),j.page2_items);
-  html+=row('Alt text',j.alt_text);
-  html+='<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" style="background:var(--coral-b)" onclick="testCopyRewrite(this)">'+ic('refresh')+' Rewrite (same topic)</button><button class="btn ghost" onclick="testCopyModal()">New topic</button><button class="btn ghost" onclick="closeModal()">Close</button></div>';
+  if(j.slots)html+=row('IMAGE TEXT (the hook)',Object.entries(j.slots).map(([k,v])=>k+': '+v).join('\n'),'slots');
+  html+=row('Pin title (SEO)',j.pin_title,'pin_title')+row('TikTok title',j.tiktok_caption,'tiktok_caption')+row('Caption',j.caption,'caption')+row('Caption B',j.caption_b,'caption_b');
+  if(j.page2_items&&j.page2_items.length)html+=row('PAGE 2 · '+(j.page2_header||''),j.page2_items,'page2');
+  html+=row('Alt text',j.alt_text,'alt_text');
+  html+='<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" style="background:var(--coral-b)" onclick="testCopyRewrite(this)">'+ic('refresh')+' Rewrite ALL</button><button class="btn ghost" onclick="testCopyModal()">New topic</button><button class="btn ghost" onclick="closeModal()">Close</button></div>';
   modal(html);
 }
-window.testCopyModal=testCopyModal;window.testCopyRun=testCopyRun;window.testCopyRewrite=testCopyRewrite;window.testCopyGen=testCopyGen;
+async function testFieldRewrite(field,btn){
+  const st=window.__tc;if(!st||!st.pack)return;const j=st.pack,topic=st.topic,skId=st.skId;
+  const sk=skId?S.skeletons.find(x=>String(x.id)===String(skId)):null;
+  const specs={
+    slots:(sk&&SKELETON_SLOTS[sk.id])?('the on-image text slots ('+SKELETON_SLOTS[sk.id].map(s=>s.t).join(', ')+'), which ARE the pin scroll-stopping HOOK. The biggest slot must be the boldest, most click-worthy line (bold claim, sharp number, myth-bust, or a that-is-me callout). Reply {"slots":{'+SKELETON_SLOTS[sk.id].map(s=>'"'+s.t+'":"..."').join(',')+'}}'):null,
+    pin_title:'the Pinterest title: keyword-first SEO, front-load the primary keyword, searchable, 45 to 70 characters. Reply {"pin_title":"..."}',
+    tiktok_caption:'the TikTok title: a scroll-stopping hook, first 3 words earn the tap, under 85 characters, NO website or URL, no hashtags. Reply {"tiktok_caption":"..."}',
+    caption:'the caption (IG/FB + Pinterest description): 70 to 90 words, under 480 characters, ends with a soft CTA. Reply {"caption":"..."}',
+    caption_b:'a fresh alternate caption, under 480 characters, a different angle from the main caption. Reply {"caption_b":"..."}',
+    alt_text:'the alt text: plain literal description of the pin image, under 200 characters. Reply {"alt_text":"..."}',
+    page2:'the TikTok page-2 header and its 3 to 5 short steps (each under 6 words). If a number is named in the header or the image text, the item count MUST match it. Reply {"page2_header":"...","page2_items":["...","..."]}'
+  };
+  const spec=specs[field];if(!spec){toast('Cannot rewrite that one');return;}
+  const ctx=JSON.stringify({topic,image_text:j.slots,pin_title:j.pin_title,tiktok_title:j.tiktok_caption,caption:j.caption});
+  const ask='Rewrite ONE field of an existing Juney & Byrd pin copy pack, staying fully consistent with the SAME topic and angle. Audience = overwhelmed business owners and busy moms; content is NOT money-default and must NEVER be forced into a money or accountant frame; no time or effort claims; no em-dashes; no clickbait or fake urgency; Holly voice (first person, warm, plain). Topic: "'+topic+'". Current pack for context: '+ctx+'. Rewrite ONLY '+spec+'. Make it genuinely stronger and clearly different from the current version. Reply JSON ONLY with just that key or keys.';
+  if(btn){btn.dataset.h=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
+  let r=null;try{r=stripDashes(extractJSON(await claude(VOICE,ask,700)));}catch(e){}
+  if(!r||typeof r!=='object'){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
+  Object.assign(j,r);st.pack=j;testCopyRender();
+}
+window.testCopyModal=testCopyModal;window.testCopyRun=testCopyRun;window.testCopyRewrite=testCopyRewrite;window.testCopyGen=testCopyGen;window.testCopyRender=testCopyRender;window.testFieldRewrite=testFieldRewrite;
 async function genAll(btn){
   btn.innerHTML='<span class="spin"></span> Writing...';btn.disabled=true;
   const units=weekUnits(S.week).filter(u=>u.kind==='social'&&!(u.copy||{}).caption);
