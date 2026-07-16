@@ -1568,8 +1568,8 @@ function startWizard(){
     if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
     slots.push({day:i%7,pillar,theme,kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
   }
-  const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
-  for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
+  const PCOMB=[['B','navy','coral'],['A','white','teal'],['C','navy','sage'],['B','white','sage'],['A','navy','coral'],['C','white','coral']];
+  for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];let _lay=pcx[0];if(_lay==='C'&&!ppImageStatus(ppProducts()[pk],'C').ok)_lay='B';slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:_lay,ptheme:pcx[1],accent:pcx[2],skeleton_id:_lay==='C'?'s17':'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
   slots.forEach(s=>{if(s.isProduct)return;const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
@@ -1618,7 +1618,7 @@ async function savePlan(btn){
   const rows=[];
   for(const s of planDraft.slots){
     if(!s.title)continue;
-    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:'s16',kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});continue;}
+    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:(s.skeleton_id||'s16'),kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});continue;}
     let topic_id=s.topic_id;
     if(!topic_id){
       const {data}=await sb.from('jb_topics').insert({title:s.title,pillar:s.pillar,theme:s.theme,source:'wizard',status:'planned'}).select();
@@ -2073,7 +2073,7 @@ async function genCopy(id,btn,opts){
     const blogs=S.blog.filter(b=>b.status==='published').map(b=>b.title+' → '+b.url).join(' | ');
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
-    const isProd=!!((u.copy||{}).is_product)||String(u.skeleton_id||'')==='s16';
+    const isProd=!!((u.copy||{}).is_product)||String(u.skeleton_id||'')==='s16'||String(u.skeleton_id||'')==='s17';
     let artBlock='';
     try{
       const _b=(typeof blogFor==='function')?blogFor(u):null;
@@ -2546,14 +2546,32 @@ window.saveAnthKey=saveAnthKey;
 </script>
 <script>
 /* ===== PRODUCT PIN BATCH (s16 / library Skeleton 7) ===== */
-const PP_COMBOS=[['B','navy'],['A','white'],['B','white'],['A','navy'],['B','navy']];
+const PP_COMBOS=[['B','navy'],['A','white'],['C','navy'],['B','white'],['A','navy'],['C','white']];
 const PP_ACC_ROT=['coral','teal','sage','peach','coral'];
 function pbMode(m){const st=window.__pinBatch;if(!st)return;st.mode=m;st.pins=null;renderPinBatch();}
 window.pbMode=pbMode;
 function pbToggle(cur){return `<div class="row" style="gap:6px;margin-top:8px"><button class="btn ${cur==='blog'?'':'ghost'} sm" onclick="pbMode('blog')">Blog / Page pins</button><button class="btn ${cur==='product'?'':'ghost'} sm" onclick="pbMode('product')">Product pins</button></div>`;}
 window.pbToggle=pbToggle;
 function ppScreensForLayout(prod,layout){const cap=layout==='C'?4:3;const sc=(prod.screens||[]).slice();const out=[];const add=s=>{if(s&&out.length<cap&&out.indexOf(s)<0&&!out.some(x=>x.mac&&s.mac&&x.mac===s.mac))out.push(s);};if(layout==='B'){add(sc.find(s=>s.hero));sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}else{sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}return out.slice(0,cap);}
+function ppGridHandoff(sp){
+  const A=sp.accent;let dom='JUNEYBYRD.COM';try{dom=new URL(sp.url||sp.page_url||'https://juneybyrd.com').hostname.replace(/^www\./,'').toUpperCase();}catch(e){}
+  const title=(sp.copy.title||sp.copy.headline||'').trim();const badge=(sp.copy.badge||(sp.copy.eyebrow||'').toLowerCase()).trim();const cta=(sp.copy.cta||sp.copy.sub||('GET IT AT '+dom)).trim();
+  const G=[];
+  G.push('COWORK PRODUCT PIN — Skeleton 8 (app id s17, GRID)');
+  G.push('Product: '+sp.label+'  ·  Ground/refine the copy from this page: '+(sp.page_url||'(no page set)'));
+  G.push('Layout: Grid (2x2 of 4 screens)   Theme: '+sp.theme+'   Accent word color: '+A+' ('+(PP_ACCENTS[A]||A)+')');
+  G.push('');G.push('Screens (4; Mac files; grid crops = C_grid in render-assets/s7-hutch-crops.json):');
+  (sp.screens||[]).forEach((s,i)=>G.push('  '+(i+1)+'. '+s.label+' — '+s.mac));
+  G.push('');G.push('On-image copy (juneybyrd-voice; the *word* takes the accent color):');
+  G.push('  TITLE: '+(title||'(write it, mark one *word*)'));
+  G.push('  STICKER: '+(badge||'(short cursive phrase, e.g. books, handled)'));
+  G.push('  CTA: '+cta);
+  G.push('');G.push('Pin fields for CS — TITLE: '+(sp.title||'')+' | DESC: '+(sp.desc||'')+' | ALT: '+(sp.alt||'')+' | LINK: '+(sp.url||sp.page_url||''));
+  G.push('Render with render-assets/s7-render.cjs layout grid (see C_grid in s7-hutch-crops.json), theme '+sp.theme+', accent '+(PP_ACCENTS[A]||A)+', those 4 screens. Send the 1000x1500 PNG, upload to CS with the title/desc/link, save the draft.');
+  return G.join('\n');
+}
 function ppHandoffFromSpec(sp){
+  if(sp.layout==='C')return ppGridHandoff(sp);
   const A=sp.accent;const L=[];
   L.push('COWORK PRODUCT PIN — Skeleton 7 (app id s16)');
   L.push('Product: '+sp.label+'  ·  Ground/refine the copy from this page: '+(sp.page_url||'(no page set)'));
@@ -2582,7 +2600,7 @@ function pinProductCard(p,i){
   return `<div class="unit" style="border-left:4px solid var(--coral)">
     <div class="row" style="cursor:pointer" onclick="pinToggleOpen(${i})">
       <label onclick="event.stopPropagation()"><input type="checkbox" ${p.done?'checked':''} onchange="pinToggleDone(${i})"> </label>
-      <b class="small" style="flex:1">Pin ${i+1} · ${esc(p.layout==='B'?'Hero':'Filmstrip')} · ${esc(p.theme)} · ${esc(p.accent)}</b>
+      <b class="small" style="flex:1">Pin ${i+1} · ${esc(p.layout==='C'?'Grid':p.layout==='B'?'Hero':'Filmstrip')} · ${esc(p.theme)} · ${esc(p.accent)}</b>
       <span class="small muted">${open?'▲':'▼'}</span>
     </div>
     ${open?`<div style="margin-top:8px">
@@ -2632,7 +2650,7 @@ async function pinBatchWriteProduct(btn){
   if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
   try{
     const n=st.count||3;
-    const combos=[];for(let i=0;i<n;i++)combos.push({layout:PP_COMBOS[i%PP_COMBOS.length][0],theme:PP_COMBOS[i%PP_COMBOS.length][1],accent:PP_ACC_ROT[i%PP_ACC_ROT.length]});
+    const cReady=ppImageStatus(prod,'C').ok;const combos=[];for(let i=0;i<n;i++){let _l=PP_COMBOS[i%PP_COMBOS.length][0];if(_l==='C'&&!cReady)_l='B';combos.push({layout:_l,theme:PP_COMBOS[i%PP_COMBOS.length][1],accent:PP_ACC_ROT[i%PP_ACC_ROT.length]});}
     const ask=`Write ${n} DIFFERENT Pinterest product pins for ${prod.label} (${prod.page_url||'a Juney & Byrd app'}). ${prod.label} is one of Holly's real apps; keep every claim true to a real bookkeeping/savings app and NEVER invent features, screens, or workflows. Juney & Byrd voice: warm, witty, plain, never salesy, NO em-dashes, NO time or effort claims (no "in minutes", "quick", "one tap"). Each pin is a clearly different angle.
 For EACH pin write: eyebrow (2-4 word small-caps hook), headline (3-6 words ALL CAPS), accent (the ONE word inside the headline to color), sub (one lowercase benefit line), title (Pinterest title 45-70 chars, keyword-rich, never over 100), desc (150-230 chars, 3-4 hashtags at the end, one soft save-this CTA, never over 500), alt (literal description of the finished pin, under 300 chars).
 Reply as JSON only: {"pins":[{"eyebrow":"","headline":"","accent":"","sub":"","title":"","desc":"","alt":""}]}`;
@@ -2664,7 +2682,7 @@ function ppWizRow(s,i){const P=ppProducts();const keys=Object.keys(P);
     <select style="width:104px" onchange="planDraft.slots[${i}].day=+this.value">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
     <span class="chip" style="background:#cdeee1;color:#22334f;font-weight:700">Product pin · s16</span>
     <select style="min-width:118px" onchange="planDraft.slots[${i}].product=this.value;render()">${keys.map(k=>`<option value="${k}" ${k===s.product?'selected':''}>${esc(P[k].label)}</option>`).join('')}</select>
-    <select onchange="planDraft.slots[${i}].layout=this.value;render()">${[['A','Filmstrip'],['B','Hero']].map(o=>`<option value="${o[0]}" ${o[0]===s.layout?'selected':''}>${o[1]}</option>`).join('')}</select>
+    <select onchange="planDraft.slots[${i}].layout=this.value;planDraft.slots[${i}].skeleton_id=this.value==='C'?'s17':'s16';render()">${[['A','Filmstrip'],['B','Hero'],['C','Grid']].map(o=>`<option value="${o[0]}" ${o[0]===s.layout?'selected':''}>${o[1]}</option>`).join('')}</select>
     <select onchange="planDraft.slots[${i}].ptheme=this.value">${[['white','White'],['navy','Navy']].map(o=>`<option value="${o[0]}" ${o[0]===s.ptheme?'selected':''}>${o[1]}</option>`).join('')}</select>
     <select onchange="planDraft.slots[${i}].accent=this.value">${['coral','sage','teal','peach'].map(a=>`<option value="${a}" ${a===s.accent?'selected':''}>${a}</option>`).join('')}</select>
     <button class="btn ghost sm" onclick="planDraft.slots.splice(${i},1);render()">✕</button>
