@@ -1081,6 +1081,17 @@ window.pinDayModal=function(di){
 };
 
 /* ---------- MARKETING PLAN TAB ---------- */
+const MKTG_ASKS={
+ p0:'I am working my marketing plan. Help me manage my Hutch Free seeding push: where I have posted so far, replies to work, and the ask-for-feedback message for each new Free user.',
+ d1:'From my marketing plan: write my BetaList listing for Hutch (tagline, one-liner, short description, screenshot picks). Hutch is the free zero-knowledge money app at hutch.juneybyrd.com. Pull details from project memory and use juneybyrd voice rules.',
+ d2:'From my marketing plan: walk me through listing Hutch on Capterra step by step, and write the listing copy (category picks, description, feature list). Pull Hutch details from project memory.',
+ d3:'From my marketing plan: walk me through listing Hutch on G2 step by step, and write the listing copy. Pull Hutch details from project memory.',
+ d4:'From my marketing plan: walk me through adding Hutch to AlternativeTo as an alternative to QuickBooks Self-Employed, QuickBooks Solopreneur, and Mint, and write the listing copy. Pull Hutch details from project memory.',
+ d5:'From my marketing plan: draft the Juney and Byrd blog post "QuickBooks Self-Employed is gone, now what" targeting QBSE-alternative searches. Load the juneybyrd voice skill, follow the live blog format, end in a Start Hutch Free CTA.',
+ d6:'From my marketing plan: draft the Juney and Byrd blog post comparing Hutch vs QuickBooks Solopreneur for freelancers. Load the juneybyrd voice skill, honest comparison, end in a Start Hutch Free CTA.',
+ o1:'From my marketing plan: build my blogger outreach target list. 15-20 real names: authors of QuickBooks Self-Employed alternatives roundups plus freelance, Etsy-seller, and side-hustle-mom bloggers and newsletters, with links and a one-line pitch angle for each.',
+ o2:'From my marketing plan: write my blogger pitch email template in my voice (short, personalized, offers free Hutch Plus and a full asset kit), plus the follow-up email.',
+ p1:'From my marketing plan: write the build-agent handoff for the in-app testimonial ask in Hutch (one question after the 3rd or 4th Money Date, one-tap submit).'};
 const MKTG_SEED={
  kpis:{proof:0,proof_goal:5,pitch_goal:10,pitches:{wk:'',n:0}},
  tracks:[
@@ -1089,22 +1100,22 @@ const MKTG_SEED={
     {id:'r2',title:'Warm up: 3-5 real comments a day in r/freelance and r/EtsySellers',link:'https://www.reddit.com/r/freelance/',done:false},
     {id:'r3',title:'Post the r/alphaandbetausers draft',link:'https://www.reddit.com/r/alphaandbetausers/',done:false},
     {id:'r4',title:'Post the r/SideProject draft (attach dashboard screenshot)',link:'https://www.reddit.com/r/SideProject/',done:false},
-    {id:'r5',title:'Post the r/indiehackers draft',link:'https://www.reddit.com/r/indiehackers/',done:false},
-    {id:'r6',title:'Reach 10 seeded Free users, ask each for one specific line of feedback',done:false}]},
+    {id:'r5',title:'Post the r/indiehackers draft',link:'https://www.reddit.com/r/indiehackers/',done:false}]},
   {id:'directories',title:'Directories and capture',tier:'Tier 1',tasks:[
-    {id:'d1',title:'Submit Hutch to BetaList',link:'https://betalist.com/submit',dir:true,done:false},
-    {id:'d2',title:'List Hutch on Capterra',link:'https://www.capterra.com',dir:true,done:false},
-    {id:'d3',title:'List Hutch on G2',link:'https://www.g2.com',dir:true,done:false},
-    {id:'d4',title:'List Hutch on AlternativeTo (alt to QBSE, Solopreneur, Mint)',link:'https://alternativeto.net',dir:true,done:false},
-    {id:'d5',title:'QBSE blog post 1: QuickBooks Self-Employed is gone, now what',done:false},
-    {id:'d6',title:'QBSE blog post 2: Hutch vs QuickBooks Solopreneur',done:false}]},
+    {id:'d1',title:'Submit Hutch to BetaList',link:'https://betalist.com/submit',dir:true,ask:MKTG_ASKS.d1,done:false},
+    {id:'d2',title:'List Hutch on Capterra',link:'https://www.capterra.com',dir:true,ask:MKTG_ASKS.d2,done:false},
+    {id:'d3',title:'List Hutch on G2',link:'https://www.g2.com',dir:true,ask:MKTG_ASKS.d3,done:false},
+    {id:'d4',title:'List Hutch on AlternativeTo (alt to QBSE, Solopreneur, Mint)',link:'https://alternativeto.net',dir:true,ask:MKTG_ASKS.d4,done:false},
+    {id:'d5',title:'QBSE blog post 1: QuickBooks Self-Employed is gone, now what',ask:MKTG_ASKS.d5,done:false},
+    {id:'d6',title:'QBSE blog post 2: Hutch vs QuickBooks Solopreneur',ask:MKTG_ASKS.d6,done:false}]},
   {id:'proof',title:'Proof engine',tier:'Tier 1',tasks:[
-    {id:'p1',title:'In-app testimonial ask at the win moment (build task)',done:false},
+    {id:'p0',title:'Reach 10 seeded Free users, ask each for one specific line of feedback',ask:MKTG_ASKS.p0,done:false},
+    {id:'p1',title:'In-app testimonial ask at the win moment (build task)',ask:MKTG_ASKS.p1,done:false},
     {id:'p2',title:'Founding member wall on /hutch once quotes exist',done:false},
     {id:'p3',title:'Etsy review insert in delivery PDFs',done:false}]},
   {id:'outreach',title:'Blogger and roundup outreach',tier:'Tier 1',tasks:[
-    {id:'o1',title:'Build target list: QBSE roundup authors + freelance and Etsy bloggers (Claude)',done:false},
-    {id:'o2',title:'Pitch email template in Holly voice (Claude)',done:false},
+    {id:'o1',title:'Build target list: QBSE roundup authors + freelance and Etsy bloggers (Claude)',ask:MKTG_ASKS.o1,done:false},
+    {id:'o2',title:'Pitch email template in Holly voice (Claude)',ask:MKTG_ASKS.o2,done:false},
     {id:'o3',title:'Send 10 pitches a week, log replies',done:false}]},
   {id:'video',title:'YouTube Shorts mirror',tier:'Tier 2',tasks:[
     {id:'y1',title:'Create the J&B YouTube channel',link:'https://www.youtube.com',done:false},
@@ -1134,6 +1145,10 @@ function vMktg(){
   if((p.tracks||[]).some(t=>t.id==='etsyads')){p.tracks=p.tracks.filter(t=>t.id!=='etsyads');mig=true;}
   const otr=(p.tracks||[]).find(t=>t.id==='outreach');
   if(otr&&otr.tier!=='Tier 1'){otr.tier='Tier 1';mig=true;}
+  const rt=(p.tracks||[]).find(t=>t.id==='reddit');const pf=(p.tracks||[]).find(t=>t.id==='proof');
+  if(rt&&pf){const ri=(rt.tasks||[]).findIndex(t=>t.id==='r6');
+    if(ri>-1){const mv=rt.tasks.splice(ri,1)[0];if(!(pf.tasks||[]).some(t=>t.id==='r6'||t.id==='p0')){mv.ask=mv.ask||MKTG_ASKS.p0;pf.tasks.unshift(mv);}mig=true;}}
+  (p.tracks||[]).forEach(T=>(T.tasks||[]).forEach(t=>{if(MKTG_ASKS[t.id]&&!t.ask){t.ask=MKTG_ASKS[t.id];mig=true;}}));
   if(mig)saveSetting('marketing_plan',p);
   const wk=iso(weekStart(new Date()));
   const pitches=(p.kpis.pitches&&p.kpis.pitches.wk===wk)?p.kpis.pitches.n:0;
@@ -1163,6 +1178,7 @@ function vMktg(){
         <input type="checkbox" ${t.done?'checked':''} onchange="mpToggle('${T.id}','${t.id}')" style="width:16px;height:16px;flex:none">
         <span style="flex:1;min-width:0"><span class="small" style="font-weight:700;${t.done?'color:var(--muted);text-decoration:line-through':''}">${esc(t.title)}${t.link?` <a href="${esc(t.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:900">&#8599;</a>`:''}</span>${t.notes?`<div class="small muted" style="margin-top:2px;font-style:italic">${esc(t.notes)}</div>`:''}</span>
         ${t.due?`<span class="chip" style="background:#fdeee9;color:var(--coral-d)">${esc(t.due)}</span>`:''}
+        ${t.ask?`<button class="btn ghost sm" style="padding:2px 8px;color:var(--teal)" title="Copy the Claude handoff" onclick="mpAsk('${T.id}','${t.id}')">${ic('chat')}</button>`:''}
         <button class="btn ghost sm" style="padding:2px 8px" title="Edit" onclick="mpEditTask('${T.id}','${t.id}')">&#9998;</button>
         <button class="btn ${t.todo_id?'':'ghost '}sm" style="padding:2px 8px;${t.todo_id?'background:var(--navy)':''}" title="${t.todo_id?'Remove from sidebar to-do':'Add to sidebar to-do'}" onclick="mpPinTask('${T.id}','${t.id}')">&#128204;</button>
       </div>`).join('')}
@@ -1191,6 +1207,7 @@ window.mpPinTask=async function(tr,ta){const p=mp();const f=mpFindTask(p,tr,ta);
   if(f.t.todo_id){const list=todos().filter(x=>x.id!==f.t.todo_id);f.t.todo_id=null;await saveSetting('sidebar_todos',list);}
   else{const id='mp'+Date.now();f.t.todo_id=id;const list=[...todos(),{id,text:mpTodoText(f.t),pri:'md',done:!!f.t.done,mp:{tr,ta}}];await saveSetting('sidebar_todos',list);}
   await saveMp(p);};
+window.mpAsk=function(tr,ta){const p=mp();const f=mpFindTask(p,tr,ta);if(!f.t||!f.t.ask)return;copyText(f.t.ask,'Claude handoff copied! Paste it into a Claude chat when you are ready.');};
 window.mpProof=async function(d){const p=mp();p.kpis.proof=Math.max(0,(p.kpis.proof||0)+d);await saveMp(p);};
 window.mpPitch=async function(d){const p=mp();const wk=iso(weekStart(new Date()));if(!p.kpis.pitches||p.kpis.pitches.wk!==wk)p.kpis.pitches={wk,n:0};p.kpis.pitches.n=Math.max(0,p.kpis.pitches.n+d);await saveMp(p);};
 window.mpEditTask=function(tr,ta){
@@ -1205,6 +1222,8 @@ window.mpEditTask=function(tr,ta){
   </div>
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Notes (optional)</label>
   <textarea id="mp-notes" rows="3" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px;resize:vertical">${esc((t&&t.notes)||'')}</textarea>
+  <label class="small" style="font-weight:800;display:block;margin-top:10px">Claude handoff (optional)</label>
+  <textarea id="mp-ask" rows="3" placeholder="The message to paste into a Claude chat when you want help with this task" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px;resize:vertical">${esc((t&&t.ask)||'')}</textarea>
   <div class="row" style="margin-top:14px">
     ${t?`<button class="btn ghost sm" style="color:var(--bad)" onclick="mpDelTask('${tr}','${ta}')">Delete</button>`:''}
     <div class="spacer"></div>
@@ -1223,10 +1242,10 @@ window.mpSaveTask=async function(tr,ta){
   const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
   const title=($('#mp-title').value||'').trim();if(!title)return;
   const due=($('#mp-due').value||'').trim();const link=($('#mp-link').value||'').trim();
-  const notes=($('#mp-notes').value||'').trim();
+  const notes=($('#mp-notes').value||'').trim();const ask=($('#mp-ask').value||'').trim();
   let t;
-  if(ta){t=(T.tasks||[]).find(x=>x.id===ta);if(!t)return;t.title=title;t.due=due;t.link=link;t.notes=notes;}
-  else{t={id:'t'+Date.now(),title,due,link,notes,done:false};T.tasks=T.tasks||[];T.tasks.push(t);}
+  if(ta){t=(T.tasks||[]).find(x=>x.id===ta);if(!t)return;t.title=title;t.due=due;t.link=link;t.notes=notes;t.ask=ask;}
+  else{t={id:'t'+Date.now(),title,due,link,notes,ask,done:false};T.tasks=T.tasks||[];T.tasks.push(t);}
   if(due)await mpEnsureTodo(t,tr);
   else if(t.todo_id){const list=todos().map(x=>x.id===t.todo_id?{...x,text:mpTodoText(t)}:x);await saveSetting('sidebar_todos',list);}
   await saveMp(p);closeModal();
