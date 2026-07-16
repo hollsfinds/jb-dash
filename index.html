@@ -2040,12 +2040,22 @@ async function runFieldRewrite(topic,pack,field,sk){
   const r=stripDashes(extractJSON(await claude(VOICE,ask,700)));
   return (r&&typeof r==='object')?r:null;
 }
+function hasNumber(txt){return /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i.test(txt||'');}
+async function fieldRewriteChain(topic,pack,field,sk){
+  const r=await runFieldRewrite(topic,pack,field,sk);
+  if(!r)return null;
+  // when the image hook is rewritten and the new headline names a count, resync the TikTok page-2 steps to match
+  if(field==='slots'&&r.slots&&pack.page2_items&&pack.page2_items.length&&hasNumber(Object.values(r.slots).join(' '))){
+    try{const p2=await runFieldRewrite(topic,{...pack,...r},'page2',sk);if(p2)Object.assign(r,p2);}catch(e){}
+  }
+  return r;
+}
 async function testFieldRewrite(field,btn){
   const st=window.__tc;if(!st||!st.pack)return;const j=st.pack;
   const sk=st.skId?S.skeletons.find(x=>String(x.id)===String(st.skId)):null;
   if(!fieldRewriteSpec(field,sk)){toast('Cannot rewrite that one');return;}
   if(btn){btn.dataset.h=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
-  let r=null;try{r=await runFieldRewrite(st.topic,j,field,sk);}catch(e){}
+  let r=null;try{r=await fieldRewriteChain(st.topic,j,field,sk);}catch(e){}
   if(!r){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
   Object.assign(j,r);st.pack=j;testCopyRender();
 }
@@ -2054,7 +2064,7 @@ async function cardFieldRewrite(id,field,btn){
   const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
   if(!fieldRewriteSpec(field,sk)){toast('Cannot rewrite that one');return;}
   if(btn){btn.dataset.h=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
-  let r=null;try{r=await runFieldRewrite(u.title,{...(u.copy||{})},field,sk);}catch(e){}
+  let r=null;try{r=await fieldRewriteChain(u.title,{...(u.copy||{})},field,sk);}catch(e){}
   if(!r){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
   const c={...(u.copy||{}),...r};
   if(r.slots)delete c.image_prompt;
