@@ -1579,12 +1579,12 @@ function unitBody(u){
     <div class="ustep">
       <span class="stepnum">1</span><span class="steptitle" style="${coworkSkel(u.skeleton_id)?'color:var(--coral)':''}">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'COWORK (Claude)':'AI Studio'}</span>
       ${coworkSkel(u.skeleton_id)?`<div class="alert" style="background:#f0faf5;border-left:4px solid var(--coral);margin:6px 0 4px"><b>This one is made in Cowork, not CS AI.</b> Copy the handoff below, paste it to Claude, and say which headshot. Claude sends back the finished PNG; upload THAT here as the image, then keep going with the caption.</div>`:`<p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>`}
-      ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u))):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})))}
+      ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u)),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':'')):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':''))}
       <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">${coworkSkel(u.skeleton_id)?'Image Prompt: Switch to CS/AI':'Image Prompt: Switch to Claude'}</button></div>
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
-      ${field('Alt text (rides the image, all platforms)','alt_text',u)}`:''}
+      ${field('Alt text (rides the image, all platforms)','alt_text',u,undefined,undefined,'alt_text')}`:''}
     </div>
     <div class="ustep">
       <span class="stepnum">2</span><span class="steptitle">Start the post \u00b7 accounts + format</span>
@@ -1604,9 +1604,9 @@ function unitBody(u){
       <span class="stepnum">3</span><span class="steptitle">Content \u00b7 the main caption box</span>
       ${c.caption?`
       <div style="margin-top:8px"></div>
-      ${field('Pinterest \u00b7 Title','pin_title',u)}
-      ${field('Content (A)','caption',u,undefined,true)}
-      ${c.caption_b?field('Content (B)','caption_b',u,undefined,true):''}
+      ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
+      ${field('Content (A)','caption',u,undefined,true,'caption')}
+      ${c.caption_b?field('Content (B)','caption_b',u,undefined,true,'caption_b'):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
@@ -1614,7 +1614,7 @@ function unitBody(u){
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
-      ${field('TikTok \u00b7 Post title','tiktok_caption',u)}
+      ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
     </div>
     <div class="ustep">
@@ -1647,10 +1647,11 @@ window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;
   modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;sizeGrowAreas();};
 window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
 
-function field(label,key,u,forced,grow){
+function field(label,key,u,forced,grow,rwKey){
   const val=forced!==undefined?forced:(u.copy||{})[key]||'';
   const g=grow?` class="grow" oninput="this.style.height='auto';this.style.height=(this.scrollHeight+2)+'px'"`:'';
-  return `<div class="copyfield"><label>${label}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
+  const rw=rwKey?`<button class="btn ghost sm" style="padding:0 8px;margin-left:8px;vertical-align:middle" title="Rewrite just this field with AI, same topic" onclick="cardFieldRewrite('${u.id}','${rwKey}',this)">${ic('refresh')}</button>`:'';
+  return `<div class="copyfield"><label>${label}${rw}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
 }
 function sizeGrowAreas(){try{document.querySelectorAll('#modal textarea.grow').forEach(t=>{t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';});}catch(e){}}
 window.sizeGrowAreas=sizeGrowAreas;
@@ -2019,11 +2020,10 @@ function testCopyRender(){
   html+='<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn" style="background:var(--coral-b)" onclick="testCopyRewrite(this)">'+ic('refresh')+' Rewrite ALL</button><button class="btn ghost" onclick="testCopyModal()">New topic</button><button class="btn ghost" onclick="closeModal()">Close</button></div>';
   modal(html);
 }
-async function testFieldRewrite(field,btn){
-  const st=window.__tc;if(!st||!st.pack)return;const j=st.pack,topic=st.topic,skId=st.skId;
-  const sk=skId?S.skeletons.find(x=>String(x.id)===String(skId)):null;
+function fieldRewriteSpec(field,sk){
+  const sl=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id]:null;
   const specs={
-    slots:(sk&&SKELETON_SLOTS[sk.id])?('the on-image text slots ('+SKELETON_SLOTS[sk.id].map(s=>s.t).join(', ')+'), which ARE the pin scroll-stopping HOOK. The biggest slot must be the boldest, most click-worthy line (bold claim, sharp number, myth-bust, or a that-is-me callout). Reply {"slots":{'+SKELETON_SLOTS[sk.id].map(s=>'"'+s.t+'":"..."').join(',')+'}}'):null,
+    slots:sl?('the on-image text slots ('+sl.map(s=>s.t).join(', ')+'), which ARE the pin scroll-stopping HOOK. The biggest slot must be the boldest, most click-worthy line (bold claim, sharp number, myth-bust, or a that-is-me callout), never generic filler. Reply {"slots":{'+sl.map(s=>'"'+s.t+'":"..."').join(',')+'}}'):null,
     pin_title:'the Pinterest title: keyword-first SEO, front-load the primary keyword, searchable, 45 to 70 characters. Reply {"pin_title":"..."}',
     tiktok_caption:'the TikTok title: a scroll-stopping hook, first 3 words earn the tap, under 85 characters, NO website or URL, no hashtags. Reply {"tiktok_caption":"..."}',
     caption:'the caption (IG/FB + Pinterest description): 70 to 90 words, under 480 characters, ends with a soft CTA. Reply {"caption":"..."}',
@@ -2031,15 +2031,41 @@ async function testFieldRewrite(field,btn){
     alt_text:'the alt text: plain literal description of the pin image, under 200 characters. Reply {"alt_text":"..."}',
     page2:'the TikTok page-2 header and its 3 to 5 short steps (each under 6 words). If a number is named in the header or the image text, the item count MUST match it. Reply {"page2_header":"...","page2_items":["...","..."]}'
   };
-  const spec=specs[field];if(!spec){toast('Cannot rewrite that one');return;}
-  const ctx=JSON.stringify({topic,image_text:j.slots,pin_title:j.pin_title,tiktok_title:j.tiktok_caption,caption:j.caption});
+  return specs[field]||null;
+}
+async function runFieldRewrite(topic,pack,field,sk){
+  const spec=fieldRewriteSpec(field,sk);if(!spec)return null;
+  const ctx=JSON.stringify({topic,image_text:pack.slots,pin_title:pack.pin_title,tiktok_title:pack.tiktok_caption,caption:pack.caption});
   const ask='Rewrite ONE field of an existing Juney & Byrd pin copy pack, staying fully consistent with the SAME topic and angle. Audience = overwhelmed business owners and busy moms; content is NOT money-default and must NEVER be forced into a money or accountant frame; no time or effort claims; no em-dashes; no clickbait or fake urgency; Holly voice (first person, warm, plain). Topic: "'+topic+'". Current pack for context: '+ctx+'. Rewrite ONLY '+spec+'. Make it genuinely stronger and clearly different from the current version. Reply JSON ONLY with just that key or keys.';
+  const r=stripDashes(extractJSON(await claude(VOICE,ask,700)));
+  return (r&&typeof r==='object')?r:null;
+}
+async function testFieldRewrite(field,btn){
+  const st=window.__tc;if(!st||!st.pack)return;const j=st.pack;
+  const sk=st.skId?S.skeletons.find(x=>String(x.id)===String(st.skId)):null;
+  if(!fieldRewriteSpec(field,sk)){toast('Cannot rewrite that one');return;}
   if(btn){btn.dataset.h=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
-  let r=null;try{r=stripDashes(extractJSON(await claude(VOICE,ask,700)));}catch(e){}
-  if(!r||typeof r!=='object'){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
+  let r=null;try{r=await runFieldRewrite(st.topic,j,field,sk);}catch(e){}
+  if(!r){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
   Object.assign(j,r);st.pack=j;testCopyRender();
 }
-window.testCopyModal=testCopyModal;window.testCopyRun=testCopyRun;window.testCopyRewrite=testCopyRewrite;window.testCopyGen=testCopyGen;window.testCopyRender=testCopyRender;window.testFieldRewrite=testFieldRewrite;
+async function cardFieldRewrite(id,field,btn){
+  const u=S.units.find(x=>x.id===id);if(!u)return;
+  const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
+  if(!fieldRewriteSpec(field,sk)){toast('Cannot rewrite that one');return;}
+  if(btn){btn.dataset.h=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
+  let r=null;try{r=await runFieldRewrite(u.title,{...(u.copy||{})},field,sk);}catch(e){}
+  if(!r){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
+  const c={...(u.copy||{}),...r};
+  if(r.slots)delete c.image_prompt;
+  if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
+  if(c.caption)c.caption=capChars(c.caption,490);
+  if(c.caption_b)c.caption_b=capChars(c.caption_b,490);
+  await updUnit(id,{copy:c});
+  toast('Rewrote that field');
+  if(window.__unitModalId)unitModal(window.__unitModalId);else render();
+}
+window.testCopyModal=testCopyModal;window.testCopyRun=testCopyRun;window.testCopyRewrite=testCopyRewrite;window.testCopyGen=testCopyGen;window.testCopyRender=testCopyRender;window.testFieldRewrite=testFieldRewrite;window.cardFieldRewrite=cardFieldRewrite;
 async function genAll(btn){
   btn.innerHTML='<span class="spin"></span> Writing...';btn.disabled=true;
   const units=weekUnits(S.week).filter(u=>u.kind==='social'&&!(u.copy||{}).caption);
