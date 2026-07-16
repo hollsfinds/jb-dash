@@ -201,6 +201,8 @@ const SB_URL='https://ypekahkqbnccbrccaqfe.supabase.co';
 const SB_KEY='sb_publishable_IE9lkBK6Q282q-5mlVwnBA_2G6rxqck';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 const WP_API='https://public-api.wordpress.com/wp/v2/sites/juneybyrd.com/posts?per_page=50&_fields=id,title,link,date';
+const WP_POST_API=(id)=>'https://public-api.wordpress.com/wp/v2/sites/juneybyrd.com/posts/'+id+'?_fields=content';
+function wpStrip(h){return String(h||'').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&#8217;|&#8216;/g,"'").replace(/&#8220;|&#8221;/g,'"').replace(/&nbsp;|&amp;|&hellip;|&mdash;|&ndash;/g,' ').replace(/&[a-z0-9#]+;/gi,' ').replace(/\s+/g,' ').trim();}
 const MODEL='claude-sonnet-4-5';
 const PILLARS={1:'Pain hooks',2:'Plain-English help',3:'Tools talking',4:'The maker',5:'Ask the bestie'};
 const THEMES=['money','habits','home','organizing','planning'];
@@ -1940,19 +1942,28 @@ async function genCopy(id,btn){
     const blogs=S.blog.filter(b=>b.status==='published').map(b=>b.title+' → '+b.url).join(' | ');
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
+    let artBlock='';
+    try{
+      const _b=(typeof blogFor==='function')?blogFor(u):null;
+      if(_b&&_b.wp_post_id){
+        if(_b._excerpt==null){const _rr=await fetch(WP_POST_API(_b.wp_post_id));_b._excerpt=_rr.ok?wpStrip((((await _rr.json())||{}).content||{}).rendered).slice(0,1800):'';}
+        if(_b._excerpt)artBlock='\nTHE ACTUAL BLOG ARTICLE this pin promotes (ground EVERY hook in this real content: pull the single strongest specific angle, number, result, or line, and make the pin deliver on it): """'+_b._excerpt+'"""';
+      }
+    }catch(e){}
     const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
 BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. These are her ONLY real named products. Reference them ONLY at a high level (name them, or say "my bookkeeping app" / "my savings app"); do NOT describe how they work or invent features, screens, categories, or workflows for them. NEVER invent or name any OTHER tracker, app, system, method, named routine, or product (no made-up names like "the Weekly Money Moment tracker"). NEVER portray her using a spreadsheet or a generic tracker. Either use Hutch or Stash by name, or describe the habit with NO product name at all, and let the tip or story carry the value.
-Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.
+Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.${artBlock}
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
 Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
+HOOK + CONVERSION (this is a sales engine: the ONE job is to make the right reader stop scrolling and click). Earn it with a specific, surprising, or useful promise, never a vague topic label. Use a real angle: a curiosity gap (hint the payoff, do not give it away), a concrete number or result, a myth-bust or contrarian truth, or a named pain the reader feels right now. Be specific over generic ("the 3 numbers I check before I spend" beats "money tips"). Talk to ONE reader as "you" and open a small tension the pin resolves. NO clickbait lies, NO fake urgency, NO "you won't believe": the promise must be real and delivered by the article/topic. Every headline, title, and line must feel written for THIS exact post.
 ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.name}" layout with these text slots: ${slotSpec}. You MUST fill EVERY slot with real words about THIS exact topic ("${u.title}"). Never leave a slot blank. NEVER use generic filler like MADE SIMPLE, DONE, SIMPLE HONEST, NO OVERWHELM, YES, FINALLY, WORKS, FOR REAL LIFE. Each line reads like it was written for this post: a concrete hook or specific detail, in Juney & Byrd warm plain voice, within each length hint, clearly different from the caption.
 `:''}Reply as JSON ONLY:
 {${slotSpec?`"slots":{${SKELETON_SLOTS[sk.id].map(sl=>`"${sl.t}":"specific words about this topic, never blank, never generic filler"`).join(',')}},`:''}"caption":"caption used for IG/FB AND as the Pinterest pin description, 70 to 90 words, keep it UNDER 480 characters, ends with a soft CTA",
 "caption_b":"a second, different take on the caption, also under 480 characters",
-"pin_title":"Pinterest title, keyword-rich, 45 to 70 characters, never over 100",
+"pin_title":"Pinterest title, a scroll-stopping hook that is ALSO keyword-searchable, 45 to 70 characters, never over 100: lead with the specific promise or curiosity, no vague topic labels",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
-"tiktok_caption":"TikTok post title: one punchy hook line under 85 characters that works as a photo-post title, end it with juneybyrd.com when it fits, no links, no hashtags",
+"tiktok_caption":"TikTok post title: a scroll-stopping hook whose first 3 words earn the tap, under 85 characters, end with juneybyrd.com when it fits, no links, no hashtags",
 ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 6 words","page2_items":["a punchy written-out step for THIS topic, under 6 words, fits one line, no time claims","step 2, under 6 words","step 3, under 6 words","step 4, under 6 words","step 5, under 6 words"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
     const out=await claude(VOICE,ask,1900);
     const j=extractJSON(out);
