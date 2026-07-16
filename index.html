@@ -1934,8 +1934,8 @@ async function pinBatchMark(btn){
   window.__pinBatch=null;closeModal();render();
 }
 window.pinBatchMark=pinBatchMark;
-async function genCopy(id,btn){
-  const u=S.units.find(x=>x.id===id);
+async function genCopy(id,btn,opts){
+  const u=(opts&&opts.unit)||S.units.find(x=>x.id===id);
   if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
   try{
     const kws=S.keywords.filter(k=>k.pillar===u.pillar);
@@ -1968,6 +1968,7 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 6 words; if it names a count it MUST match the number of items below","page2_items":["3 to 5 short steps for THIS topic as separate array items, each under 6 words, punchy, no time claims. CRITICAL: if the cover headline/sub or the page-2 header names a specific number (like 'the 3 questions'), output EXACTLY that many items, no padding"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
     const out=await claude(VOICE,ask,1900);
     const j=extractJSON(out);
+    if(opts&&opts.noSave){return j;}
     const c={...(u.copy||{}),...j};
     if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
     if(c.caption)c.caption=capChars(c.caption,490);
@@ -1978,6 +1979,36 @@ ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a sho
   }catch(e){toast('Copy failed: '+e.message);render();}
 }
 window.genCopy=genCopy;
+function testCopyModal(){
+  const pl=[1,2,3,4,5].map(p=>`<option value="${p}">P${p} ${esc((PILLARS[p]||'').slice(0,22))}</option>`).join('');
+  const sk=`<option value="auto">Auto-pick a skeleton</option>`+S.skeletons.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  modal(`<h3 style="margin-bottom:4px">Test copy</h3><div class="small muted" style="margin-bottom:10px">Try any idea or topic. Nothing gets saved and no card is created.</div>
+  <input id="tc-topic" placeholder="Type any topic or idea to test..." style="width:100%;margin-bottom:8px">
+  <div class="row" style="gap:8px;margin-bottom:12px"><select id="tc-pillar" style="flex:1">${pl}</select><select id="tc-skel" style="flex:1">${sk}</select></div>
+  <div class="row"><button class="btn" onclick="testCopyRun(this)">${ic('sparkle')} Generate test copy</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+async function testCopyRun(btn){
+  const topic=(($('#tc-topic')||{}).value||'').trim();
+  if(!topic){toast('Type a topic to test');return;}
+  const pillar=+(($('#tc-pillar')||{}).value)||1;
+  let skId=(($('#tc-skel')||{}).value)||'auto';
+  if(skId==='auto'){const cw=(typeof pickCoworkSkel==='function')?pickCoworkSkel({pillar,theme:'',title:topic}):null;skId=cw?cw.id:'';}
+  const synth={id:'__test',title:topic,pillar,theme:'',skeleton_id:skId||null,copy:{}};
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Testing…';}
+  let j=null;try{j=await genCopy('__test',null,{unit:synth,noSave:true});}catch(e){}
+  if(!j){toast('Test failed, try again');if(btn){btn.disabled=false;}return;}
+  const skName=skId?((S.skeletons.find(s=>String(s.id)===String(skId))||{}).name||skId):'no skeleton';
+  const e2=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const row=(k,v)=>v?('<div style="margin:10px 0"><b class="small" style="color:var(--coral-b);letter-spacing:.04em">'+k+'</b><div style="white-space:pre-wrap;margin-top:2px">'+e2(Array.isArray(v)?v.map((x,i)=>(i+1)+'. '+x).join('\n'):v)+'</div></div>'):'';
+  let html='<h3 style="margin-bottom:4px">Test copy</h3><div class="small muted" style="margin-bottom:8px">'+e2(topic)+' · P'+pillar+' · '+e2(skName)+' · nothing saved</div>';
+  if(j.slots)html+=row('IMAGE TEXT (the hook)',Object.entries(j.slots).map(([k,v])=>k+': '+v).join('\n'));
+  html+=(row('Pin title (SEO)',j.pin_title)||'')+(row('TikTok title',j.tiktok_caption)||'')+(row('Caption',j.caption)||'')+(row('Caption B',j.caption_b)||'');
+  if(j.page2_items&&j.page2_items.length)html+=(row('PAGE 2 · '+(j.page2_header||''),j.page2_items)||'');
+  html+=(row('Alt text',j.alt_text)||'');
+  html+='<div class="row" style="margin-top:12px"><button class="btn" onclick="testCopyModal()">'+ic('refresh')+' Test another</button><button class="btn ghost" onclick="closeModal()">Close</button></div>';
+  modal(html);
+}
+window.testCopyModal=testCopyModal;window.testCopyRun=testCopyRun;
 async function genAll(btn){
   btn.innerHTML='<span class="spin"></span> Writing...';btn.disabled=true;
   const units=weekUnits(S.week).filter(u=>u.kind==='social'&&!(u.copy||{}).caption);
@@ -1993,6 +2024,7 @@ function vSkel(){
   const notes=S.inbox.filter(i=>i.kind!=='skeleton-idea');
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Skeletons</h1><span class="sub">${S.skeletons.length} locked recipes + your idea inbox</span></div>
+  <div class="row" style="margin:0 0 12px"><button class="btn" style="background:var(--coral-b)" onclick="testCopyModal()">${ic('sparkle')} Test copy on any idea (no card, nothing saved)</button></div>
   ${setTabs('skel')}
   <div class="grid g2">
   ${S.skeletons.map(k=>{const img=(S.settings.skel_images||{})[k.id];return `
