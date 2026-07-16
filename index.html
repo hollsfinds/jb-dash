@@ -571,7 +571,8 @@ window.switchPinMode=async function(id){
     delete copy.cowork_slot;
   }else{
     const idx=(S.settings.cowork_photo_idx||0);
-    newId=(typeof COWORK_SKELETONS!=='undefined'&&COWORK_SKELETONS.length)?COWORK_SKELETONS[idx%COWORK_SKELETONS.length].id:'s6';
+    const _rot=(typeof COWORK_SKELETONS!=='undefined')?COWORK_SKELETONS.filter(s=>!s.product):[];/* product skeletons (s16) never rotate onto blog topics */
+    newId=_rot.length?_rot[idx%_rot.length].id:'s6';
     const _bsk=coworkSkel(newId);
     if(_bsk&&_bsk.bg){const _b=(S.settings.cowork_bg_idx||0);copy.cowork_slot=_b;await saveSetting('cowork_bg_idx',_b+1);await saveSetting('cowork_photo_idx',idx+1);}
     else{copy.cowork_slot=idx;await saveSetting('cowork_photo_idx',idx+1);}
@@ -595,14 +596,14 @@ const PP_ACCENTS={coral:'#e8836f',sage:'#b7d6c4',teal:'#2f8f7d',peach:'#f0b9a6'}
 const PP_LAYOUTS={A:{label:'A · Filmstrip',need:3,heroReq:false},B:{label:'B · Hero',need:3,heroReq:true}};
 const PP_DEFAULTS={
   hutch:{label:'Hutch',page_url:'https://juneybyrd.com/hutch',screens:[
-    {key:'side',label:'Dashboard + sidebar',hero:true,mac:'Hutch App/help-dashboard.png',crop:'card1_side'},
+    {key:'side',label:'Dashboard + sidebar',hero:false,mac:'Hutch App/help-dashboard.png',crop:'card1_side'},
     {key:'hero',label:'Full dashboard (hero, with sidebar)',hero:true,mac:'Hutch App/help-dashboard.png',crop:'hero_sidebar'},
     {key:'moneydate',label:'Money Date checklist',hero:false,mac:'Hutch App/help-money-date.png',crop:'card2'},
     {key:'csv',label:'CSV import',hero:false,mac:'Hutch App/help-csv-import.png',crop:'card3'}
   ]},
   stash:{label:'Stash',page_url:'',screens:[]}
 };
-function ppProducts(){if(!S.settings.product_screens)return JSON.parse(JSON.stringify(PP_DEFAULTS));return S.settings.product_screens;}
+function ppProducts(){if(!S.settings.product_screens)return JSON.parse(JSON.stringify(PP_DEFAULTS));const P=S.settings.product_screens;/* migrate old default: the card1_side crop was wrongly hero-flagged (it duplicates the real hero) */if(P.hutch&&Array.isArray(P.hutch.screens))P.hutch.screens.forEach(s=>{if(s.key==='side'&&s.crop==='card1_side')s.hero=false;});return P;}
 async function ppSaveProducts(map){await saveSetting('product_screens',map);}
 function ppImageStatus(prod,layout){
   const L=PP_LAYOUTS[layout];const sc=(prod&&prod.screens)||[];const n=sc.length;const hero=sc.some(s=>s.hero);
@@ -612,7 +613,7 @@ function ppImageStatus(prod,layout){
 }
 function productPinBuilder(){const P=ppProducts();const keys=Object.keys(P);window.__pp={product:keys[0],layout:'B',theme:'navy',accent:'coral',picked:[],copy:{eyebrow:'',headline:'',sub:''}};ppAutoPick();modal(ppHTML());}
 window.productPinBuilder=productPinBuilder;
-function ppAutoPick(){const P=ppProducts();const prod=P[window.__pp.product];if(!prod){window.__pp.picked=[];return;}const need=PP_LAYOUTS[window.__pp.layout].need;const sc=prod.screens||[];const pick=[];if(window.__pp.layout==='B'){const h=sc.find(s=>s.hero);if(h)pick.push(h.key);}sc.forEach(s=>{if(pick.length<need&&pick.indexOf(s.key)<0)pick.push(s.key);});window.__pp.picked=pick;}
+function ppAutoPick(){const P=ppProducts();const prod=P[window.__pp.product];if(!prod){window.__pp.picked=[];return;}window.__pp.picked=ppScreensForLayout(prod,window.__pp.layout).map(s=>s.key);}
 function ppSet(k,v){window.__pp[k]=v;if(k==='product'||k==='layout')ppAutoPick();modal(ppHTML());}
 window.ppSet=ppSet;
 function ppSetCopy(k,el){window.__pp.copy[k]=el.value;}
@@ -625,7 +626,7 @@ async function ppAddProduct(){const key=(prompt('Product key (lowercase, no spac
 window.ppAddProduct=ppAddProduct;
 async function ppAddScreen(){ppAddScreenFor(window.__pp.product);}
 window.ppAddScreen=ppAddScreen;
-async function ppDraftCopy(btn){const P=ppProducts();const prod=P[window.__pp.product];if(btn)btn.textContent='Reading the page...';try{const sys='You write Pinterest pin copy in the Juney & Byrd voice: warm, witty, plain-English, never salesy, no em-dashes, no time or effort claims unless literally true. Product pins for the real app only.';const usr='Read this product page and write pin copy for a '+prod.label+' product pin: '+(prod.page_url||'(no page set; use what you know about '+prod.label+')')+'\nReturn JSON only: {"eyebrow":"2-4 word small-caps hook","headline":"3-6 word ALL CAPS headline","accent":"the ONE word inside the headline to color","sub":"one lowercase benefit line, no time claims"}';const out=await claude(sys,usr,900);const j=extractJSON(out);const hl=(j.headline||'').toUpperCase();const acc=(j.accent||'').toUpperCase();window.__pp.copy.eyebrow=(j.eyebrow||'').toUpperCase();window.__pp.copy.headline=(acc&&hl.indexOf(acc)>=0)?hl.replace(acc,'*'+acc+'*'):hl;window.__pp.copy.sub=j.sub||'';modal(ppHTML());toast('Draft written from the page. Tweak as you like.');}catch(e){toast('Copy draft failed: '+e.message);if(btn)btn.textContent='Draft copy from the page';}}
+async function ppDraftCopy(btn){const P=ppProducts();const prod=P[window.__pp.product];if(btn)btn.textContent='Reading the page...';try{const sys='You write Pinterest pin copy in the Juney & Byrd voice: warm, witty, plain-English, never salesy, no em-dashes, no time or effort claims unless literally true. Product pins for the real app only.';const usr='Read this product page and write pin copy for a '+prod.label+' product pin: '+(prod.page_url||'(no page set; use what you know about '+prod.label+')')+'\nReturn JSON only: {"eyebrow":"2-4 word small-caps hook","headline":"3-6 word ALL CAPS headline","accent":"the ONE word inside the headline to color","sub":"one lowercase benefit line, no time claims"}';const out=await claude(sys,usr,900);const j=stripDashes(extractJSON(out));const hl=(j.headline||'').toUpperCase();const acc=(j.accent||'').toUpperCase();window.__pp.copy.eyebrow=(j.eyebrow||'').toUpperCase();window.__pp.copy.headline=(acc&&hl.indexOf(acc)>=0)?hl.replace(acc,'*'+acc+'*'):hl;window.__pp.copy.sub=j.sub||'';modal(ppHTML());toast('Draft written from the page. Tweak as you like.');}catch(e){toast('Copy draft failed: '+e.message);if(btn)btn.textContent='Draft copy from the page';}}
 window.ppDraftCopy=ppDraftCopy;
 function buildProductHandoff(){
   const P=ppProducts();const prod=P[window.__pp.product];const L=PP_LAYOUTS[window.__pp.layout];
@@ -2050,6 +2051,7 @@ async function genCopy(id,btn,opts){
     const blogs=S.blog.filter(b=>b.status==='published').map(b=>b.title+' → '+b.url).join(' | ');
     const sk=u.skeleton_id?S.skeletons.find(x=>String(x.id)===String(u.skeleton_id)):null;
     const slotSpec=(sk&&SKELETON_SLOTS[sk.id])?SKELETON_SLOTS[sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):null;
+    const isProd=!!((u.copy||{}).is_product)||String(u.skeleton_id||'')==='s16';
     let artBlock='';
     try{
       const _b=(typeof blogFor==='function')?blogFor(u):null;
@@ -2058,7 +2060,19 @@ async function genCopy(id,btn,opts){
         if(_b._excerpt)artBlock='\nTHE ACTUAL BLOG ARTICLE this pin promotes (ground EVERY hook in this real content: pull the single strongest specific angle, number, result, or line, and make the pin deliver on it): """'+_b._excerpt+'"""';
       }
     }catch(e){}
-    const ask=`Write the copy pack for ONE social content unit for Juney & Byrd.
+    const _pc=(u.copy||{});const _prod=isProd?((ppProducts()[_pc.product])||{label:(u.title||'').replace(/\s+spotlight\s*$/i,'')||'the app',page_url:_pc.source_url||''}):null;
+    const askProd=isProd?`Write the copy pack for ONE Pinterest PRODUCT pin for ${_prod.label} (${_prod.page_url||'a Juney & Byrd app'}).
+${_prod.label} is one of Holly's real apps. Ground every claim in what the product page actually promises and keep every claim true to a real bookkeeping/savings app: NEVER invent features, screens, numbers, categories, or workflows. Juney & Byrd voice: warm, witty, plain-spoken, never salesy, NO em-dashes, NO time or effort claims (no "in minutes", "quick", "one tap").
+Pinterest keywords to weave in naturally: ${kws.filter(k=>k.platform==='pinterest').flatMap(k=>k.items).join(', ')||'n/a'}.
+This is a sales engine: the pin's ONE job is to make the right reader (an overwhelmed business owner or busy mom) stop scrolling and click through to the product page. Lead with the pain the product genuinely solves or the concrete promise it truly delivers. Specific beats clever; never a vague topic label.
+IMAGE TEXT (most important, fill EVERY slot): EYEBROW = 2 to 4 word small-caps product hook. HEADLINE = the product promise, 3 to 6 words ALL CAPS, wrap exactly ONE word in *asterisks* for the accent color. SUB = one lowercase benefit line. NEVER use generic filler like MADE SIMPLE, DONE, YES, FINALLY, WORKS, FOR REAL LIFE.
+Reply as JSON ONLY:
+{"slots":{"EYEBROW":"2 to 4 word small-caps hook","HEADLINE":"3 to 6 words ALL CAPS with exactly ONE *word* marked for the accent color","SUB":"one lowercase benefit line"},
+"caption":"the Pinterest pin description, 150 to 230 characters, natural keywords, 3 to 4 hashtags at the end, one soft save-this CTA, never over 500 characters",
+"caption_b":"a second, clearly different take on the description, same rules",
+"pin_title":"Pinterest title = SEO. Front-load the primary keyword and match how people actually search. 45 to 70 characters, never over 100.",
+"alt_text":"literal plain description of the finished pin image including the words shown on it, under 300 chars"}`:null;
+    const ask=isProd?askProd:`Write the copy pack for ONE social content unit for Juney & Byrd.
 BRAND TRUTH (never contradict): Holly built and sells the Hutch bookkeeping app and the Stash savings app, and uses them for her own money. These are her ONLY real named products. Reference them ONLY at a high level (name them, or say "my bookkeeping app" / "my savings app"); do NOT describe how they work or invent features, screens, categories, or workflows for them. NEVER invent or name any OTHER tracker, app, system, method, named routine, or product (no made-up names like "the Weekly Money Moment tracker"). NEVER portray her using a spreadsheet or a generic tracker. Either use Hutch or Stash by name, or describe the habit with NO product name at all, and let the tip or story carry the value.
 Topic: "${u.title}". Pillar ${u.pillar} (${PILLARS[u.pillar]}). Theme: ${u.theme}.${artBlock}
 Published blog posts you may link to when relevant: ${blogs||'none yet, use https://juneybyrd.com'}.
@@ -2076,6 +2090,7 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 6 words; if it names a count it MUST match the number of items below","page2_items":["3 to 5 short steps for THIS topic as separate array items, each under 6 words, punchy, no time claims. CRITICAL: if the cover headline/sub or the page-2 header names a specific number (like 'the 3 questions'), output EXACTLY that many items, no padding"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
     const out=await claude(VOICE,ask,1900);
     const j=stripDashes(extractJSON(out));
+    if(isProd)delete j.source_url;/* product units keep the product page link; never let the model overwrite it */
     if(opts&&opts.noSave){return j;}
     const c={...(u.copy||{}),...j};
     if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
@@ -2515,7 +2530,7 @@ function pbMode(m){const st=window.__pinBatch;if(!st)return;st.mode=m;st.pins=nu
 window.pbMode=pbMode;
 function pbToggle(cur){return `<div class="row" style="gap:6px;margin-top:8px"><button class="btn ${cur==='blog'?'':'ghost'} sm" onclick="pbMode('blog')">Blog / Page pins</button><button class="btn ${cur==='product'?'':'ghost'} sm" onclick="pbMode('product')">Product pins</button></div>`;}
 window.pbToggle=pbToggle;
-function ppScreensForLayout(prod,layout){const sc=(prod.screens||[]).slice();const out=[];if(layout==='B'){const h=sc.find(s=>s.hero);if(h)out.push(h);}sc.forEach(s=>{if(out.length<3&&out.indexOf(s)<0)out.push(s);});return out.slice(0,3);}
+function ppScreensForLayout(prod,layout){const sc=(prod.screens||[]).slice();const out=[];const add=s=>{if(s&&out.length<3&&out.indexOf(s)<0&&!out.some(x=>x.mac&&s.mac&&x.mac===s.mac))out.push(s);};if(layout==='B'){add(sc.find(s=>s.hero));sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}else{sc.filter(s=>!s.hero).forEach(add);sc.forEach(add);}return out.slice(0,3);}
 function ppHandoffFromSpec(sp){
   const A=sp.accent;const L=[];
   L.push('COWORK PRODUCT PIN — Skeleton 7 (app id s16)');
@@ -2600,7 +2615,7 @@ async function pinBatchWriteProduct(btn){
 For EACH pin write: eyebrow (2-4 word small-caps hook), headline (3-6 words ALL CAPS), accent (the ONE word inside the headline to color), sub (one lowercase benefit line), title (Pinterest title 45-70 chars, keyword-rich, never over 100), desc (150-230 chars, 3-4 hashtags at the end, one soft save-this CTA, never over 500), alt (literal description of the finished pin, under 300 chars).
 Reply as JSON only: {"pins":[{"eyebrow":"","headline":"","accent":"","sub":"","title":"","desc":"","alt":""}]}`;
     const out=await claude(VOICE,ask,2200);
-    const j=extractJSON(out);
+    const j=stripDashes(extractJSON(out));
     st.pins=(j.pins||[]).slice(0,n).map((pp,i)=>{
       const c=combos[i];const screens=ppScreensForLayout(prod,c.layout);
       const hl=(pp.headline||'').toUpperCase();const acc=(pp.accent||'').toUpperCase();
