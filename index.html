@@ -1241,6 +1241,19 @@ window.mpOcMint=async function(id,kind){
 window.mpOcSyncCodes=async function(btn){
   if(btn){btn.disabled=true;}
   try{
+    // first, push any codes minted while the worker endpoint was offline
+    const p0=mp();
+    for(const c of ((p0.outreach&&p0.outreach.contacts)||[])){
+      for(const k of ['writer','reader']){
+        const cd=c.codes&&c.codes[k];
+        if(cd&&cd.pending){
+          try{
+            const cr=await fetch(HUTCH_API+'/admin/comp-codes',{method:'POST',headers:{'x-admin-key':hqKey()||'','content-type':'application/json'},body:JSON.stringify({code:cd.code,type:k==='writer'?'lifetime':'months3',tag:c.outlet,contact_id:c.id})});
+            if(cr.status===200||cr.status===201)cd.pending=false;
+          }catch(_){}
+        }
+      }
+    }
     const r=await fetch(HUTCH_API+'/admin/comp-codes',{headers:{'x-admin-key':hqKey()||''}});
     if(r.status!==200)throw new Error('endpoint not live yet ('+r.status+')');
     const data=await r.json();const byCode={};(data.codes||data||[]).forEach(x=>byCode[x.code]=x);
