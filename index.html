@@ -1764,7 +1764,8 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
         ${(()=>{const m=S.settings.blog_assign||{};const asg=(m[wsIso]||[]);
           const usedAnywhere=new Set([].concat(...Object.values(m)).map(String));
           const curWk=b=>b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso;
-          const cands2=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&!curWk(b)&&!usedAnywhere.has(String(b.id))).sort((a,b2)=>new Date(b2.published_at||0)-new Date(a.published_at||0));
+          const proc=focusProcessedIds();
+          const cands2=S.blog.filter(b=>b.status==='published'&&!curWk(b)&&!usedAnywhere.has(String(b.id))&&!proc.has(String(b.id))).sort((a,b2)=>new Date(b2.published_at||0)-new Date(a.published_at||0));
           const chips=asg.map(id=>{const b=S.blog.find(x=>String(x.id)===String(id));return b?`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800">${esc((b.title||'').slice(0,26))} <span style="cursor:pointer;font-weight:900" title="Stop counting this post toward the goal" onclick="blogUnassign('${wsIso}','${id}')">&times;</span></span>`:'';}).join(' ');
           if(!cands2.length&&!asg.length)return '';
           return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap"><span class="muted" title="Credit an earlier unused post toward this week's blog goal (separate from processing)">Count toward goal:</span>${chips}${cands2.length?`<select style="flex:1;min-width:150px;max-width:320px" onchange="if(this.value)blogAssign('${wsIso}',this.value)"><option value="">+ an earlier post\u2026</option>${cands2.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,44))}${b.published_at?' ('+(new Date(b.published_at).getMonth()+1)+'/'+new Date(b.published_at).getDate()+')':''}</option>`).join('')}</select>`:''}</div>`;})()}
