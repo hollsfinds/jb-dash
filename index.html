@@ -1156,6 +1156,7 @@ function vMktg(){
   (p.tracks||[]).forEach(T=>(T.tasks||[]).forEach(t=>{if(MKTG_ASKS[t.id]&&!t.ask){t.ask=MKTG_ASKS[t.id];mig=true;}}));
   if(rt&&!rt.links){rt.links=JSON.parse(JSON.stringify((MKTG_SEED.tracks.find(x=>x.id==='reddit')||{}).links||[]));mig=true;}
   if(!p.blog2wk){p.blog2wk=true;const cad2={...(S.settings.cadence||{})};cad2.blog_per_month=8;saveSetting('cadence',cad2);mig=true;}
+  (p.tracks||[]).forEach(T=>(T.links||[]).forEach(L=>{if(!L.grp){L.grp=/alphaandbetausers|sideproject|indiehackers/i.test((L.label||'')+(L.url||''))?'post':'comment';mig=true;}}));
   if(mig)saveSetting('marketing_plan',p);
   const wk=iso(weekStart(new Date()));
   const pitches=(p.kpis.pitches&&p.kpis.pitches.wk===wk)?p.kpis.pitches.n:0;
@@ -1192,14 +1193,19 @@ function vMktg(){
       <div style="margin-top:8px"><button class="btn ghost sm" onclick="mpEditTask('${T.id}','')">+ Add task</button></div>
       ${(T.links&&T.links.length)||T.id==='reddit'?`<div style="padding:10px 0 4px;border-top:1px dashed var(--line);margin-top:10px">
         <div class="small" style="font-weight:900;color:var(--muted);letter-spacing:.04em;margin-bottom:2px">SUBREDDITS / QUICK LINKS <span style="font-weight:700">· log a comment each time you leave one</span></div>
-        ${(T.links||[]).map(L=>`<div class="row" style="gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)">
+        ${(()=>{const srt=a2=>[...a2].sort((x,y)=>(x.label||x.url||'').toLowerCase().localeCompare((y.label||y.url||'').toLowerCase()));
+          const lrow=L=>`<div class="row" style="gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)">
           <a href="${esc(L.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:800;color:var(--navy);text-decoration:none;flex:1;min-width:0">${esc(L.label||L.url)} &#8599;</a>
           <span class="small" style="font-weight:800;color:${(L.n||0)>0?'var(--teal)':'var(--muted)'};white-space:nowrap;${(L.n||0)>0?'cursor:pointer;text-decoration:underline':''}" ${(L.n||0)>0?`title="See comment dates" onclick="event.stopPropagation();mpLinkHistory('${T.id}','${L.id}')"`:''}>${L.n||0} comment${(L.n||0)===1?'':'s'}</span>
           <span class="small muted" style="white-space:nowrap">${L.last?'last '+esc(L.last):'none yet'}</span>
           <button class="btn sm" style="padding:2px 9px;background:var(--teal)" title="Log a comment today" onclick="event.stopPropagation();mpLogComment('${T.id}','${L.id}')">+1</button>
           <button class="btn ghost sm" style="padding:2px 8px" title="Undo last" onclick="event.stopPropagation();mpUnlogComment('${T.id}','${L.id}')">&minus;</button>
           <span style="cursor:pointer;font-weight:900;color:var(--muted);padding:0 2px" title="Remove from list" onclick="event.stopPropagation();mpDelLink('${T.id}','${L.id}')">&times;</span>
-        </div>`).join('')}
+        </div>`;
+          const cS=srt((T.links||[]).filter(L=>(L.grp||'comment')!=='post'));
+          const pS=srt((T.links||[]).filter(L=>(L.grp||'comment')==='post'));
+          const hdr=t2=>`<div class="small" style="font-weight:900;color:var(--teal);letter-spacing:.05em;margin-top:6px">${t2}</div>`;
+          return (cS.length?hdr('COMMENTS'):'')+cS.map(lrow).join('')+(pS.length?hdr('PROJECT POSTING'):'')+pS.map(lrow).join('');})()}
         <div style="margin-top:8px"><button class="btn ghost sm" style="padding:2px 10px" onclick="event.stopPropagation();mpAddLink('${T.id}')">+ Add link</button></div>
       </div>`:''}
     </div>`:''}
@@ -1310,6 +1316,8 @@ window.mpAddLink=function(tr){
   <input type="text" id="mp-lurl" placeholder="https://www.reddit.com/r/..." style="margin:4px 0 10px" onkeydown="if(event.key==='Enter')mpSaveLink('${tr}')">
   <label class="small" style="font-weight:800">Label (optional, auto-fills for subreddits)</label>
   <input type="text" id="mp-llabel" placeholder="r/whatever" style="margin-top:4px" onkeydown="if(event.key==='Enter')mpSaveLink('${tr}')">
+  <label class="small" style="font-weight:800;display:block;margin-top:10px">Group</label>
+  <select id="mp-lgrp" style="margin-top:4px"><option value="comment">Comments (warm-up commenting)</option><option value="post">Project posting</option></select>
   <div class="row" style="margin-top:14px"><div class="spacer"></div>
   <button class="btn ghost" onclick="closeModal()">Cancel</button>
   <button class="btn" onclick="mpSaveLink('${tr}')">Add</button></div>`);
@@ -1320,7 +1328,8 @@ window.mpSaveLink=async function(tr){
   if(!/^https?:/i.test(url))url='https://'+url;
   let label=($('#mp-llabel').value||'').trim();
   if(!label){const m=url.match(/reddit\.com\/(r\/[^\/?#]+)/i);label=m?m[1]:url.replace(/^https?:\/\/(www\.)?/i,'').slice(0,30);}
-  T.links=T.links||[];T.links.push({id:'l'+Date.now(),label,url});
+  const grp=($('#mp-lgrp')&&$('#mp-lgrp').value)||'comment';
+  T.links=T.links||[];T.links.push({id:'l'+Date.now(),label,url,grp});
   await saveMp(p);closeModal();
 };
 window.mpDelLink=async function(tr,id){
