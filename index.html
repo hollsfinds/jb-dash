@@ -1293,7 +1293,7 @@ window.mpDelTask=async function(tr,ta){
   await saveMp(p);closeModal();
 };
 function mpRulesOf(L){if(Array.isArray(L.rules))return L.rules;if(L.rule&&L.rule!=='unk')return [L.rule];return [];}
-const MP_RULES={unk:['\u2753','Rules not checked yet'],no:['\ud83d\udeab','No promotion'],weekly:['\ud83d\udcc5','Weekly promotion thread'],ok:['\u2705','Promotion OK']};
+const MP_RULES={unk:['\u2753','Rules not checked yet'],no:['\ud83d\udeab','No promotion'],weekly:['\ud83d\udcc5','Weekly promotion thread'],context:['\ud83d\udcac','Self-promo OK in context'],ok:['\u2705','Promotion OK']};
 window.mpRuleModal=function(tr,id){
   const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
   const L=(T.links||[]).find(x=>x.id===id);if(!L)return;
@@ -1302,7 +1302,7 @@ window.mpRuleModal=function(tr,id){
   <p class="small muted" style="margin-bottom:10px">Group rules, so future you does not get banned. Check all that apply; none checked = not vetted yet.</p>
   <label class="small" style="font-weight:800">Promotion rules</label>
   <div style="margin:6px 0 10px">
-    ${['no','weekly','ok'].map(k=>`<label class="row small" style="gap:8px;padding:4px 0;cursor:pointer;font-weight:700"><input type="checkbox" class="mp-rule-cb" value="${k}" ${rs.includes(k)?'checked':''} onchange="$('#mp-rday-wrap').style.display=[...document.querySelectorAll('.mp-rule-cb')].some(c=>c.checked&&c.value==='weekly')?'block':'none'"> ${MP_RULES[k][0]} ${MP_RULES[k][1]}</label>`).join('')}
+    ${['no','weekly','context','ok'].map(k=>`<label class="small" style="display:flex;align-items:center;justify-content:flex-start;gap:9px;padding:5px 0;cursor:pointer;font-weight:700;text-align:left"><input type="checkbox" class="mp-rule-cb" value="${k}" ${rs.includes(k)?'checked':''} style="width:16px;height:16px;flex:none;margin:0" onchange="$('#mp-rday-wrap').style.display=[...document.querySelectorAll('.mp-rule-cb')].some(c=>c.checked&&c.value==='weekly')?'block':'none'"><span>${MP_RULES[k][0]} ${MP_RULES[k][1]}</span></label>`).join('')}
   </div>
   <div id="mp-rday-wrap" style="display:${rs.includes('weekly')?'block':'none'}">
     <label class="small" style="font-weight:800">Promo thread day</label>
