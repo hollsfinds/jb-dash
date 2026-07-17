@@ -1158,7 +1158,11 @@ function vMktg(){
   if(!p.blog2wk){p.blog2wk=true;const cad2={...(S.settings.cadence||{})};cad2.blog_per_month=8;saveSetting('cadence',cad2);mig=true;}
   (p.tracks||[]).forEach(T=>(T.links||[]).forEach(L=>{if(!L.grp){L.grp=/alphaandbetausers|sideproject|indiehackers/i.test((L.label||'')+(L.url||''))?'post':'comment';mig=true;}}));
   const RULE_SEED=[[/alphaandbetausers/i,'ok','Built for tester asks, state the stage and what feedback you want'],[/sideproject/i,'ok','Launch-friendly, low-effort promo gets ignored, screenshots help'],[/indiehackers/i,'ok','Builder community, be transparent about the zero-users stage'],[/r\/freelance/i,'no','Strict no self-promo, value comments only'],[/etsysellers/i,'no','No self-promo, answer seller questions as the accountant']];
-  (p.tracks||[]).forEach(T=>(T.links||[]).forEach(L=>{if(!L.rule){const m=RULE_SEED.find(r=>r[0].test((L.label||'')+(L.url||'')));L.rule=m?m[1]:'unk';if(m&&!L.rnotes)L.rnotes=m[2];mig=true;}}));
+  (p.tracks||[]).forEach(T=>(T.links||[]).forEach(L=>{
+    if(!Array.isArray(L.rules)){
+      if(L.rule&&L.rule!=='unk')L.rules=[L.rule];
+      else{const m=RULE_SEED.find(r=>r[0].test((L.label||'')+(L.url||'')));L.rules=m?[m[1]]:[];if(m&&!L.rnotes)L.rnotes=m[2];}
+      delete L.rule;mig=true;}}));
   if(mig)saveSetting('marketing_plan',p);
   const wk=iso(weekStart(new Date()));
   const pitches=(p.kpis.pitches&&p.kpis.pitches.wk===wk)?p.kpis.pitches.n:0;
@@ -1196,9 +1200,11 @@ function vMktg(){
       ${(T.links&&T.links.length)||T.id==='reddit'?`<div style="padding:10px 0 4px;border-top:1px dashed var(--line);margin-top:10px">
         <div class="small" style="font-weight:900;color:var(--muted);letter-spacing:.04em;margin-bottom:2px">SUBREDDITS / QUICK LINKS <span style="font-weight:700">· log a comment each time you leave one</span></div>
         ${(()=>{const srt=a2=>[...a2].sort((x,y)=>(x.label||x.url||'').toLowerCase().localeCompare((y.label||y.url||'').toLowerCase()));
-          const lrow=L=>{const R=MP_RULES[L.rule||'unk']||MP_RULES.unk;const tip=R[1]+(L.rule==='weekly'&&L.rday?' \u00b7 '+L.rday:'')+(L.rnotes?' \u00b7 '+L.rnotes:'');
+          const lrow=L=>{const rs=mpRulesOf(L);const wk=rs.includes('weekly');
+          const icons=rs.length?rs.map(k=>(MP_RULES[k]||MP_RULES.unk)[0]).join(''):MP_RULES.unk[0];
+          const tip=(rs.length?rs.map(k=>(MP_RULES[k]||MP_RULES.unk)[1]).join(' + '):MP_RULES.unk[1])+(wk&&L.rday?' \u00b7 '+L.rday:'')+(L.rnotes?' \u00b7 '+L.rnotes:'');
           return `<div class="row" style="gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)">
-          <span style="cursor:pointer;flex:none;font-size:14px;line-height:1" title="${esc(tip)}" onclick="event.stopPropagation();mpRuleModal('${T.id}','${L.id}')">${R[0]}${L.rule==='weekly'&&L.rday?`<span class="small" style="font-weight:800;color:var(--muted)"> ${esc(L.rday.slice(0,3))}</span>`:''}</span>
+          <span style="cursor:pointer;flex:none;font-size:14px;line-height:1" title="${esc(tip)}" onclick="event.stopPropagation();mpRuleModal('${T.id}','${L.id}')">${icons}${wk&&L.rday?`<span class="small" style="font-weight:800;color:var(--muted)"> ${esc(L.rday.slice(0,3))}</span>`:''}</span>
           <a href="${esc(L.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-weight:800;color:var(--navy);text-decoration:none;flex:1;min-width:0">${esc(L.label||L.url)} &#8599;</a>
           <span class="small" style="font-weight:800;color:${(L.n||0)>0?'var(--teal)':'var(--muted)'};white-space:nowrap;${(L.n||0)>0?'cursor:pointer;text-decoration:underline':''}" ${(L.n||0)>0?`title="See comment dates" onclick="event.stopPropagation();mpLinkHistory('${T.id}','${L.id}')"`:''}>${L.n||0} comment${(L.n||0)===1?'':'s'}</span>
           <span class="small muted" style="white-space:nowrap">${L.last?'last '+esc(L.last):'none yet'}</span>
@@ -1286,17 +1292,19 @@ window.mpDelTask=async function(tr,ta){
   T.tasks=(T.tasks||[]).filter(x=>x.id!==ta);
   await saveMp(p);closeModal();
 };
+function mpRulesOf(L){if(Array.isArray(L.rules))return L.rules;if(L.rule&&L.rule!=='unk')return [L.rule];return [];}
 const MP_RULES={unk:['\u2753','Rules not checked yet'],no:['\ud83d\udeab','No promotion'],weekly:['\ud83d\udcc5','Weekly promotion thread'],ok:['\u2705','Promotion OK']};
 window.mpRuleModal=function(tr,id){
   const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
   const L=(T.links||[]).find(x=>x.id===id);if(!L)return;
+  const rs=mpRulesOf(L);
   modal(`<h3 style="margin-bottom:2px">${esc(L.label||L.url)}</h3>
-  <p class="small muted" style="margin-bottom:10px">Group rules, so future you does not get banned</p>
-  <label class="small" style="font-weight:800">Promotion rule</label>
-  <select id="mp-rule" style="margin:4px 0 10px" onchange="$('#mp-rday-wrap').style.display=this.value==='weekly'?'block':'none'">
-    ${Object.entries(MP_RULES).map(([k,v])=>`<option value="${k}" ${(L.rule||'unk')===k?'selected':''}>${v[0]} ${v[1]}</option>`).join('')}
-  </select>
-  <div id="mp-rday-wrap" style="display:${(L.rule||'unk')==='weekly'?'block':'none'}">
+  <p class="small muted" style="margin-bottom:10px">Group rules, so future you does not get banned. Check all that apply; none checked = not vetted yet.</p>
+  <label class="small" style="font-weight:800">Promotion rules</label>
+  <div style="margin:6px 0 10px">
+    ${['no','weekly','ok'].map(k=>`<label class="row small" style="gap:8px;padding:4px 0;cursor:pointer;font-weight:700"><input type="checkbox" class="mp-rule-cb" value="${k}" ${rs.includes(k)?'checked':''} onchange="$('#mp-rday-wrap').style.display=[...document.querySelectorAll('.mp-rule-cb')].some(c=>c.checked&&c.value==='weekly')?'block':'none'"> ${MP_RULES[k][0]} ${MP_RULES[k][1]}</label>`).join('')}
+  </div>
+  <div id="mp-rday-wrap" style="display:${rs.includes('weekly')?'block':'none'}">
     <label class="small" style="font-weight:800">Promo thread day</label>
     <input type="text" id="mp-rday" placeholder="e.g. Saturday" value="${esc(L.rday||'')}" style="margin:4px 0 10px">
   </div>
@@ -1309,8 +1317,10 @@ window.mpRuleModal=function(tr,id){
 window.mpSaveRule=async function(tr,id){
   const p=mp();const T=(p.tracks||[]).find(x=>x.id===tr);if(!T)return;
   const L=(T.links||[]).find(x=>x.id===id);if(!L)return;
-  L.rule=$('#mp-rule').value;L.rday=($('#mp-rday')?$('#mp-rday').value:'').trim();L.rnotes=($('#mp-rnotes').value||'').trim();
-  if(L.rule!=='weekly')L.rday='';
+  L.rules=[...document.querySelectorAll('.mp-rule-cb')].filter(c=>c.checked).map(c=>c.value);
+  delete L.rule;
+  L.rday=($('#mp-rday')?$('#mp-rday').value:'').trim();L.rnotes=($('#mp-rnotes').value||'').trim();
+  if(!L.rules.includes('weekly'))L.rday='';
   await saveMp(p);closeModal();
 };
 window.mpLogComment=async function(tr,id){
