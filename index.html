@@ -1371,6 +1371,10 @@ function vMktg(){
   (p.tracks||[]).forEach(T=>(T.links||[]).forEach(L=>{if(!L.grp){L.grp=/alphaandbetausers|sideproject|indiehackers/i.test((L.label||'')+(L.url||''))?'post':'comment';mig=true;}}));
   const RULE_SEED=[[/alphaandbetausers/i,'ok','Built for tester asks, state the stage and what feedback you want'],[/sideproject/i,'ok','Launch-friendly, low-effort promo gets ignored, screenshots help'],[/indiehackers/i,'ok','Builder community, be transparent about the zero-users stage'],[/r\/freelance/i,'no','Strict no self-promo, value comments only'],[/etsysellers/i,'no','No self-promo, answer seller questions as the accountant']];
   if(!p.outreach){p.outreach={contacts:OC_SEED.map((s,i)=>({id:'oc'+i,name:s.n,outlet:s.o,url:s.u,method:s.m,lane:s.l,angle:s.g,notes:'',status:'topitch',dates:{},codes:{},excluded:false}))};mig=true;}
+  if(p.outreach&&!p.oc_prune1){
+    const CUT=['jenniferberube.com','ashleyrcummings.com','peak freelance','crafty and competent','diginewbie','digitalmethodary','fit small business','the cfo club','pineapple (va blog)','unlike.net','procstat','technologyadvice'];
+    p.outreach.contacts.forEach(c=>{if(CUT.includes((c.outlet||'').toLowerCase())&&c.status==='topitch'&&!c.excluded){c.excluded=true;c.notes=(c.notes?c.notes+' ':'')+'auto-excluded: big-suite roundup frame, not our indie criteria';}});
+    p.oc_prune1=true;mig=true;}
   if(p.outreach&&!p.oc_round2){
     const have=new Set(p.outreach.contacts.map(c=>(c.outlet||'').toLowerCase()));
     OC_SEED2.forEach((s,i)=>{if(!have.has(s.o.toLowerCase()))p.outreach.contacts.push({id:'oc2_'+i,name:s.n,outlet:s.o,url:s.u,method:s.m,lane:s.l,angle:s.g,notes:'',status:'topitch',dates:{},codes:{},excluded:false});});
