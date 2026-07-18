@@ -1323,6 +1323,13 @@ window.mpOcEdit=function(id){
       <div class="spacer"></div>
       <button class="btn ghost sm" style="padding:2px 10px" onclick="mpOcMintModal('${c.id}','${k}')">${cd?'Replace…':'Mint…'}</button>
     </div>`;}).join('')}
+  </div>
+  <label class="small" style="font-weight:800;display:block;margin-top:12px">Email copy <span style="font-weight:600;color:var(--muted)">(name, outlet + writer code filled in)</span></label>
+  <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">
+    <button class="btn ghost sm" style="padding:2px 9px" onclick="mpOcEmailCopy('${c.id}','a')">&#128203; Roundup pitch</button>
+    <button class="btn ghost sm" style="padding:2px 9px" onclick="mpOcEmailCopy('${c.id}','b')">&#128203; Audience pitch</button>
+    <button class="btn ghost sm" style="padding:2px 9px" onclick="mpOcEmailCopy('${c.id}','fu')">&#128203; Follow-up</button>
+    <button class="btn ghost sm" style="padding:2px 9px" onclick="mpOcEmailCopy('${c.id}','re')">&#128203; Nov/Jan re-pitch</button>
   </div>`:''}
   <div class="row" style="margin-top:14px">
     ${c?`<button class="btn ghost sm" style="color:var(--bad)" onclick="mpOcDel('${c.id}')">Delete</button>`:''}
@@ -1336,6 +1343,16 @@ window.mpOcSave=async function(id){
   if(id){const c=p.outreach.contacts.find(x=>x.id===id);if(!c)return;Object.assign(c,{name:v('name'),outlet:v('outlet'),url:v('url'),method:v('method'),angle:v('angle'),notes:v('notes')});}
   else p.outreach.contacts.push({id:'oc'+Date.now(),name:v('name'),outlet:v('outlet'),url:v('url'),method:v('method'),lane:'B',angle:v('angle'),notes:v('notes'),status:'topitch',dates:{},codes:{},excluded:false});
   await saveMp(p);closeModal();
+};
+window.mpOcEmailCopy=function(id,kind){
+  const {c}=ocFind(id);if(!c)return;
+  let t=MKTG_EMAILS[kind]||'';
+  const first=((c.name||'').split(/\s+/)[0]||'');
+  if(first&&!/^(unknown|team|editors|editorial|community|contributors|the)$/i.test(first))t=t.replace(/\[NAME\]/g,first);
+  if(c.outlet){t=t.replace(/\[OUTLET\]/g,c.outlet).replace(/\[OUTLET\/ARTICLE\]/g,c.outlet);}
+  const w=c.codes&&c.codes.writer&&!c.codes.writer.pending&&c.codes.writer.code;
+  if(w)t=t.replace(/\[WRITER CODE\]/g,w);
+  copyText(t,'Email copied'+(w?' (code '+w+' filled in)':''));
 };
 window.mpOcDel=async function(id){const p=mp();p.outreach.contacts=p.outreach.contacts.filter(x=>x.id!==id);await saveMp(p);closeModal();};
 
