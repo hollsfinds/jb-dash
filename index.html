@@ -721,7 +721,7 @@ function renderNav(){
   $('#nav').innerHTML=VIEWS.map(([id,icn,label])=>
     `<button class="${S.view===id||(id==='set'&&(S.view==='skel'||S.view==='info'||S.view==='wfall'))?'on':''}" onclick="go('${id}')"><span class="ic">${ic(icn)}</span>${label}${id==='set'&&newInbox?`<span class="badge">${newInbox}</span>`:''}</button>`).join('');
 }
-function go(v){S.view=v;try{localStorage.setItem('jb_view',v)}catch(_){}render();}
+function go(v){S.view=v;render();}
 window.go=go;
 function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vDash,wfall:vSet,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,mktg:vMktg,info:vInfo,set:vSet})[S.view]();
   if(window.__unitModalId&&$('#overlay').style.display==='flex'){const u=S.units.find(x=>x.id===window.__unitModalId);if(u){$('#modal').innerHTML=unitBody(u);sizeGrowAreas();}else closeModal();}}
@@ -1093,85 +1093,54 @@ const OC_SEED=[{"n": "Gareth Noble", "o": "Freelancer Profit", "u": "https://fre
 /* ---------- BLOGGER OUTREACH TRACKER ---------- */
 const OC_STATUSES=[['topitch','To pitch'],['pitched','Pitched'],['followed','Followed up'],['replied','Replied'],['featured','Featured'],['declined','Declined'],['noreply','No response']];
 const MKTG_EMAILS={
-a:`Subject: An accountant walks into your roundup...
+a:`Subject: A new one for your accounting roundup
 
 Hi [NAME],
 
-Cheesy subject. I stand by it!
+I'm Holly. I'm an accountant, and I found your piece "[ARTICLE TITLE]" while researching what freelancers are being told to use now that QuickBooks Self-Employed is gone. It's one of the better lists out there.
 
-I'm Holls, accountant by trade, financial organizer at heart! I read "[ARTICLE TITLE]" and I have one I think your readers will love. Hutch (https://juneybyrd.com/hutch/), the app I built for freelancers and solopreneurs. Specifically for those of us that QuickBooks, Wave, and the big mainstream softwares are just too much software for.
+I built Hutch (hutch.juneybyrd.com), a bookkeeping app for freelancers and solopreneurs whose business and personal money share one account. Tag each transaction business or personal, see your real profit, and see what to set aside for taxes. It's zero-knowledge, meaning the books are encrypted before they ever leave the browser. Even I can't read them. There's a real free tier with no card required, and the paid tier is $6 a month for founding members.
 
-It's simple on purpose: tag each transaction business or personal, code the business transactions, see your real profit, get an estimate of what to set aside for taxes. The app walks you through the whole thing!
+If you think it earns a spot on your list, I'd love for your readers to know it exists. Here's a lifetime code for the paid tier, just for you, so you can poke around properly: [WRITER CODE] (redeem inside the app under Settings).
 
-And it's zero-knowledge (sounds like jargon, it's actually the best part): the books are encrypted before they ever leave the browser, so no one but the user can read them. Not even me.
+Happy to send screenshots, a blurb in your format, or answers to anything. And if it's not a fit, no hard feelings. The code is yours either way.
 
-There is a forever free tier (no card ever) and Plus is $6 a month, locked in for life for anyone who joins before early January 2027.
-
-If it earns a spot on your list, it would absolutely make my day!
-
-Here's a code with lifetime free access to the Plus version so you can poke around before you recommend to your readers: [WRITER CODE].
-
-If Hutch is a good fit for your audience, I'll set up an exclusive code that gives them 3 months of Plus free. Just say the word and I'll shoot you over a code!
-
-Thank you so much!
 Holls
 hello@juneybyrd.com`,
-b:`Subject: "Am I actually making money?" Your readers ask it. I built the app that answers it.
+b:`Subject: A freebie for your readers, from an accountant who gets it
 
 Hi [NAME],
 
-I'm Holls, accountant by trade, financial organizer at heart! I've been reading [OUTLET]. [ONE PERSONAL LINE ABOUT THEIR RECENT WORK]
+I'm Holly. I'm an accountant, and I've been reading [OUTLET]. [ONE PERSONAL LINE ABOUT THEIR RECENT WORK]
 
-I built Hutch (https://juneybyrd.com/hutch/) for freelancers and solopreneurs. Specifically for those of us whose business and personal money share one account, and who QuickBooks, Wave, and the big mainstream softwares are just too much software for.
+I built Hutch (hutch.juneybyrd.com), a money app for people whose business and personal money live in one beautiful mess of an account. It untangles them and answers the question everyone avoids: am I actually making money? No accounting homework, a real free tier, no card ever, and it's encrypted so thoroughly that even I can't see anyone's numbers.
 
-It's simple on purpose: tag each transaction business or personal, code the business transactions, see your real profit, get an estimate of what to set aside for taxes. The app walks you through the whole thing!
+Two things I'd love to offer. First, a lifetime code for the paid tier so you can try it yourself: [WRITER CODE] (redeem in the app under Settings). Second, if you ever think your readers would care, I'll set up an exclusive code that gives them 3 months of the paid tier free. No strings, no affiliate hoops. It's a genuinely useful freebie for them and word of mouth for me.
 
-And it's zero-knowledge (sounds like jargon, it's actually the best part): the books are encrypted before they ever leave the browser, so no one but the user can read them. Not even me.
+If you want screenshots, a ready-made blurb, or the backstory (I watched smart, capable people avoid their own numbers for years, so I built the tool I'd hand a friend), just reply.
 
-There is a forever free tier (no card ever) and Plus is $6 a month, locked in for life for anyone who joins before early January 2027.
-
-Here's a code with lifetime free access to Plus so you can poke around yourself: [WRITER CODE].
-
-And if Hutch is a good fit for your audience, I'll set up an exclusive code that gives your readers 3 months of Plus free. Just say the word and I'll shoot it over!
-
-Thank you so much!
 Holls
 hello@juneybyrd.com`,
 fu:`Subject: re: [ORIGINAL SUBJECT]
 
 Hi [NAME],
 
-Holls again! I know exactly how inboxes go (mine is judging me as I type this), so here's just a gentle nudge and then I'll pipe down: did you get a chance to try the code I sent?
+Holly again. I know how inboxes go, so this is my one gentle nudge: did you get a chance to try the code I sent?
 
-If it's not the right fit for [OUTLET/ARTICLE], I totally get it. If it is, say the word and I'll send over a code that gives your readers 3 months of Plus free!
+If it's not the right fit for [OUTLET/ARTICLE], a simple "not for us" works and I'll leave you be. If it is, say the word and I'll send everything you need in one tidy package: blurb, screenshots, and a 3-months-free code for your readers.
 
-Thank you so much!
 Holls
 hello@juneybyrd.com`,
-re:`Subject: Your readers are about to remember taxes exist. I can help.
+re:`Subject: Tax season is coming for your readers. I can soften the blow.
 
 Hi [NAME],
 
-Holls here, the accountant who built Hutch! I knocked a while back and just wanted to give you a quick reminder.
+Holly here, the accountant who built Hutch. I reached out a while back and I suspect the timing just wasn't right.
 
-Why now: this is the season your readers start side-eyeing their books. Hutch was built for exactly that moment. It untangles business and personal money, shows real profit, and gives them an estimate of what to set aside before April shows up uninvited. Forever free tier (no card ever) and a $6-a-month Plus version. But heads up: the $6/month price is only available until Jan 7, 2027 (locked in for life for anyone already in), then it goes to $11/month.
+The reason I'm knocking again: this is the season when your readers start dreading their books. Hutch was built for exactly that moment. It untangles business and personal money, shows real profit, and tells them what to set aside before April. Free tier, no card, private by design.
 
-Your code with lifetime free access to Plus still works: [WRITER CODE]. And if Hutch fits your audience, I'll set up a code that gives your readers 3 months of Plus free. Just say the word!
+Your lifetime code for the paid tier still works: [WRITER CODE]. And I have a 3-months-free code ready for your readers whenever you want it. One reply and I'll send the whole kit.
 
-Thank you so much!
-Holls
-hello@juneybyrd.com`,
-dec:`Subject: Quick one before Jan 7 (the $6 price has a deadline now)
-
-Hi [NAME],
-
-Holls here, the accountant behind Hutch! One last knock before the year wraps up, because a date just got real: founding pricing ends January 7.
-
-Your readers are about to do the fresh-start-January thing, and money is always on that list. Hutch is the app for freelancers and solopreneurs who want their business and personal money untangled, their real profit visible, and a tax set-aside estimate without the big-software homework. Forever free tier (no card ever). Plus is $6 a month, locked in for life for anyone in by January 7, 2027, then it's $11.
-
-Your lifetime Plus code still works: [WRITER CODE]. And if you'd like to hand your readers something for the new year, I'll set up a code for 3 months of Plus free. Say the word and it's yours!
-
-Thank you so much!
 Holls
 hello@juneybyrd.com`};
 function ocSlug(name){return (name||'writer').split(/\s+/)[0].replace(/[^a-z0-9]/gi,'').toUpperCase().slice(0,10)||'WRITER';}
@@ -1180,14 +1149,13 @@ function ocFlags(c){
   const f=[];if(c.excluded)return f;
   if(c.status==='pitched'&&c.dates&&c.dates.pitched&&(Date.now()-new Date(c.dates.pitched))>=6*864e5)f.push(['fu','follow up']);
   const now=new Date();const wave=['pitched','followed','noreply'].includes(c.status);
-  if(wave&&now>=new Date('2026-11-01')&&now<new Date('2026-12-15'))f.push(['nov','Nov re-pitch']);
-  if(wave&&now>=new Date('2026-12-15')&&now<new Date('2027-01-08'))f.push(['dec','Dec last-call']);
+  if(wave&&now>=new Date('2026-11-01')&&now<new Date('2026-12-20'))f.push(['nov','Nov re-pitch']);
+  if(wave&&now>=new Date('2027-01-02')&&now<new Date('2027-03-01'))f.push(['jan','Jan re-pitch']);
   return f;
 }
 window.ocQ=window.ocQ||'';
-function ocCodeChip(c,kind){const cd=c.codes&&c.codes[kind];if(!cd)return `<button class="btn ghost sm" style="padding:1px 7px;font-size:10px" onclick="event.stopPropagation();mpOcMint('${c.id}','${kind}')">mint ${kind==='writer'?'writer':'reader'}</button>`;
-  const _used=(cd.uses||0)>0;
-  return `<span class="chip" style="background:${_used?'var(--mint)':'var(--mist)'};border-color:${_used?'var(--mint)':'var(--mist)'};${_used?'color:#204430;':''}font-weight:800;cursor:pointer;font-size:10px" title="Click to copy${cd.pending?' · NOT YET REDEEMABLE (worker update pending)':''}" onclick="event.stopPropagation();copyText('${esc(cd.code)}','Code copied')">${esc(cd.code)}${cd.pending?' &#9203;':''} · ${cd.uses||0} used</span>`;}
+function ocCodeChip(c,kind){const cd=c.codes&&c.codes[kind];if(!cd)return `<button class="btn ghost sm" style="padding:1px 7px;font-size:10px" onclick="event.stopPropagation();mpOcMintModal('${c.id}','${kind}')">mint ${kind==='writer'?'writer':'reader'}</button>`;
+  return `<span style="display:inline-flex;align-items:center;gap:3px"><span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800;cursor:pointer;font-size:10px" title="Click to copy${cd.pending?' · NOT YET REDEEMABLE (worker update pending)':''}" onclick="event.stopPropagation();copyText('${esc(cd.code)}','Code copied')">${esc(cd.code)}${cd.pending?' &#9203;':''} · ${cd.uses||0} used</span><button class="btn ghost sm" style="padding:1px 6px;font-size:10px" title="Replace this code (old one gets deactivated)" onclick="event.stopPropagation();mpOcMintModal('${c.id}','${kind}')">&#9998;</button></span>`;}
 function ocRow(c){const fl=ocFlags(c);
   return `<div style="padding:9px 0;border-bottom:1px dashed var(--line);${c.excluded?'opacity:.45':''}">
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0">
@@ -1260,8 +1228,7 @@ function mpOcSection(){
       <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.a,'Lane A pitch copied')">&#128203; Roundup pitch</button>
       <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.b,'Lane B pitch copied')">&#128203; Audience pitch</button>
       <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.fu,'Follow-up copied')">&#128203; Follow-up</button>
-      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.re,'Nov re-pitch copied')">&#128203; Nov re-pitch</button>
-      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.dec,'Dec last-call copied')">&#128203; Dec last-call</button>
+      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.re,'Re-pitch copied')">&#128203; Nov/Jan re-pitch</button>
     </div>
     <input type="text" id="oc-search" placeholder="&#128269; Search contacts: names, sites, notes, codes, anything" value="${esc(window.ocQ||'')}" onclick="event.stopPropagation()" oninput="window.ocQ=this.value;const el=document.getElementById('oc-secs');if(el)el.innerHTML=ocSectionsHtml();" style="width:100%;margin-bottom:2px;padding:7px 10px;font-size:13px">
     <div id="oc-secs">${ocSectionsHtml()}</div>
@@ -1277,20 +1244,39 @@ window.mpOcStatus=async function(id,val){
   await saveMp(p);
 };
 window.mpOcExclude=async function(id,val){const {p,c}=ocFind(id);if(!c)return;c.excluded=!!val;await saveMp(p);};
-window.mpOcMint=async function(id,kind){
-  const {p,c}=ocFind(id);if(!c)return;
-  c.codes=c.codes||{};if(c.codes[kind])return;
+window.mpOcMintModal=function(id,kind){
+  const f=ocFind(id);const c=f.c;if(!c)return;
+  const cur=c.codes&&c.codes[kind];
   const slug=ocSlug(c.name!=='unknown'&&c.name?c.name:c.outlet);
-  const code=kind==='writer'?('HOLLS-'+slug):(slug+'3MO');
-  const body={code,type:kind==='writer'?'lifetime':'months3',tag:c.outlet,contact_id:c.id};
+  const def=cur?cur.code:(kind==='writer'?('HUTCH-'+slug):(slug+'3MO'));
+  modal(`<h3 style="margin-bottom:2px">${kind==='writer'?'Writer code · lifetime Plus, single use':'Reader code · 3 months Plus, shareable'}</h3>
+  <p class="small muted" style="margin-bottom:8px">${esc(c.outlet)}</p>
+  ${cur?`<p class="small" style="background:#fdeee9;border-radius:8px;padding:8px 10px">Replacing <b>${esc(cur.code)}</b>. The old code is deactivated the moment the new one is created${(cur.uses||0)>0?` (its ${cur.uses} past redemption${cur.uses===1?'':'s'} keep their Plus)`:''}.</p>`:''}
+  <label class="small" style="font-weight:800;display:block;margin-top:8px">Code (edit before creating)</label>
+  <input type="text" id="mint-code" value="${esc(def)}" autocomplete="off" autocapitalize="characters" spellcheck="false" style="margin-top:4px;letter-spacing:1px;font-weight:800" onkeydown="if(event.key==='Enter')mpOcMintGo('${id}','${kind}')">
+  <p class="small" id="mint-msg" style="color:var(--coral);font-weight:700;min-height:16px;margin:6px 0 0"></p>
+  <div class="row" style="margin-top:10px"><div class="spacer"></div>
+  <button class="btn ghost" onclick="closeModal()">Cancel</button>
+  <button class="btn" id="mint-go" onclick="mpOcMintGo('${id}','${kind}')">${cur?'Replace code':'Create code'}</button></div>`);
+};
+window.mpOcMintGo=async function(id,kind){
+  const f=ocFind(id);const p=f.p,c=f.c;if(!c)return;
+  const code=($('#mint-code').value||'').trim().toUpperCase().replace(/\s+/g,'');
+  if(!/^[A-Z0-9-]{4,40}$/.test(code)){$('#mint-msg').textContent='Letters, numbers, and dashes only, 4 to 40 characters.';return;}
+  const cur=c.codes&&c.codes[kind];
+  if(cur&&cur.code===code){$('#mint-msg').textContent='That is already the current code.';return;}
+  $('#mint-go').disabled=true;$('#mint-go').textContent='Working…';
+  if(cur&&!cur.pending){
+    try{await fetch(HUTCH_API+'/admin/comp-codes/deactivate',{method:'POST',headers:{'x-admin-key':hqKey()||'','content-type':'application/json'},body:JSON.stringify({code:cur.code})});}catch(_){}
+  }
   let pending=true;
   try{
-    const r=await fetch(HUTCH_API+'/admin/comp-codes',{method:'POST',headers:{'x-admin-key':hqKey()||'','content-type':'application/json'},body:JSON.stringify(body)});
+    const r=await fetch(HUTCH_API+'/admin/comp-codes',{method:'POST',headers:{'x-admin-key':hqKey()||'','content-type':'application/json'},body:JSON.stringify({code,type:kind==='writer'?'lifetime':'months3',tag:c.outlet,contact_id:c.id})});
     if(r.status===200||r.status===201)pending=false;
   }catch(_){}
-  c.codes[kind]={code,uses:0,pending};
-  await saveMp(p);
-  toast(pending?code+' saved. Worker endpoint not live yet, so it is NOT redeemable until the build task ships.':code+' created and live.');
+  c.codes=c.codes||{};c.codes[kind]={code,uses:0,pending};
+  await saveMp(p);closeModal();
+  toast(pending?code+' saved, but the worker was unreachable so it is NOT redeemable yet.':code+' is live.'+(cur?' Old code deactivated.':''));
 };
 window.mpOcSyncCodes=async function(btn,quiet){
   if(btn){btn.disabled=true;}
@@ -1329,41 +1315,10 @@ window.mpOcEdit=function(id){
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Contact method (email, form URL, or handle)</label><input type="text" id="oc-method" value="${esc((c&&c.method)||'')}" style="margin-top:4px">
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Angle</label><textarea id="oc-angle" rows="2" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px">${esc((c&&c.angle)||'')}</textarea>
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Notes</label><textarea id="oc-notes" rows="2" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px">${esc((c&&c.notes)||'')}</textarea>
-  <label class="small" style="font-weight:800;display:block;margin-top:12px">Pitch</label>
-  <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:4px">
-    <button class="btn ghost sm" onclick="mpOcPitch('a','${(c&&c.id)||''}')">&#128203; Roundup</button>
-    <button class="btn ghost sm" onclick="mpOcPitch('b','${(c&&c.id)||''}')">&#128203; Audience</button>
-    <button class="btn ghost sm" onclick="mpOcPitch('fu','${(c&&c.id)||''}')">&#128203; Follow-up</button>
-    <button class="btn ghost sm" onclick="mpOcPitch('re','${(c&&c.id)||''}')">&#128203; Nov re-pitch</button>
-    <button class="btn ghost sm" onclick="mpOcPitch('dec','${(c&&c.id)||''}')">&#128203; Dec last-call</button>
-  </div>
-  <textarea id="oc-pitch" rows="14" style="display:none;width:100%;margin-top:8px;font-family:inherit;font-size:13px;line-height:1.45;padding:10px;border:1.5px solid var(--line);border-radius:8px"></textarea>
-  <div class="row" id="oc-pitch-row" style="margin-top:6px;display:none;gap:8px;flex-wrap:wrap">
-    <button class="btn sm" style="background:var(--coral-b)" onclick="mpOcPitchCopy()">&#128203; Copy pitch + email address</button>
-    <span class="small muted" style="align-self:center">edits stay; copy grabs the address up top + the whole pitch</span>
-  </div>
   <div class="row" style="margin-top:14px">
     ${c?`<button class="btn ghost sm" style="color:var(--bad)" onclick="mpOcDel('${c.id}')">Delete</button>`:''}
     <div class="spacer"></div><button class="btn ghost" onclick="closeModal()">Cancel</button>
     <button class="btn" onclick="mpOcSave('${id||''}')">Save</button></div>`);
-};
-window.mpOcPitch=function(kind,id){
-  const g=k=>{const el=document.getElementById('oc-'+k);return el?(el.value||'').trim():'';};
-  const first=(g('name').split(/\s+/)[0])||'there';
-  const outlet=g('outlet')||g('name')||'your site';
-  let t=MKTG_EMAILS[kind]||'';
-  t=t.split('[NAME]').join(first).split('[OUTLET/ARTICLE]').join(outlet).split('[OUTLET]').join(outlet);
-  if(id){const f=ocFind(id);const c=f&&f.c;if(c&&c.codes&&c.codes.writer&&c.codes.writer.code)t=t.split('[WRITER CODE]').join(c.codes.writer.code);}
-  const ta=document.getElementById('oc-pitch');if(!ta)return;
-  ta.style.display='block';ta.value=t;
-  const row=document.getElementById('oc-pitch-row');if(row)row.style.display='flex';
-  ta.style.height='auto';ta.style.height=Math.min(420,ta.scrollHeight+4)+'px';
-};
-window.mpOcPitchCopy=function(){
-  const ta=document.getElementById('oc-pitch');
-  if(!ta||!(ta.value||'').trim()){toast('Pick a pitch above first');return;}
-  const m=(document.getElementById('oc-method')&&document.getElementById('oc-method').value||'').trim();
-  copyText('To: '+(m||'(no contact method saved)')+'\n\n'+ta.value,'Pitch + address copied! Paste it into the email.');
 };
 window.mpOcSave=async function(id){
   const p=mp();p.outreach=p.outreach||{contacts:[]};
@@ -2018,23 +1973,6 @@ window.dashTogglePub=function(){dashPubOpen=!dashPubOpen;render();};
 window.dashToday=function(){dashWkOff=0;S.week=weekStart(new Date());render();};
 window.dashWk=function(d){const w=new Date(S.week);w.setDate(w.getDate()+7*d);S.week=weekStart(w);const ws0=weekStart(new Date());const diff=Math.round((S.week-ws0)/(7*864e5));if(diff<dashWkOff)dashWkOff=diff;if(diff>dashWkOff+3)dashWkOff=diff-3;render();};
 function weekDone(w){const us=weekUnits(w);return us.length>0&&us.every(u=>u.status==='published');}
-function weekGoalsMet(w){/* all four dash tally goals hit -> tab shows a check instead of the count (mirrors vDash math) */
-  const wsIso=iso(w);
-  const units=weekUnits(w);
-  const social=units.filter(u=>u.kind==='social');
-  const blogTasks=units.filter(u=>u.kind==='blog-task');
-  const cad=S.settings.cadence||{};
-  const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));
-  const _pubWkIds=new Set(S.blog.filter(b=>b.status==='published'&&b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso).map(b=>String(b.id)));
-  const _asgIds=((S.settings.blog_assign||{})[wsIso]||[]).filter(id=>!_pubWkIds.has(String(id))&&S.blog.some(b=>String(b.id)===String(id)));
-  const blogsPub=blogTasks.filter(u=>u.status==='published').length+_pubWkIds.size+_asgIds.length;
-  const pw=pillarWeek(w);
-  const slotsFilled=pw.reduce((a,s)=>a+Math.min(s.done,s.goal),0);
-  const hasCopy=u=>{const c=u.copy||{};return !!(c.caption||c.pin_title);};
-  const started=social.filter(u=>u.status!=='idea'||hasCopy(u)).length;
-  const outdoor=social.filter(u=>['scheduled','published'].includes(u.status)).length;
-  return blogsPub>=blogGoal&&slotsFilled>=7&&started>=7&&outdoor>=7;
-}
 function csPinsWeek(ws){
   if(!S.csPosts)return null;
   const wEnd=new Date(ws);wEnd.setDate(wEnd.getDate()+7);
@@ -2097,7 +2035,7 @@ function vDash(){
     </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${fmtRange(ws)}</span></div>
-  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>{const _gm=weekGoalsMet(w)||weekDone(w);return `<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${_gm?'<span class="wkck">✓</span>':(weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:'')}</button>`;}).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncWP(this)">${ic('refresh')} Sync J&amp;B</button><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted" style="align-self:center;margin-bottom:6px">${csSyncedLabel()}</span></div>
+  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncWP(this)">${ic('refresh')} Sync J&amp;B</button><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted" style="align-self:center;margin-bottom:6px">${csSyncedLabel()}</span></div>
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?'':`<div class="tfix">→ plan a blog post</div>`,
@@ -3234,7 +3172,6 @@ window.saveAnthKey=saveAnthKey;
   $('#main').innerHTML='<div class="card" style="margin-top:40px;text-align:center"><p class="muted">Loading the brain...</p></div>';
   initResizer();
   try{await loadAll();}catch(e){$('#main').innerHTML=`<div class="card"><p><b>Could not load data.</b></p><p class="small muted">${esc(e.message)}. Did you run schema.sql in Supabase yet?</p></div>`;renderNav();return;}
-  try{const _v=localStorage.getItem('jb_view');if(_v&&({dash:1,plan:1,packs:1,wfall:1,skel:1,brain:1,season:1,numbers:1,mktg:1,info:1,set:1})[_v])S.view=_v;}catch(_){}
   render();
 })();
 </script>
