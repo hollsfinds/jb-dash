@@ -1153,32 +1153,18 @@ function ocFlags(c){
   if(wave&&now>=new Date('2027-01-02')&&now<new Date('2027-03-01'))f.push(['jan','Jan re-pitch']);
   return f;
 }
-window.ocF=window.ocF||{s:'active',lane:''};
 function mpOcSection(){
   const p=mp();const oc=(p.outreach&&p.outreach.contacts)||[];
   const act=oc.filter(c=>!c.excluded);
-  const stCount=s=>act.filter(c=>c.status===s).length;
   const wUses=oc.reduce((a,c)=>a+((c.codes&&c.codes.writer&&c.codes.writer.uses)||0),0);
   const rUses=oc.reduce((a,c)=>a+((c.codes&&c.codes.reader&&c.codes.reader.uses)||0),0);
   const wMint=oc.filter(c=>c.codes&&c.codes.writer).length,rMint=oc.filter(c=>c.codes&&c.codes.reader).length;
-  const F=window.ocF;
-  const match=c=>{
-    if(F.lane&&c.lane!==F.lane)return false;
-    if(F.s==='excluded')return !!c.excluded;
-    if(c.excluded)return false;
-    if(F.s==='active')return true;
-    if(F.s==='inflight')return ['pitched','followed'].includes(c.status);
-    return c.status===F.s;
-  };
-  const rows=oc.filter(match);
-  const chip=(id,label,on)=>`<span class="chip" style="cursor:pointer;${on?'background:var(--navy);color:#fff;border-color:var(--navy)':''}" onclick="event.stopPropagation();window.ocF.s='${id}';render()">${label}</span>`;
-  const laneChip=l=>`<span class="chip" style="cursor:pointer;${F.lane===l?'background:var(--teal);color:#fff;border-color:var(--teal)':''}" onclick="event.stopPropagation();window.ocF.lane=window.ocF.lane==='${l}'?'':'${l}';render()">Lane ${l}</span>`;
+  window.ocOpen=window.ocOpen||{};
   const codeChip=(c,kind)=>{const cd=c.codes&&c.codes[kind];if(!cd)return `<button class="btn ghost sm" style="padding:1px 7px;font-size:10px" onclick="event.stopPropagation();mpOcMint('${c.id}','${kind}')">mint ${kind==='writer'?'writer':'reader'}</button>`;
     return `<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800;cursor:pointer;font-size:10px" title="Click to copy${cd.pending?' · NOT YET REDEEMABLE (worker update pending)':''}" onclick="event.stopPropagation();copyText('${esc(cd.code)}','Code copied')">${esc(cd.code)}${cd.pending?' &#9203;':''} · ${cd.uses||0} used</span>`;};
   const row=c=>{const fl=ocFlags(c);
     return `<div style="padding:9px 0;border-bottom:1px dashed var(--line);${c.excluded?'opacity:.45':''}">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0">
-      <span class="chip" style="flex:none;font-size:10px;font-weight:900;${c.lane==='A'?'background:#fdeee9;color:var(--coral-d)':'background:var(--mist);color:var(--teal-dk)'}">${c.lane}</span>
       <a href="${esc(c.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:800;color:var(--navy);text-decoration:none">${esc(c.name!=='unknown'&&c.name?c.name+' · ':'')}${esc(c.outlet)} &#8599;</a>
       ${fl.map(f=>`<span class="chip" style="flex:none;font-size:10px;font-weight:900;background:${f[0]==='fu'?'var(--coral)':'var(--warn)'};color:#fff;border-color:transparent;white-space:nowrap">${f[1]}</span>`).join('')}
       ${c.excluded?`<button class="btn ghost sm" style="flex:none;padding:1px 8px;font-size:10px" onclick="event.stopPropagation();mpOcExclude('${c.id}',false)">restore</button>`:`
@@ -1186,32 +1172,43 @@ function mpOcSection(){
       <button class="btn ghost sm" style="flex:none;padding:2px 8px" title="Edit" onclick="event.stopPropagation();mpOcEdit('${c.id}')">&#9998;</button>
       <span style="flex:none;cursor:pointer;font-weight:900;color:var(--muted);padding:0 2px" title="${c.excluded?'':'Exclude from the list'}" onclick="event.stopPropagation();${c.excluded?'':`mpOcExclude('${c.id}',true)`}">${c.excluded?'':'&times;'}</span>
     </div>
-    <div class="small muted" style="margin:3px 0 0 34px;line-height:1.45">${esc((c.angle||'').slice(0,140))}${(c.angle||'').length>140?'…':''}${c.notes?` <b style="color:var(--navy)">· ${esc(c.notes.slice(0,80))}</b>`:''}</div>
-    <div style="display:flex;align-items:center;gap:8px;margin:5px 0 0 34px;flex-wrap:wrap">
+    <div class="small muted" style="margin:3px 0 0 2px;line-height:1.45">${esc((c.angle||'').slice(0,140))}${(c.angle||'').length>140?'…':''}${c.notes?` <b style="color:var(--navy)">· ${esc(c.notes.slice(0,80))}</b>`:''}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin:5px 0 0 2px;flex-wrap:wrap">
       ${c.dates&&c.dates.pitched?`<span class="small muted" style="white-space:nowrap">pitched ${esc(c.dates.pitched.slice(5))}</span>`:''}
       ${c.excluded?'':codeChip(c,'writer')}
       ${c.excluded?'':codeChip(c,'reader')}
     </div>
   </div>`;};
+  const nameOf=c=>String((c.name&&c.name!=='unknown'?c.name:c.outlet)||'').toLowerCase();
+  const srt=a2=>[...a2].sort((x,y)=>nameOf(x).localeCompare(nameOf(y)));
+  const sections=OC_STATUSES.map(([v,l])=>({key:v,label:l,items:srt(act.filter(c=>c.status===v))}));
+  sections.push({key:'excluded',label:'Excluded',items:srt(oc.filter(c=>c.excluded))});
+  const sec=s=>{if(!s.items.length)return '';
+    const open=window.ocOpen[s.key]===true;
+    const nFlag=s.items.reduce((a,c)=>a+(ocFlags(c).length?1:0),0);
+    return `<div style="border-top:1px dashed var(--line)">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0" onclick="event.stopPropagation();window.ocOpen['${s.key}']=!window.ocOpen['${s.key}'];render()">
+        <b class="small" style="color:var(--navy)">${open?'&#9662;':'&#9656;'} ${s.label}</b>
+        <span class="small muted" style="font-weight:800">${s.items.length}</span>
+        ${nFlag?`<span class="chip" style="font-size:10px;font-weight:900;background:var(--coral);color:#fff;border-color:transparent">${nFlag} need attention</span>`:''}
+      </div>
+      ${open?s.items.map(row).join(''):''}
+    </div>`;};
   return `<div style="padding:10px 0 4px;border-top:1px dashed var(--line);margin-top:10px">
-    <div class="small" style="font-weight:900;color:var(--muted);letter-spacing:.04em">CONTACTS <span style="font-weight:700">· ${act.length} active · ${stCount('pitched')+stCount('followed')} in flight · ${stCount('featured')} featured</span></div>
-    <div class="row" style="gap:6px;flex-wrap:wrap;margin:8px 0">
-      ${chip('active','All',F.s==='active')}${chip('topitch','To pitch',F.s==='topitch')}${chip('inflight','In flight',F.s==='inflight')}${chip('replied','Replied',F.s==='replied')}${chip('featured','Featured',F.s==='featured')}${chip('noreply','No response',F.s==='noreply')}${chip('excluded','Excluded',F.s==='excluded')}
-      ${laneChip('A')}${laneChip('B')}
-    </div>
-    <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px">
+    <div class="small" style="font-weight:900;color:var(--muted);letter-spacing:.04em">CONTACTS <span style="font-weight:700">· ${act.length} active · ${act.filter(c=>['pitched','followed'].includes(c.status)).length} in flight · ${act.filter(c=>c.status==='featured').length} featured</span></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin:8px 0 6px">
       <span class="small" style="font-weight:800;color:var(--teal)">Codes: ${wMint} writer minted · ${wUses} redeemed · ${rMint} reader minted · ${rUses} reader signups</span>
       <div class="spacer"></div>
+      <button class="btn sm" style="padding:2px 10px;background:var(--teal)" onclick="event.stopPropagation();mpOcEdit('')">+ Add contact</button>
       <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();mpOcSyncCodes(this)">&#8635; code stats</button>
     </div>
     <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:4px">
-      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.a,'Lane A pitch copied')">&#128203; Lane A pitch</button>
-      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.b,'Lane B pitch copied')">&#128203; Lane B pitch</button>
+      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.a,'Lane A pitch copied')">&#128203; Roundup pitch</button>
+      <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.b,'Lane B pitch copied')">&#128203; Audience pitch</button>
       <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.fu,'Follow-up copied')">&#128203; Follow-up</button>
       <button class="btn ghost sm" style="padding:2px 9px" onclick="event.stopPropagation();copyText(MKTG_EMAILS.re,'Re-pitch copied')">&#128203; Nov/Jan re-pitch</button>
     </div>
-    ${rows.map(row).join('')||'<p class="small muted" style="padding:8px 0">Nothing matches this filter.</p>'}
-    <div style="margin-top:8px"><button class="btn ghost sm" style="padding:2px 10px" onclick="event.stopPropagation();mpOcEdit('')">+ Add contact</button></div>
+    ${sections.map(sec).join('')||'<p class="small muted" style="padding:8px 0">No contacts yet.</p>'}
   </div>`;
 }
 function ocFind(id){const p=mp();const oc=(p.outreach&&p.outreach.contacts)||[];return {p,c:oc.find(x=>x.id===id)};}
@@ -1274,7 +1271,6 @@ window.mpOcEdit=function(id){
   <div style="flex:1"><label class="small" style="font-weight:800">Outlet</label><input type="text" id="oc-outlet" value="${esc((c&&c.outlet)||'')}" style="margin-top:4px"></div></div>
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Article / site URL</label><input type="text" id="oc-url" value="${esc((c&&c.url)||'')}" style="margin-top:4px">
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Contact method (email, form URL, or handle)</label><input type="text" id="oc-method" value="${esc((c&&c.method)||'')}" style="margin-top:4px">
-  <div class="row" style="gap:10px;margin-top:10px"><div><label class="small" style="font-weight:800">Lane</label><select id="oc-lane" style="margin-top:4px"><option value="A" ${(!c||c.lane==='A')?'selected':''}>A · roundup</option><option value="B" ${(c&&c.lane==='B')?'selected':''}>B · audience</option></select></div></div>
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Angle</label><textarea id="oc-angle" rows="2" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px">${esc((c&&c.angle)||'')}</textarea>
   <label class="small" style="font-weight:800;display:block;margin-top:10px">Notes</label><textarea id="oc-notes" rows="2" style="width:100%;margin-top:4px;font-family:inherit;font-size:13px;padding:8px;border:1.5px solid var(--line);border-radius:8px">${esc((c&&c.notes)||'')}</textarea>
   <div class="row" style="margin-top:14px">
@@ -1286,8 +1282,8 @@ window.mpOcSave=async function(id){
   const p=mp();p.outreach=p.outreach||{contacts:[]};
   const v=k=>($('#oc-'+k).value||'').trim();
   if(!v('outlet')&&!v('name'))return;
-  if(id){const c=p.outreach.contacts.find(x=>x.id===id);if(!c)return;Object.assign(c,{name:v('name'),outlet:v('outlet'),url:v('url'),method:v('method'),lane:$('#oc-lane').value,angle:v('angle'),notes:v('notes')});}
-  else p.outreach.contacts.push({id:'oc'+Date.now(),name:v('name'),outlet:v('outlet'),url:v('url'),method:v('method'),lane:$('#oc-lane').value,angle:v('angle'),notes:v('notes'),status:'topitch',dates:{},codes:{},excluded:false});
+  if(id){const c=p.outreach.contacts.find(x=>x.id===id);if(!c)return;Object.assign(c,{name:v('name'),outlet:v('outlet'),url:v('url'),method:v('method'),angle:v('angle'),notes:v('notes')});}
+  else p.outreach.contacts.push({id:'oc'+Date.now(),name:v('name'),outlet:v('outlet'),url:v('url'),method:v('method'),lane:'B',angle:v('angle'),notes:v('notes'),status:'topitch',dates:{},codes:{},excluded:false});
   await saveMp(p);closeModal();
 };
 window.mpOcDel=async function(id){const p=mp();p.outreach.contacts=p.outreach.contacts.filter(x=>x.id!==id);await saveMp(p);closeModal();};
