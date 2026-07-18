@@ -1954,6 +1954,23 @@ window.dashTogglePub=function(){dashPubOpen=!dashPubOpen;render();};
 window.dashToday=function(){dashWkOff=0;S.week=weekStart(new Date());render();};
 window.dashWk=function(d){const w=new Date(S.week);w.setDate(w.getDate()+7*d);S.week=weekStart(w);const ws0=weekStart(new Date());const diff=Math.round((S.week-ws0)/(7*864e5));if(diff<dashWkOff)dashWkOff=diff;if(diff>dashWkOff+3)dashWkOff=diff-3;render();};
 function weekDone(w){const us=weekUnits(w);return us.length>0&&us.every(u=>u.status==='published');}
+function weekGoalsMet(w){/* all four dash tally goals hit -> tab shows a check instead of the count (mirrors vDash math) */
+  const wsIso=iso(w);
+  const units=weekUnits(w);
+  const social=units.filter(u=>u.kind==='social');
+  const blogTasks=units.filter(u=>u.kind==='blog-task');
+  const cad=S.settings.cadence||{};
+  const blogGoal=Math.max(1,Math.round((cad.blog_per_month||4)/4));
+  const _pubWkIds=new Set(S.blog.filter(b=>b.status==='published'&&b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso).map(b=>String(b.id)));
+  const _asgIds=((S.settings.blog_assign||{})[wsIso]||[]).filter(id=>!_pubWkIds.has(String(id))&&S.blog.some(b=>String(b.id)===String(id)));
+  const blogsPub=blogTasks.filter(u=>u.status==='published').length+_pubWkIds.size+_asgIds.length;
+  const pw=pillarWeek(w);
+  const slotsFilled=pw.reduce((a,s)=>a+Math.min(s.done,s.goal),0);
+  const hasCopy=u=>{const c=u.copy||{};return !!(c.caption||c.pin_title);};
+  const started=social.filter(u=>u.status!=='idea'||hasCopy(u)).length;
+  const outdoor=social.filter(u=>['scheduled','published'].includes(u.status)).length;
+  return blogsPub>=blogGoal&&slotsFilled>=7&&started>=7&&outdoor>=7;
+}
 function csPinsWeek(ws){
   if(!S.csPosts)return null;
   const wEnd=new Date(ws);wEnd.setDate(wEnd.getDate()+7);
@@ -2016,7 +2033,7 @@ function vDash(){
     </div>`;
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Dashboard</h1><span class="sub">${fmtRange(ws)}</span></div>
-  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>`<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:''}${weekDone(w)?'<span class="wkck">✓</span>':''}</button>`).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncWP(this)">${ic('refresh')} Sync J&amp;B</button><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted" style="align-self:center;margin-bottom:6px">${csSyncedLabel()}</span></div>
+  <div class="tabbar"><button class="wknav" style="font-size:11.5px;font-weight:800;letter-spacing:.5px;${iso(weekStart(new Date()))===wsIso?'opacity:.35':'color:var(--coral-b)'}" onclick="dashToday()">TODAY</button><button class="wknav" onclick="dashWk(-1)">‹</button>${weeks.map(w=>{const _gm=weekGoalsMet(w)||weekDone(w);return `<button class="${iso(w)===wsIso?'on':''}" onclick="setWeek('${iso(w)}')">${fmtRange(w)}${_gm?'<span class="wkck">✓</span>':(weekUnits(w).length?`<span class="wkn">${weekUnits(w).length}</span>`:'')}</button>`;}).join('')}<button class="wknav" onclick="dashWk(1)">›</button><div class="spacer"></div><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncWP(this)">${ic('refresh')} Sync J&amp;B</button><button class="btn ghost sm" style="align-self:center;margin-bottom:6px" onclick="syncCS(this)">${ic('refresh')} Sync CS</button><span class="small muted" style="align-self:center;margin-bottom:6px">${csSyncedLabel()}</span></div>
   <div class="tallies">
     ${tally(blogsPub,blogGoal,'Blogs published · wk',
       blogAct?'':`<div class="tfix">→ plan a blog post</div>`,
