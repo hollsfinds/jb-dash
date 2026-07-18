@@ -721,7 +721,7 @@ function renderNav(){
   $('#nav').innerHTML=VIEWS.map(([id,icn,label])=>
     `<button class="${S.view===id||(id==='set'&&(S.view==='skel'||S.view==='info'||S.view==='wfall'))?'on':''}" onclick="go('${id}')"><span class="ic">${ic(icn)}</span>${label}${id==='set'&&newInbox?`<span class="badge">${newInbox}</span>`:''}</button>`).join('');
 }
-function go(v){S.view=v;render();}
+function go(v){S.view=v;try{localStorage.setItem('jb_view',v)}catch(_){}render();}
 window.go=go;
 function render(){renderNav();renderTodo();({dash:vDash,plan:vDash,packs:vDash,wfall:vSet,skel:vSkel,brain:vBrain,season:vSeason,numbers:vNumbers,mktg:vMktg,info:vInfo,set:vSet})[S.view]();
   if(window.__unitModalId&&$('#overlay').style.display==='flex'){const u=S.units.find(x=>x.id===window.__unitModalId);if(u){$('#modal').innerHTML=unitBody(u);sizeGrowAreas();}else closeModal();}}
@@ -3170,6 +3170,7 @@ window.saveAnthKey=saveAnthKey;
   $('#main').innerHTML='<div class="card" style="margin-top:40px;text-align:center"><p class="muted">Loading the brain...</p></div>';
   initResizer();
   try{await loadAll();}catch(e){$('#main').innerHTML=`<div class="card"><p><b>Could not load data.</b></p><p class="small muted">${esc(e.message)}. Did you run schema.sql in Supabase yet?</p></div>`;renderNav();return;}
+  try{const _v=localStorage.getItem('jb_view');if(_v&&({dash:1,plan:1,packs:1,wfall:1,skel:1,brain:1,season:1,numbers:1,mktg:1,info:1,set:1})[_v])S.view=_v;}catch(_){}
   render();
 })();
 </script>
