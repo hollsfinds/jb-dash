@@ -2465,7 +2465,7 @@ function unitBody(u){
     <div class="row" style="flex-wrap:wrap;margin-bottom:10px;padding-right:38px">
       <b>${u.kind==='blog-task'?ic('pen')+' ':''}${esc(u.title)}</b>
       ${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}
-      <span class="chip">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][u.day]||''}</span>
+      <select class="chip" title="change the day" style="cursor:pointer;font:inherit;font-weight:800" onchange="updUnit('${u.id}',{day:+this.value}).then(render)">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`<option value="${i}" ${i===(u.day||0)?'selected':''}>${d}</option>`).join('')}</select>
       ${c.cs_status?`<a class="chip" href="${esc(c.cs_url||'#')}" target="_blank" rel="noopener" style="text-decoration:none;color:${c.cs_status==='published'?'var(--good)':c.cs_status==='draft'?'var(--warn)':'var(--navy)'}">CS: ${esc(c.cs_status)}</a>`:''}
     </div>
     <div style="margin:14px 0 4px">
