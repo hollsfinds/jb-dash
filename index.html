@@ -2889,7 +2889,18 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: a scroll-stopping hook whose first 3 words earn the tap, under 85 characters. Do NOT put a website, URL, or juneybyrd.com anywhere in the title. No links, no hashtags.",
 ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 6 words; if it names a count it MUST match the number of items below","page2_items":["3 to 5 short steps for THIS topic as separate array items, each under 6 words, punchy, no time claims. CRITICAL: if the cover headline/sub or the page-2 header names a specific number (like 'the 3 questions'), output EXACTLY that many items, no padding"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
-    const out=await claude(VOICE,ask,1900);
+    // WEEK DIVERSITY: gather the angles already used by this week's OTHER units so this one comes out different
+    let _divBlock='';
+    try{
+      const _sib=S.units.filter(x=>x.week_start===u.week_start&&x.kind==='social'&&String(x.id)!==String(u.id));
+      const _angle=cc=>{cc=cc||{};const h=(cc.slots&&(cc.slots.HEADLINE||cc.slots.TITLE||cc.slots.HOOK))||'';const pt=cc.pin_title||'';const cap=(cc.caption||'').split(/[.!?\n]/)[0].trim();return [h,pt,cap].filter(Boolean).join(' / ');};
+      const _used=_sib.map(x=>_angle(x.copy)).filter(Boolean);
+      const _self=_angle(u.copy);
+      if(_used.length||_self){
+        _divBlock='WEEK DIVERSITY (critical): I am posting a whole week of content and it must NOT feel like the same post over and over. These angles are ALREADY used in this week\'s other posts, so you MUST come at THIS one from a clearly DIFFERENT angle, hook, opening line, and core concept than every one of them, even when the topic or source blog is the same (find a new entry point: a different pain, a different question, a different format of hook, a different moment). Do NOT reuse the same first words, the same metaphor, or the same structure. Already used: '+_used.map((a,i)=>'('+(i+1)+') '+a).join('  ||  ')+(_self?'  ||  (this post\'s old copy you are replacing, also do not repeat it): '+_self:'')+'.\n\n';
+      }
+    }catch(e){}
+    const out=await claude(VOICE,_divBlock+ask,1900);
     const j=stripDashes(extractJSON(out));
     if(isProd)delete j.source_url;/* product units keep the product page link; never let the model overwrite it */
     if(opts&&opts.noSave){return j;}
