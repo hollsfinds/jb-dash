@@ -295,11 +295,13 @@ async function saveSetting(key,value){await sb.from('jb_settings').upsert({key,v
 async function updUnit(id,patch){patch.updated_at=new Date().toISOString();await sb.from('jb_units').update(patch).eq('id',id);const u=S.units.find(x=>x.id===id);Object.assign(u,patch);}
 
 /* ================= CLAUDE ================= */
-async function claude(system,user,maxTok=1500,useSearch=false){
+async function claude(system,user,maxTok=1500,useSearch=false,fetchUrl=null){
   if(!S.anthKey)throw new Error('No Anthropic key found (pinterest_auth id=anth_key).');
   const body={model:MODEL,max_tokens:maxTok,system,messages:[{role:'user',content:user}]};
+  const headers={'content-type':'application/json','x-api-key':S.anthKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
   if(useSearch)body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3}];
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':S.anthKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(body)});
+  if(fetchUrl){let _host='';try{_host=new URL(fetchUrl).host;}catch(e){}body.tools=[{type:'web_fetch_20250910',name:'web_fetch',max_uses:5,...(_host?{allowed_domains:[_host]}:{})}];headers['anthropic-beta']='web-fetch-2025-09-10';}
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body)});
   if(!r.ok)throw new Error('Claude API '+r.status);
   const j=await r.json();
   return j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
@@ -1976,10 +1978,19 @@ async function dashSuggest(p,btn){
     const used=S.topics.filter(t=>['used','denied'].includes(t.status)).map(t=>t.title).slice(0,40);
     const _pb=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);const _bl=_pb.map((b,i)=>`${i+1}="${b.title}"`).join('; ');
     const _ct=(p===3)?(((S.settings.week_tool||{})[iso(S.week)])||[]).filter(k=>ppProducts()[k]):[];
-    let ask;
-    if(_ct.length){const _ti=_ct.map(k=>(ppProducts()[k]||{}).label||k).join(' and ');const _feat=_ct.map(k=>{const f=toolFeatures(k);return ((ppProducts()[k]||{}).label||k)+': '+(f||'(no feature list saved for this tool; describe ONLY its core purpose and invent nothing)');}).join('  ||  ');ask=`Plan 5 "Tools talking" social post topics for Juney & Byrd about this REAL product only: ${_ti}. Use ONLY the real features listed here and invent nothing beyond them:\n${_feat}\nEvery topic must be grounded in one of the real features above, or the real problem it solves, in plain words. HARD RULE: never invent a feature, section, screen, tab, button, ritual, integration, or behavior that is not in the list above (for example, do NOT invent a "Wins this week" section, "weekly reflection prompts", or say it "lives in Notes"). Never mention any other product. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;}
-    else{ask=`Suggest 5 short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd (life-admin brand: money for freelancers via the Hutch bookkeeping app and the Stash savings app, habits, home organization, planning).${_pb.length?` This week's processing blog posts, NUMBERED: ${_bl}. Make about HALF the topics fresh angles that promote or riff on one of these posts through the lens of pillar ${p} (${PILLARS[p]}); make the rest fresh pillar topics not tied to a post, so I get a real choice. For EACH topic set "b" to the NUMBER of the blog post it promotes, or 0 if it is a fresh pillar topic tied to no post.`:` For each topic set "b" to 0.`} Topics must be about real life or REAL product features, never about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;}
-    const out=await claude(VOICE,ask,_ct.length?900:750);
+    let out;
+    if(_ct.length){
+      const _url=_ct.map(k=>(ppProducts()[k]||{}).page_url).filter(Boolean)[0]||'';
+      const _ti=_ct.map(k=>(ppProducts()[k]||{}).label||k).join(' and ');
+      const _feat=_ct.map(k=>{const f=toolFeatures(k);return ((ppProducts()[k]||{}).label||k)+': '+(f||'(core purpose only, invent nothing)');}).join('  ||  ');
+      const _guard=`HARD RULE: never invent a feature, section, screen, tab, button, ritual, integration, or behavior (for example never invent a "Wins this week" section, "weekly reflection prompts", or say it "lives in Notes"). Never mention any other product. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
+      const askLive=`Plan 5 "Tools talking" social post topics for Juney & Byrd about this REAL product only: ${_ti}.${_url?` FETCH and READ this live product page and base EVERY topic ONLY on the real, current features it actually describes: ${_url}`:''} If you cannot read the page, use only these known facts and nothing more: ${_feat}. ${_guard}`;
+      const askGrounded=`Plan 5 "Tools talking" social post topics for Juney & Byrd about this REAL product only: ${_ti}. Use ONLY these real features and invent nothing beyond them: ${_feat}. Every topic is grounded in one of these features or the real problem it solves. ${_guard}`;
+      try{out=await claude(VOICE,askLive,1200,false,_url||null);}catch(e){out=await claude(VOICE,askGrounded,900);}
+    }else{
+      const ask=`Suggest 5 short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd (life-admin brand: money for freelancers via the Hutch bookkeeping app and the Stash savings app, habits, home organization, planning).${_pb.length?` This week's processing blog posts, NUMBERED: ${_bl}. Make about HALF the topics fresh angles that promote or riff on one of these posts through the lens of pillar ${p} (${PILLARS[p]}); make the rest fresh pillar topics not tied to a post, so I get a real choice. For EACH topic set "b" to the NUMBER of the blog post it promotes, or 0 if it is a fresh pillar topic tied to no post.`:` For each topic set "b" to 0.`} Topics must be about real life or REAL product features, never about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
+      out=await claude(VOICE,ask,750);
+    }
     const j=extractJSON(out);
     const _tb={...(S.settings.topic_blog||{})};let _tbc=false;
     for(const it of (j.topics||[]).slice(0,5)){
