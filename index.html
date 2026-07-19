@@ -1969,14 +1969,18 @@ async function dashSuggest(p,btn){
   btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
   try{
     const used=S.topics.filter(t=>['used','denied'].includes(t.status)).map(t=>t.title).slice(0,40);
-    const _pb=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);const _bl=_pb.map(b=>`"${b.title}"`).join(', ');
-    const ask=`Suggest 5 short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd (life-admin brand: money for freelancers via the Hutch bookkeeping app and the Stash savings app, habits, home organization, planning).${_pb.length?` This week's processing blog posts: ${_bl}. Make about HALF the topics fresh angles that promote or riff on one of these posts through the lens of pillar ${p} (${PILLARS[p]}); make the rest fresh pillar topics not tied to a post, so I get a real choice.`:''} Topics must be about real life or REAL product features, never about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":["...","...","...","...","..."]}. Topics are short working titles, not captions.`;
-    const out=await claude(VOICE,ask,600);
+    const _pb=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);const _bl=_pb.map((b,i)=>`${i+1}="${b.title}"`).join('; ');
+    const ask=`Suggest 5 short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd (life-admin brand: money for freelancers via the Hutch bookkeeping app and the Stash savings app, habits, home organization, planning).${_pb.length?` This week's processing blog posts, NUMBERED: ${_bl}. Make about HALF the topics fresh angles that promote or riff on one of these posts through the lens of pillar ${p} (${PILLARS[p]}); make the rest fresh pillar topics not tied to a post, so I get a real choice. For EACH topic set "b" to the NUMBER of the blog post it promotes, or 0 if it is a fresh pillar topic tied to no post.`:` For each topic set "b" to 0.`} Topics must be about real life or REAL product features, never about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
+    const out=await claude(VOICE,ask,750);
     const j=extractJSON(out);
-    for(const title of (j.topics||[]).slice(0,5)){
+    const _tb={...(S.settings.topic_blog||{})};let _tbc=false;
+    for(const it of (j.topics||[]).slice(0,5)){
+      const title=(typeof it==='string')?it:(it.t||it.title||'');if(!title)continue;
+      const bn=(it&&typeof it==='object'&&+it.b)?+it.b:0;
       const {data}=await sb.from('jb_topics').insert({title,pillar:p,source:'dash',status:'idea'}).select();
-      if(data)S.topics.unshift(data[0]);
+      if(data){S.topics.unshift(data[0]);if(bn>=1&&_pb[bn-1]){_tb[String(data[0].id)]=String(_pb[bn-1].id);_tbc=true;}}
     }
+    if(_tbc)await saveSetting('topic_blog',_tb);
     render();
   }catch(e){toast('Suggest failed: '+e.message);render();}
 }
@@ -2167,7 +2171,7 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
           const cands=all.filter(b=>b.status!=='waterfalled'&&!done.has(String(b.id))&&!_lid.has(String(b.id)));
           const procd=all.filter(b=>!_lid.has(String(b.id))&&!cands.includes(b));
           if(!all.length&&!_fl.length)return '';
-          const chips=_fl.map(b=>`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800;max-width:100%;white-space:normal;line-height:1.35"><a href="${esc(b.url||'#')}" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">${esc(deent(b.title))}</a> <span title="Un-pick this post" style="cursor:pointer;font-weight:900;padding-left:4px" onclick="removeWeekFocus('${wsIso}','${b.id}')">\u00d7</span></span>`).join(' ');
+          const chips=_fl.map((b,bi)=>`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800;max-width:100%;white-space:normal;line-height:1.35"><span style="flex:none;width:19px;height:19px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;margin-right:3px">${bi+1}</span><a href="${esc(b.url||'#')}" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">${esc(deent(b.title))}</a> <span title="Un-pick this post" style="cursor:pointer;font-weight:900;padding-left:4px" onclick="removeWeekFocus('${wsIso}','${b.id}')">\u00d7</span></span>`).join(' ');
           const dd=all.length?`<select style="flex:1;min-width:170px;max-width:340px" onchange="if(this.value)addWeekFocus('${wsIso}',this.value)"><option value="">${_fl.length?'+ another post to process\u2026':'Process a post this week\u2026'}</option>${cands.map(b=>`<option value="${b.id}">${esc(deent(b.title).slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc(deent(b.title).slice(0,52))}</option>`).join('')}</optgroup>`:''}</select>`:'';
           return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap">${_fl.length?`<span class="muted">Processing:</span> ${chips}`:''}${dd}</div>`;})()}
         ${(()=>{const m=S.settings.blog_assign||{};const asg=(m[wsIso]||[]);
@@ -2181,7 +2185,7 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
         <div class="row" style="margin-left:26px;margin-top:8px;flex-wrap:wrap;gap:6px">
           <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
           ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
-          ${S.blog.some(b=>['published','waterfalled'].includes(b.status)&&b.url)?`<span class="rbtn" style="border-color:var(--coral);color:var(--coral-b)" onclick="pinBatchModal('${(weekFocus(wsIso)||{}).id||''}')">${ic('pin')} Pin batch</span>`:''}
+          ${S.blog.some(b=>['published','waterfalled'].includes(b.status)&&b.url)?`<span class="rbtn" style="border-color:var(--coral);color:var(--coral-b);flex:1 1 100%;text-align:center" onclick="pinBatchModal('${(weekFocus(wsIso)||{}).id||''}')">${ic('pin')} Pin batch</span>`:''}
         </div>
       </div>
       <div class="card stepcard" style="margin-top:18px">
@@ -2197,7 +2201,7 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
         <div class="meter ${s.done===0?'zero':''}"><i class="${s.done>s.goal?'over':s.done>=s.goal?'done':''}" style="width:${s.done===0?0:Math.min(100,(s.done/(s.goal||1))*100)}%"></i></div>
         ${dashPillar===s.p?`
         <div style="margin:8px 0 4px 8px;padding-left:10px;border-left:3px solid var(--line)">
-          ${ideasFor(s.p).slice(0,6).map(t=>`<div class="row" style="padding:4px 0"><span class="small" style="flex:1">${esc(t.title)}</span><button class="btn ghost sm" onclick="pickDay('','','${t.id}')">→ plan it</button></div>`).join('')||'<p class="small muted" style="padding:4px 0">No topic ideas banked yet.</p>'}
+          ${(()=>{const _fl=weekFocusList(S.week);const _num={};_fl.forEach((b,i)=>_num[String(b.id)]=i+1);const _tb=S.settings.topic_blog||{};return ideasFor(s.p).slice(0,6).map(t=>{const _bn=_num[String(_tb[String(t.id)])];return `<div class="row" style="padding:4px 0">${_bn?`<span title="promotes processing blog #${_bn}" style="flex:none;width:18px;height:18px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;margin-right:6px">${_bn}</span>`:''}<span class="small" style="flex:1">${esc(t.title)}</span><button class="btn ghost sm" onclick="pickDay('','','${t.id}')">→ plan it</button></div>`;}).join('')||'<p class="small muted" style="padding:4px 0">No topic ideas banked yet.</p>';})()}
           <button class="btn ghost sm" style="margin-top:6px" onclick="dashSuggest(${s.p},this)">${ic('sparkle')} Suggest 5 topics</button>
         </div>`:''}
       </div>`).join('')}
