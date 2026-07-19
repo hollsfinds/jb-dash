@@ -2579,6 +2579,7 @@ function pinCard(p,i){
     <input type="checkbox" ${done?'checked':''} ${noImg?'disabled':''} onclick="event.stopPropagation();pinToggleDone(${i})" title="${noImg?'no image prompt - skipped':'check when you have posted this pin'}" style="width:17px;height:17px;flex:none;cursor:pointer;accent-color:var(--good)">
     <b style="font-size:15px;${done?'color:var(--good)':''}">Pin ${i+1}${done?' ✓':''}</b>
     <span class="chip" style="background:var(--mint);color:#204430;border-color:transparent">${esc(p.angle||'')}</span>
+    ${p.blog_title?`<span class="chip" style="background:var(--mist);border-color:transparent" title="links to this post">${esc((p.blog_title||'').slice(0,20))}</span>`:''}
     ${noImg?`<span class="chip" style="background:#fbe4de;color:var(--coral-b);border-color:transparent">no image · skip</span>`:''}
     <span class="small muted" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">skeleton: ${esc(p.skel_name||'')}</span>
     <span class="small muted" style="flex:none;font-weight:800">${open?'▾':'▸'}</span>
@@ -2672,7 +2673,7 @@ function renderPinBatch(){
   const pubs=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
   const pages=S.blog.filter(b=>b.status==='page'&&b.url);
   const allSrc=pubs.concat(pages);
-  if(!st.blogId||!allSrc.some(p=>String(p.id)===st.blogId)){const wf=weekFocus(weekStart(new Date()));st.blogId=String(((wf&&wf.url?wf:null)||pubs[0]||pages[0]||{}).id||'');}
+  if(st.blogId!=='__all'&&(!st.blogId||!allSrc.some(p=>String(p.id)===st.blogId))){const wf=weekFocus(weekStart(new Date()));st.blogId=String(((wf&&wf.url?wf:null)||pubs[0]||pages[0]||{}).id||'');}
   if(st.pins==null){const _r=pbRestore(st.blogId);if(_r){st.pins=_r.pins;if(_r.count)st.count=_r.count;}}
   const cad=S.settings.cadence||{};
   const cp=csPinsWeek(weekStart(new Date()));
@@ -2688,7 +2689,7 @@ function renderPinBatch(){
   </div>
   <div class="row" style="margin-bottom:8px;flex-wrap:wrap">
     <span class="small muted">Pins for</span>
-    <select style="flex:1;min-width:170px" onchange="if(this.value==='__addpage'){pinAddPage()}else{window.__pinBatch.blogId=this.value;window.__pinBatch.pins=null;renderPinBatch()}"><optgroup label="Blog posts">${pubs.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${optLabel(p)}</option>`).join('')}</optgroup>${pages.length?`<optgroup label="Site pages">${pages.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${optLabel(p)}</option>`).join('')}</optgroup>`:''}<option value="__addpage">+ Add a juneybyrd.com page\u2026</option></select>
+    <select style="flex:1;min-width:170px" onchange="if(this.value==='__addpage'){pinAddPage()}else{window.__pinBatch.blogId=this.value;window.__pinBatch.pins=null;renderPinBatch()}">${(()=>{const _p=weekFocusList(weekStart(new Date())).filter(x=>x.url);return _p.length>=2?`<option value="__all" ${st.blogId==='__all'?'selected':''}>\u2605 All processing posts (${_p.length})</option>`:'';})()}<optgroup label="Blog posts">${pubs.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${optLabel(p)}</option>`).join('')}</optgroup>${pages.length?`<optgroup label="Site pages">${pages.map(p=>`<option value="${p.id}" ${String(p.id)===st.blogId?'selected':''}>${optLabel(p)}</option>`).join('')}</optgroup>`:''}<option value="__addpage">+ Add a juneybyrd.com page\u2026</option></select>
     <span class="small muted">Count</span>
     <select onchange="window.__pinBatch.count=+this.value">${[3,4,5].map(x=>`<option ${st.count===x?'selected':''}>${x}</option>`).join('')}</select>
     <button class="btn sm" style="background:var(--coral-b)" onclick="pinBatchWrite(this)">${st.pins?ic('refresh')+' Rewrite batch':ic('sparkle')+' Write the batch'}</button>
@@ -2710,13 +2711,7 @@ function renderPinBatch(){
   <div class="row" style="margin-top:12px"><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
   $('#modal').classList.add('wide');
 }
-async function pinBatchWrite(btn){
-  const st=window.__pinBatch;if(!st)return;
-  const b=S.blog.find(x=>String(x.id)===st.blogId);
-  if(!b){toast('Pick a post first');return;}
-  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
-  try{
-    const n=st.count||3;
+async function pbGenForPost(b,n){
     const angles=PIN_ANGLES.slice(0,n);
     const kws=S.keywords.filter(k=>k.platform==='pinterest').flatMap(k=>k.items||[]).slice(0,25).join(', ');
     const kind=b.status==='page'?'juneybyrd.com page':'blog post';
@@ -2742,14 +2737,24 @@ Reply as JSON only, with slots keyed by the exact slot names shown above:
 {"pins":[{"slots":{"SLOTNAME":"the words"},"title":"","desc":"","alt":""}]}`;
     const out=await claude(VOICE,ask,2600);
     const j=extractJSON(out);
-    st.pins=(j.pins||[]).slice(0,n).map((p,i)=>{
+    return (j.pins||[]).slice(0,n).map((p,i)=>{
       const sk=assign[i].sk;
       const slots=p.slots||{};
       const overlay=Object.values(slots).filter(Boolean)[0]||'';
       const img=sk?buildImagePrompt(sk.id,{slots}):('Pinterest pin image, vertical 2:3, clean modern flat-lay, overlay text: "'+String(overlay).toUpperCase()+'"');
-      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:capChars(p.title,100),desc:capChars(p.desc,500),alt:capChars(p.alt,500),url:utmize(b.url,'pinterest'),done:false};
+      return {angle:angles[i],skel_id:sk?sk.id:null,skel_name:sk?sk.name:'',slots,overlay,img,title:capChars(p.title,100),desc:capChars(p.desc,500),alt:capChars(p.alt,500),url:utmize(b.url,'pinterest'),blog_id:b.id,blog_title:b.title,done:false};
     });
-    pbSave();
+}
+async function pinBatchWrite(btn){
+  const st=window.__pinBatch;if(!st)return;
+  let posts;
+  if(st.blogId==='__all'){posts=weekFocusList(weekStart(new Date())).filter(x=>x.url);if(!posts.length){toast('No processing posts this week yet. Add posts in Step 1.');return;}}
+  else{const b=S.blog.find(x=>String(x.id)===st.blogId);if(!b){toast('Pick a post first');return;}posts=[b];}
+  if(btn){btn.innerHTML='<span class="spin"></span>';btn.disabled=true;}
+  try{
+    const n=st.count||3;let all=[];
+    for(const b of posts){all=all.concat(await pbGenForPost(b,n));}
+    st.pins=all;pbSave();
   }catch(e){toast('Pin batch failed: '+(e.message||e));}
   renderPinBatch();
 }
@@ -2775,19 +2780,23 @@ async function pinBatchSend(btn){
 window.pinBatchSend=pinBatchSend;
 async function pinBatchMark(btn){
   const st=window.__pinBatch;if(!st||!st.pins||!st.pins.length)return;
-  const b=S.blog.find(x=>String(x.id)===st.blogId);if(!b)return;
   const posted=st.pins.filter(p=>p.done);
   if(!posted.length){toast('Check the box on each pin you actually posted first, then mark.');return;}
   if(btn)btn.disabled=true;
   const now=new Date().toISOString();
-  await sb.from('jb_blog').update({pins_count:(b.pins_count||0)+posted.length,last_pin_at:now}).eq('id',b.id);
-  b.pins_count=(b.pins_count||0)+posted.length;b.last_pin_at=now;
+  const byBlog={};posted.forEach(p=>{const bid=p.blog_id||st.blogId;if(bid&&bid!=='__all'){(byBlog[bid]=byBlog[bid]||[]).push(p);}});
+  for(const bid of Object.keys(byBlog)){
+    const b=S.blog.find(x=>String(x.id)===String(bid));if(!b)continue;
+    const cnt=byBlog[bid].length;
+    await sb.from('jb_blog').update({pins_count:(b.pins_count||0)+cnt,last_pin_at:now}).eq('id',b.id);
+    b.pins_count=(b.pins_count||0)+cnt;b.last_pin_at=now;
+  }
   for(const sid of [...new Set(posted.map(p=>p.skel_id).filter(Boolean))]){
     await sb.from('jb_skeletons').update({last_used_at:now}).eq('id',sid);
     const s=S.skeletons.find(x=>x.id===sid);if(s)s.last_used_at=now;
   }
   pbClear(st.blogId);
-  toast('Batch logged: +'+posted.length+' pins on this post. Fresh-pin clock reset.');
+  toast('Batch logged: +'+posted.length+' pins across '+Object.keys(byBlog).length+' post'+(Object.keys(byBlog).length===1?'':'s')+'. Fresh-pin clock reset.');
   window.__pinBatch=null;closeModal();render();
 }
 window.pinBatchMark=pinBatchMark;
