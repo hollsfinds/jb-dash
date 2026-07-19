@@ -127,7 +127,7 @@ td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .stagebar{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;display:flex;flex-wrap:wrap;gap:4px}
 .stagebar .st{font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px;background:#eef0f3;color:var(--muted)}
 .stagebar .st.on{background:var(--navy);color:#fff}
-.rbtn{display:inline-block;background:#fff;color:var(--navy);border:1.5px solid var(--line);border-radius:8px;padding:4px 9px;font-weight:800;font-size:10.5px;margin-top:8px;cursor:pointer}
+.rbtn{display:inline-block;white-space:nowrap;background:#fff;color:var(--navy);border:1.5px solid var(--line);border-radius:8px;padding:4px 9px;font-weight:800;font-size:10.5px;margin-top:8px;cursor:pointer}
 @media(max-width:900px){.tallies{grid-template-columns:repeat(2,1fr)}}
 .dashcols{display:grid;grid-template-columns:1fr 2fr;gap:16px;align-items:start;margin-bottom:16px}
 @media(max-width:1000px){.dashcols{grid-template-columns:1fr}}
@@ -226,6 +226,7 @@ let S={view:'dash',settings:{},topics:[],units:[],blog:[],skeletons:[],inbox:[],
 /* ================= UTILS ================= */
 const $=q=>document.querySelector(q);
 const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const deent=s=>{if(s==null)return '';const t=document.createElement('textarea');t.innerHTML=String(s);return t.value;};
 /* inline SVG icon set (feather-style) */
 const ICON_PATHS={
 home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
@@ -2166,8 +2167,8 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
           const cands=all.filter(b=>b.status!=='waterfalled'&&!done.has(String(b.id))&&!_lid.has(String(b.id)));
           const procd=all.filter(b=>!_lid.has(String(b.id))&&!cands.includes(b));
           if(!all.length&&!_fl.length)return '';
-          const chips=_fl.map(b=>`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800"><a href="${esc(b.url||'#')}" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">${esc((b.title||'').slice(0,30))}</a> <span title="Un-pick this post" style="cursor:pointer;font-weight:900;padding-left:4px" onclick="removeWeekFocus('${wsIso}','${b.id}')">\u00d7</span></span>`).join(' ');
-          const dd=all.length?`<select style="flex:1;min-width:170px;max-width:340px" onchange="if(this.value)addWeekFocus('${wsIso}',this.value)"><option value="">${_fl.length?'+ another post to process\u2026':'Process a post this week\u2026'}</option>${cands.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}</optgroup>`:''}</select>`:'';
+          const chips=_fl.map(b=>`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800;max-width:100%;white-space:normal;line-height:1.35"><a href="${esc(b.url||'#')}" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">${esc(deent(b.title))}</a> <span title="Un-pick this post" style="cursor:pointer;font-weight:900;padding-left:4px" onclick="removeWeekFocus('${wsIso}','${b.id}')">\u00d7</span></span>`).join(' ');
+          const dd=all.length?`<select style="flex:1;min-width:170px;max-width:340px" onchange="if(this.value)addWeekFocus('${wsIso}',this.value)"><option value="">${_fl.length?'+ another post to process\u2026':'Process a post this week\u2026'}</option>${cands.map(b=>`<option value="${b.id}">${esc(deent(b.title).slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc(deent(b.title).slice(0,52))}</option>`).join('')}</optgroup>`:''}</select>`:'';
           return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap">${_fl.length?`<span class="muted">Processing:</span> ${chips}`:''}${dd}</div>`;})()}
         ${(()=>{const m=S.settings.blog_assign||{};const asg=(m[wsIso]||[]);
           const usedAnywhere=new Set([].concat(...Object.values(m)).map(String));
@@ -2177,7 +2178,7 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
           const chips=asg.map(id=>{const b=S.blog.find(x=>String(x.id)===String(id));return b?`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800">${esc((b.title||'').slice(0,26))} <span style="cursor:pointer;font-weight:900" title="Stop counting this post toward the goal" onclick="blogUnassign('${wsIso}','${id}')">&times;</span></span>`:'';}).join(' ');
           if(!cands2.length&&!asg.length)return '';
           return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap"><span class="muted" title="Credit an earlier unused post toward this week's blog goal (separate from processing)">Count toward goal:</span>${chips}${cands2.length?`<select style="flex:1;min-width:150px;max-width:320px" onchange="if(this.value)blogAssign('${wsIso}',this.value)"><option value="">+ an earlier post\u2026</option>${cands2.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,44))}${b.published_at?' ('+(new Date(b.published_at).getMonth()+1)+'/'+new Date(b.published_at).getDate()+')':''}</option>`).join('')}</select>`:''}</div>`;})()}
-        <div class="row" style="margin-left:26px;margin-top:8px">
+        <div class="row" style="margin-left:26px;margin-top:8px;flex-wrap:wrap;gap:6px">
           <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
           ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
           ${S.blog.some(b=>['published','waterfalled'].includes(b.status)&&b.url)?`<span class="rbtn" style="border-color:var(--coral);color:var(--coral-b)" onclick="pinBatchModal('${(weekFocus(wsIso)||{}).id||''}')">${ic('pin')} Pin batch</span>`:''}
