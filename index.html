@@ -1845,10 +1845,14 @@ function blogFor(u){
   return null;
 }
 /* ---- week focus (blog backlog picker) ---- */
-function weekFocus(ws){const m=S.settings.week_focus||{};const k=typeof ws==='string'?ws:iso(ws);const id=m[k];return id?S.blog.find(b=>String(b.id)===String(id))||null:null;}
-function focusProcessedIds(){const m=S.settings.week_focus||{};return new Set(Object.values(m).map(String));}
-async function setWeekFocus(wsIso,blogId){const m={...(S.settings.week_focus||{})};if(blogId)m[wsIso]=blogId;else delete m[wsIso];await saveSetting('week_focus',m);render();}
-window.setWeekFocus=setWeekFocus;
+function weekFocusIds(ws){const m=S.settings.week_focus||{};const k=typeof ws==='string'?ws:iso(ws);const v=m[k];return Array.isArray(v)?v.map(String):(v?[String(v)]:[]);}
+function weekFocusList(ws){return weekFocusIds(ws).map(id=>S.blog.find(b=>String(b.id)===String(id))).filter(Boolean);}
+function weekFocus(ws){return weekFocusList(ws)[0]||null;}
+function focusProcessedIds(){const m=S.settings.week_focus||{};const out=new Set();Object.values(m).forEach(v=>{(Array.isArray(v)?v:[v]).forEach(id=>{if(id)out.add(String(id));});});return out;}
+async function addWeekFocus(wsIso,blogId){if(!blogId)return;const m={...(S.settings.week_focus||{})};let cur=Array.isArray(m[wsIso])?m[wsIso].map(String):(m[wsIso]?[String(m[wsIso])]:[]);if(!cur.includes(String(blogId)))cur.push(String(blogId));m[wsIso]=cur;await saveSetting('week_focus',m);render();}
+async function removeWeekFocus(wsIso,blogId){const m={...(S.settings.week_focus||{})};let cur=Array.isArray(m[wsIso])?m[wsIso].map(String):(m[wsIso]?[String(m[wsIso])]:[]);cur=cur.filter(x=>x!==String(blogId));if(cur.length)m[wsIso]=cur;else delete m[wsIso];await saveSetting('week_focus',m);render();}
+async function setWeekFocus(wsIso,blogId){if(blogId)return addWeekFocus(wsIso,blogId);const m={...(S.settings.week_focus||{})};delete m[wsIso];await saveSetting('week_focus',m);render();}
+window.setWeekFocus=setWeekFocus;window.addWeekFocus=addWeekFocus;window.removeWeekFocus=removeWeekFocus;
 function wfTree(){
   const posts=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
   const st=wfState();
@@ -2155,14 +2159,15 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
         <h3 style="margin-left:26px">Blog</h3>
         <div class="row small" style="margin:2px 0 4px 26px;gap:5px"><span class="muted">This week:</span> <b>${blogTasks.length}/${blogGoal} planned</b> <span class="muted">\u00b7 ${blogsPub} published</span></div>
         ${blogAct?`<div class="tfix" style="margin-left:26px;cursor:pointer" onclick="jumpUnit('${blogAct.id}')">\u2192 ${blogAct.status==='idea'?'draft':'finish'}: ${esc((blogAct.title||'').slice(0,34))}</div>`:''}
-        ${(()=>{const wf=weekFocus(wsIso);
-          if(wf)return `<div class="row small" style="margin:8px 0 0 26px;gap:6px"><span class="muted">Processing:</span> <a href="${esc(wf.url||'#')}" target="_blank" rel="noopener" style="font-weight:800;color:var(--navy)">${esc((wf.title||'').slice(0,40))}</a> <span title="Un-pick this post" style="cursor:pointer;color:var(--muted);font-weight:800;padding:0 4px" onclick="setWeekFocus('${wsIso}','')">\u2715</span></div>`;
+        ${(()=>{const _fl=weekFocusList(wsIso);const _lid=new Set(_fl.map(b=>String(b.id)));
           const done=focusProcessedIds();
           const all=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.url);
-          const cands=all.filter(b=>b.status!=='waterfalled'&&!done.has(String(b.id)));
-          const procd=all.filter(b=>!cands.includes(b));
-          if(!all.length)return '';
-          return `<div class="row small" style="margin:8px 0 0 26px"><select style="flex:1;max-width:360px" onchange="if(this.value)setWeekFocus('${wsIso}',this.value)"><option value="">Process a post this week\u2026</option>${cands.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}</optgroup>`:''}</select></div>`;})()}
+          const cands=all.filter(b=>b.status!=='waterfalled'&&!done.has(String(b.id))&&!_lid.has(String(b.id)));
+          const procd=all.filter(b=>!_lid.has(String(b.id))&&!cands.includes(b));
+          if(!all.length&&!_fl.length)return '';
+          const chips=_fl.map(b=>`<span class="chip" style="background:var(--mist);border-color:var(--mist);font-weight:800"><a href="${esc(b.url||'#')}" target="_blank" rel="noopener" style="color:var(--navy);text-decoration:none">${esc((b.title||'').slice(0,30))}</a> <span title="Un-pick this post" style="cursor:pointer;font-weight:900;padding-left:4px" onclick="removeWeekFocus('${wsIso}','${b.id}')">\u00d7</span></span>`).join(' ');
+          const dd=all.length?`<select style="flex:1;min-width:170px;max-width:340px" onchange="if(this.value)addWeekFocus('${wsIso}',this.value)"><option value="">${_fl.length?'+ another post to process\u2026':'Process a post this week\u2026'}</option>${cands.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}${procd.length?`<optgroup label="Already processed">${procd.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,52))}</option>`).join('')}</optgroup>`:''}</select>`:'';
+          return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap">${_fl.length?`<span class="muted">Processing:</span> ${chips}`:''}${dd}</div>`;})()}
         ${(()=>{const m=S.settings.blog_assign||{};const asg=(m[wsIso]||[]);
           const usedAnywhere=new Set([].concat(...Object.values(m)).map(String));
           const curWk=b=>b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===wsIso;
