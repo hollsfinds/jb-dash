@@ -1985,6 +1985,7 @@ async function dashSuggest(p,btn){
   }catch(e){toast('Suggest failed: '+e.message);render();}
 }
 window.dashSuggest=dashSuggest;
+window.toggleWeekTool=async function(wsIso,k){const m={...(S.settings.week_tool||{})};let cur=(m[wsIso]||[]).slice();if(cur.includes(k))cur=cur.filter(x=>x!==k);else cur.push(k);if(cur.length)m[wsIso]=cur;else delete m[wsIso];await saveSetting('week_tool',m);render();};
 function pillarWeek(ws){
   const targets=S.settings.pillar_targets||{p1:.25,p2:.25,p3:.2,p4:.1,p5:.2};
   const soc=weekUnits(ws||S.week||weekStart(new Date())).filter(u=>u.kind==='social');
@@ -2200,7 +2201,7 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
         </div>
         <div class="meter ${s.done===0?'zero':''}"><i class="${s.done>s.goal?'over':s.done>=s.goal?'done':''}" style="width:${s.done===0?0:Math.min(100,(s.done/(s.goal||1))*100)}%"></i></div>
         ${dashPillar===s.p?`
-        <div style="margin:8px 0 4px 8px;padding-left:10px;border-left:3px solid var(--line)">
+        <div style="margin:8px 0 4px 8px;padding-left:10px;border-left:3px solid var(--line)">${s.p===3?`<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--line)"><div class="small muted" style="font-weight:800;margin-bottom:5px">Feature which tool this week?</div>${Object.entries(ppProducts()).map(([k,pr])=>{const _ch=((S.settings.week_tool||{})[wsIso]||[]).includes(k);const _lu=(S.settings.tool_last_used||{})[k];return `<label class="row" style="padding:3px 0;gap:8px;cursor:pointer"><input type="checkbox" ${_ch?"checked":""} onchange="toggleWeekTool(\'${wsIso}\',\'${k}\')" style="width:15px;height:15px;flex:none;accent-color:var(--good)"><span class="small" style="flex:1;font-weight:800">${esc(pr.label||k)}</span><span class="small muted">${_lu?"last: "+fmt(_lu):"never featured"}</span></label>`;}).join("")}</div>`:""}
           ${(()=>{const _fl=weekFocusList(S.week);const _num={};_fl.forEach((b,i)=>_num[String(b.id)]=i+1);const _tb=S.settings.topic_blog||{};return ideasFor(s.p).slice(0,6).map(t=>{const _bn=_num[String(_tb[String(t.id)])];return `<div class="row" style="padding:4px 0">${_bn?`<span title="promotes processing blog #${_bn}" style="flex:none;width:18px;height:18px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;margin-right:6px">${_bn}</span>`:''}<span class="small" style="flex:1">${esc(t.title)}</span><button class="btn ghost sm" onclick="pickDay('','','${t.id}')">→ plan it</button></div>`;}).join('')||'<p class="small muted" style="padding:4px 0">No topic ideas banked yet.</p>';})()}
           <button class="btn ghost sm" style="margin-top:6px" onclick="dashSuggest(${s.p},this)">${ic('sparkle')} Suggest 5 topics</button>
         </div>`:''}
@@ -2283,7 +2284,7 @@ window.setWeek=setWeek;
 function startWizard(){
   const cad=S.settings.cadence||{};
   const socialCount=7;
-  const prodPer=(cad.product_per_week!=null)?cad.product_per_week:2;const readyProd=Object.keys(ppProducts()).filter(k=>ppImageStatus(ppProducts()[k],'A').ok);const useProd=readyProd.length?Math.min(prodPer,4):0;const topicCount=Math.max(0,socialCount-useProd);
+  const prodPer=(cad.product_per_week!=null)?cad.product_per_week:2;const readyProd=Object.keys(ppProducts()).filter(k=>ppImageStatus(ppProducts()[k],'A').ok);const chosenTools=((S.settings.week_tool||{})[iso(S.week)]||[]).filter(k=>ppProducts()[k]);const toolPool=chosenTools.length?chosenTools:readyProd;const useProd=toolPool.length?Math.min(chosenTools.length?chosenTools.length:prodPer,4):0;const topicCount=Math.max(0,socialCount-useProd);
   const blogPerWeek=Math.max(1,Math.round((cad.blog_per_month||4)/4));
   const {stats}=pillarStats();
   const byDeficit=[...stats].sort((a,b)=>b.deficit-a.deficit);
@@ -2312,7 +2313,7 @@ function startWizard(){
     slots.push({day:i%7,pillar,theme,kind:'social',topic_id,title,skeleton_id:sk?sk.id:null,needsTopic,blog_id,blog_url});
   }
   const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
-  for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
+  for(let j=0;j<useProd;j++){const pk=toolPool[j%toolPool.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
   slots.forEach(s=>{if(s.isProduct)return;const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
@@ -2359,10 +2360,10 @@ async function suggestTopics(btn){
 window.suggestTopics=suggestTopics;
 async function savePlan(btn){
   btn.innerHTML='<span class="spin"></span> Saving...';btn.disabled=true;
-  const rows=[];
+  const rows=[];const _toolsUsed=[];
   for(const s of planDraft.slots){
     if(!s.title)continue;
-    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:'s16',kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});continue;}
+    if(s.isProduct){const _pg=(ppProducts()[s.product]||{}).page_url||'https://juneybyrd.com';rows.push({week_start:planDraft.week,day:s.day,topic_id:null,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:'s16',kind:'social',platforms:{pinterest:true},copy:{source_url:_pg,product:s.product,layout:s.layout,ptheme:s.ptheme,accent:s.accent,is_product:1}});_toolsUsed.push(s.product);continue;}
     let topic_id=s.topic_id;
     if(!topic_id){
       const {data}=await sb.from('jb_topics').insert({title:s.title,pillar:s.pillar,theme:s.theme,source:'wizard',status:'planned'}).select();
@@ -2376,7 +2377,7 @@ async function savePlan(btn){
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
-  S.units.push(...data);planDraft=null;toast('Week planned! Click any item to write its copy.');
+  S.units.push(...data);if(_toolsUsed.length){const _tl={...(S.settings.tool_last_used||{})};const _now=new Date().toISOString();_toolsUsed.forEach(k=>{if(k)_tl[k]=_now;});await saveSetting('tool_last_used',_tl);}planDraft=null;toast('Week planned! Click any item to write its copy.');
   go('dash');
 }
 window.savePlan=savePlan;
