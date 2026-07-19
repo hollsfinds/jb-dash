@@ -2283,16 +2283,27 @@ function startWizard(){
   const byDeficit=[...stats].sort((a,b)=>b.deficit-a.deficit);
   const pool=S.topics.filter(t=>t.status==='idea'&&(!t.snooze_until||new Date(t.snooze_until)<=new Date()));
   const slots=[];
-  const mix=[byDeficit[0].p,byDeficit[1].p,byDeficit[0].p,3,byDeficit[2].p,4,5].slice(0,socialCount);
+  const _tg=S.settings.pillar_targets||{p1:.25,p2:.25,p3:.2,p4:.1,p5:.2};
+  const _want={};let _tot=0;[1,2,3,4,5].forEach(pp=>{_want[pp]=Math.floor((_tg['p'+pp]||0)*socialCount);_tot+=_want[pp];});
+  const _rem=[1,2,3,4,5].map(pp=>({pp,f:((_tg['p'+pp]||0)*socialCount)-_want[pp]})).sort((a,b)=>b.f-a.f);
+  let _ri=0;while(_tot<socialCount){_want[_rem[_ri%5].pp]++;_tot++;_ri++;}
+  _want[3]=Math.max(0,_want[3]-useProd);
+  let mix=[];[4,5,1,2,3].forEach(pp=>{for(let k=0;k<_want[pp];k++)mix.push(pp);});
+  while(mix.length<topicCount)mix.push((byDeficit[0]||{p:1}).p);
+  mix=mix.slice(0,topicCount);
   const themes=S.settings.themes_rotation||THEMES;
+  const procBlogs=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);
+  let _contentIdx=0;
   const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(1,Math.round(socialCount/7));
   for(let i=0;i<topicCount;i++){
     const pillar=mix[i];
-    const topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));
     const theme=themes[i%themes.length];
-    const sk=(typeof pickSkelSmart==='function')?pickSkelSmart({pillar,theme,title:topic?topic.title:''},_recent,_portraitUsed,_maxPortrait):suggestSkeletonRotating(i);
+    let topic=null,title='',topic_id=null,needsTopic=false,blog_id=null,blog_url=null;
+    if(pillar<=3&&procBlogs.length){const bg=procBlogs[_contentIdx%procBlogs.length];_contentIdx++;title=bg.title;blog_id=bg.id;blog_url=bg.url;}
+    else{topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));title=topic?topic.title:'';topic_id=topic?topic.id:null;needsTopic=!topic;}
+    const sk=(typeof pickSkelSmart==='function')?pickSkelSmart({pillar,theme,title},_recent,_portraitUsed,_maxPortrait):suggestSkeletonRotating(i);
     if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
-    slots.push({day:i%7,pillar,theme,kind:'social',topic_id:topic?topic.id:null,title:topic?topic.title:'',skeleton_id:sk?sk.id:null,needsTopic:!topic});
+    slots.push({day:i%7,pillar,theme,kind:'social',topic_id,title,skeleton_id:sk?sk.id:null,needsTopic,blog_id,blog_url});
   }
   const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
   for(let j=0;j<useProd;j++){const pk=readyProd[j%readyProd.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
@@ -2313,7 +2324,7 @@ function renderWizard(){
   ${planDraft.slots.map((s,i)=>s.isProduct?ppWizRow(s,i):`
     <div class="unit"><div class="row" style="flex-wrap:wrap">
       <select style="width:110px" onchange="planDraft.slots[${i}].day=+this.value">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,di)=>`<option value="${di}" ${di===s.day?'selected':''}>${d}</option>`).join('')}</select>
-      <span class="pill p${s.pillar}">P${s.pillar}</span>
+      <span class="pill p${s.pillar}">P${s.pillar}</span>${s.blog_id?`<span class="chip" style="background:var(--mist);border-color:transparent;margin-left:4px" title="promotes a processing blog post">\u2197 blog</span>`:''}
       <span class="chip">${s.kind==='blog-task'?ic('pen')+' BLOG POST':s.theme}</span>
       <input placeholder="${s.kind==='blog-task'?'Blog post topic...':'Topic / headline...'}" value="${esc(s.title)}" style="flex:1;min-width:200px" onchange="planDraft.slots[${i}].title=this.value">
       ${s.kind==='social'?`<select style="width:170px" onchange="planDraft.slots[${i}].skeleton_id=this.value">${S.skeletons.map(k=>`<option value="${k.id}" ${k.id===s.skeleton_id?'selected':''}>${k.name}</option>`).join('')}</select><select style="width:105px" onchange="planDraft.slots[${i}].format=this.value">${Object.entries(WF_FORMATS).map(([k,v])=>`<option value="${k}" ${k===s.format?'selected':''}>${v}</option>`).join('')}</select>${(typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id))?`<span class="chip" style="background:#cdeee1;color:#22334f;font-weight:700">Cowork pin \u00b7 made in Claude</span>`:''}`:''}
@@ -2354,7 +2365,7 @@ async function savePlan(btn){
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
     let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=await takeCoworkSlot(s.skeleton_id);_cwCopy={cowork_slot:_sl};}
-    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy}});
+    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy,...(s.blog_url?{source_url:s.blog_url,blog_id:s.blog_id}:{})}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
@@ -2850,6 +2861,7 @@ ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a sho
     if(isProd)delete j.source_url;/* product units keep the product page link; never let the model overwrite it */
     if(opts&&opts.noSave){return j;}
     const c={...(u.copy||{}),...j};
+    if(u.copy&&u.copy.blog_id&&u.copy.source_url)c.source_url=u.copy.source_url;
     if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
     if(c.caption)c.caption=capChars(c.caption,490);
     if(c.caption_b)c.caption_b=capChars(c.caption_b,490);
