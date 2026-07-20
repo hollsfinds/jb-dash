@@ -2326,16 +2326,19 @@ function startWizard(){
   const themes=S.settings.themes_rotation||THEMES;
   const procBlogs=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);
   let _contentIdx=0;
+  // rotating angle lenses so slots that share a blog each cover a DIFFERENT facet of it
+  const ANGLE_LENSES=['a relatable "that feeling" pain moment','a myth-bust or contrarian truth','a concrete how-to or the steps','a surprising number or result','a behind-the-scenes / maker take','a question that sparks replies','the most common mistake to avoid','one specific quick win'];
+  const _blogAngleCount={};
   const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(1,Math.round(socialCount/7));
   for(let i=0;i<topicCount;i++){
     const pillar=mix[i];
     const theme=themes[i%themes.length];
-    let topic=null,title='',topic_id=null,needsTopic=false,blog_id=null,blog_url=null;
-    if(pillar<=3){topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(x=>x.topic_id===t.id));if(topic){title=topic.title;topic_id=topic.id;}else if(procBlogs.length){const bg=procBlogs[_contentIdx%procBlogs.length];_contentIdx++;title=bg.title;blog_id=bg.id;blog_url=bg.url;}else{needsTopic=true;}}
+    let topic=null,title='',topic_id=null,needsTopic=false,blog_id=null,blog_url=null,angle=null;
+    if(pillar<=3){topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(x=>x.topic_id===t.id));if(topic){title=topic.title;topic_id=topic.id;}else if(procBlogs.length){const bg=procBlogs[_contentIdx%procBlogs.length];_contentIdx++;title=bg.title;blog_id=bg.id;blog_url=bg.url;const _bk=String(bg.id);const _n=(_blogAngleCount[_bk]||0);_blogAngleCount[_bk]=_n+1;angle=ANGLE_LENSES[_n%ANGLE_LENSES.length];}else{needsTopic=true;}}
     else{topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));title=topic?topic.title:'';topic_id=topic?topic.id:null;needsTopic=!topic;}
     const sk=(typeof pickSkelSmart==='function')?pickSkelSmart({pillar,theme,title},_recent,_portraitUsed,_maxPortrait):suggestSkeletonRotating(i);
     if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
-    slots.push({day:i%7,pillar,theme,kind:'social',topic_id,title,skeleton_id:sk?sk.id:null,needsTopic,blog_id,blog_url});
+    slots.push({day:i%7,pillar,theme,kind:'social',topic_id,title,skeleton_id:sk?sk.id:null,needsTopic,blog_id,blog_url,angle});
   }
   const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
   for(let j=0;j<useProd;j++){const pk=toolPool[j%toolPool.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
@@ -2398,7 +2401,7 @@ async function savePlan(btn){
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
     let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=await takeCoworkSlot(s.skeleton_id);_cwCopy={cowork_slot:_sl};}
-    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy,...(s.blog_url?{source_url:s.blog_url,blog_id:s.blog_id}:{})}});
+    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy,...(s.angle?{angle:s.angle}:{}),...(s.blog_url?{source_url:s.blog_url,blog_id:s.blog_id}:{})}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
@@ -2889,18 +2892,23 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: a scroll-stopping hook whose first 3 words earn the tap, under 85 characters. Do NOT put a website, URL, or juneybyrd.com anywhere in the title. No links, no hashtags.",
 ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 6 words; if it names a count it MUST match the number of items below","page2_items":["3 to 5 short steps for THIS topic as separate array items, each under 6 words, punchy, no time claims. CRITICAL: if the cover headline/sub or the page-2 header names a specific number (like 'the 3 questions'), output EXACTLY that many items, no padding"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
-    // WEEK DIVERSITY: gather the angles already used by this week's OTHER units so this one comes out different
+    // ANGLE MEMORY: avoid repeating angles. Memory follows the BLOG (persists across weeks whenever the same blog is reused); non-blog posts fall back to same-week scope.
     let _divBlock='';
     try{
-      const _sib=S.units.filter(x=>x.week_start===u.week_start&&x.kind==='social'&&String(x.id)!==String(u.id));
+      const _bidOf=x=>{const c=x.copy||{};if(c.blog_id)return 'b:'+String(c.blog_id);if(x.topic_id&&(S.settings.topic_blog||{})[String(x.topic_id)])return 'b:'+String((S.settings.topic_blog)[String(x.topic_id)]);return null;};
+      const _mybid=_bidOf(u);
+      // union: every past post from this SAME blog (persists across weeks) + every other post in THIS week (keeps the current week varied across its days)
+      const _sib=S.units.filter(x=>x.kind==='social'&&String(x.id)!==String(u.id)&&((_mybid&&_bidOf(x)===_mybid)||x.week_start===u.week_start));
       const _angle=cc=>{cc=cc||{};const h=(cc.slots&&(cc.slots.HEADLINE||cc.slots.TITLE||cc.slots.HOOK))||'';const pt=cc.pin_title||'';const cap=(cc.caption||'').split(/[.!?\n]/)[0].trim();return [h,pt,cap].filter(Boolean).join(' / ');};
-      const _used=_sib.map(x=>_angle(x.copy)).filter(Boolean);
+      const _used=_sib.map(x=>_angle(x.copy)).filter(Boolean).slice(-14);
       const _self=_angle(u.copy);
       if(_used.length||_self){
-        _divBlock='WEEK DIVERSITY (critical): I am posting a whole week of content and it must NOT feel like the same post over and over. These angles are ALREADY used in this week\'s other posts, so you MUST come at THIS one from a clearly DIFFERENT angle, hook, opening line, and core concept than every one of them, even when the topic or source blog is the same (find a new entry point: a different pain, a different question, a different format of hook, a different moment). Do NOT reuse the same first words, the same metaphor, or the same structure. Already used: '+_used.map((a,i)=>'('+(i+1)+') '+a).join('  ||  ')+(_self?'  ||  (this post\'s old copy you are replacing, also do not repeat it): '+_self:'')+'.\n\n';
+        const _scope=_mybid?'every past post built from this SAME blog post (across all weeks) AND this week\'s other posts':'this week\'s other posts';
+        _divBlock='ANGLE MEMORY (critical): this brand posts many pins and they must NOT feel like the same post over and over. The angles below are ALREADY used by '+_scope+', so you MUST come at THIS one from a clearly DIFFERENT angle, hook, opening line, and core concept than every one of them. Even though the source blog is the same, cover a DIFFERENT facet of it: a different pain, a different question, a different reader moment, a different format of hook (story vs myth-bust vs how-to vs number vs question). Do NOT reuse the same first words, the same metaphor, or the same structure. Already used: '+_used.map((a,i)=>'('+(i+1)+') '+a).join('  ||  ')+(_self?'  ||  (this post\'s old copy you are replacing, also do not repeat it): '+_self:'')+'.\n\n';
       }
     }catch(e){}
-    const out=await claude(VOICE,_divBlock+ask,1900);
+    const _lead=((u.copy||{}).angle)?('ANGLE FOR THIS POST: build it around '+u.copy.angle+' as the entry point into the topic. This is how this pin stays different from the others drawn from the same source. If that lens genuinely does not fit the topic, pick the closest different facet, never a repeat of an angle listed above. ')  :'';
+    const out=await claude(VOICE,_divBlock+_lead+ask,1900);
     const j=stripDashes(extractJSON(out));
     if(isProd)delete j.source_url;/* product units keep the product page link; never let the model overwrite it */
     if(opts&&opts.noSave){return j;}
