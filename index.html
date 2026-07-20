@@ -2306,6 +2306,7 @@ function vPlan(){
 }
 function setWeek(w){S.week=new Date(w+'T00:00:00');planDraft=null;render();}
 window.setWeek=setWeek;
+const ANGLE_LENSES=['a relatable "that feeling" pain moment','a myth-bust or contrarian truth','a concrete how-to or the steps','a surprising number or result','a behind-the-scenes / maker take','a question that sparks replies','the most common mistake to avoid','one specific quick win'];
 function startWizard(){
   const cad=S.settings.cadence||{};
   const socialCount=7;
@@ -2327,7 +2328,6 @@ function startWizard(){
   const procBlogs=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);
   let _contentIdx=0;
   // rotating angle lenses so slots that share a blog each cover a DIFFERENT facet of it
-  const ANGLE_LENSES=['a relatable "that feeling" pain moment','a myth-bust or contrarian truth','a concrete how-to or the steps','a surprising number or result','a behind-the-scenes / maker take','a question that sparks replies','the most common mistake to avoid','one specific quick win'];
   const _blogAngleCount={};
   const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(1,Math.round(socialCount/7));
   for(let i=0;i<topicCount;i++){
@@ -2428,7 +2428,7 @@ function renderWeekGrid(units){
   };
   const row=u=>`<tr${doneSt(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td>${days[u.day]||''}</td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${(()=>{const _n=unitBlogNum(u);return _n?`<span title="promotes processing blog #${_n}" style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:900;margin-right:5px;vertical-align:middle">${_n}</span>`:'';})()}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
   const blogRow=b=>`<tr class="donerow" style="cursor:pointer" onclick="window.open('${esc(b.url||'#')}','_blank')"><td>Sun</td><td>${ic('pen')} ${esc(b.title||'')}<div class="fmts"><span style="background:var(--peach);color:var(--navy)">Blog</span></div></td><td></td><td class="small muted"></td><td class="small"><b style="color:var(--teal-lt)">\u2713</b> Published</td></tr>`;
-  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button></div>
+  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><button class="btn sm" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><button class="btn ghost sm" onclick="varyThisWeek(this)" title="give this week's cards fresh, different angles and rewrite them">${ic('refresh')} Vary these</button><button class="btn ghost sm" onclick="dealFormats(this)">Deal formats</button></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${open.map(row).join('')}
   ${done.length||wkBlogs.length?`<tr class="done-divider"><td colspan="5">Completed \u00b7 ${done.length+wkBlogs.length}</td></tr>${wkBlogs.map(blogRow).join('')}${done.map(row).join('')}`:''}
@@ -3025,6 +3025,21 @@ async function genAll(btn){
   render();toast('All copy packs written!');
 }
 window.genAll=genAll;
+
+// Assign rotating angle lenses to THIS week's existing social cards (grouped per blog), then rewrite their copy so it varies. For cards planned before lenses existed.
+async function varyThisWeek(btn){
+  const _blogKey=u=>{const c=u.copy||{};if(c.blog_id)return 'b:'+String(c.blog_id);if(u.topic_id&&(S.settings.topic_blog||{})[String(u.topic_id)])return 'b:'+String((S.settings.topic_blog)[String(u.topic_id)]);return 'week:'+u.week_start;};
+  const units=weekUnits(S.week).filter(u=>u.kind==='social');
+  if(!units.length){toast('No cards to vary this week yet.');return;}
+  if(btn){btn.innerHTML='<span class="spin"></span> Varying...';btn.disabled=true;}
+  // 1) assign a distinct lens per card, rotating within each blog group
+  const _cnt={};
+  for(const u of units){const k=_blogKey(u);const n=(_cnt[k]||0);_cnt[k]=n+1;const angle=ANGLE_LENSES[n%ANGLE_LENSES.length];const c={...(u.copy||{}),angle};await updUnit(u.id,{copy:c});}
+  // 2) rewrite copy so the new angles actually show (memory + lead angle now steer each one)
+  for(const u of units){await genCopy(u.id,null);}
+  render();toast('This week\'s cards revaried with fresh angles!');
+}
+window.varyThisWeek=varyThisWeek;
 
 /* ================= SKELETONS ================= */
 function setTabs(cur){const n=S.inbox.filter(i=>i.status==='new').length;return `<div class="tabbar">${[['set','Settings'],['skel','Skeletons'],['info','Info']].map(([id,l])=>`<button class="${cur===id?'on':''}" onclick="go('${id}')">${l}${id==='skel'&&n?`<span class="wkn" style="background:var(--coral)">${n}</span>`:''}</button>`).join('')}</div>`;}
