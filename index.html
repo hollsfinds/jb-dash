@@ -2210,8 +2210,8 @@ return `<div class="row" style="gap:6px;margin-bottom:4px${cp?';cursor:pointer':
           if(!cands2.length&&!asg.length)return '';
           return `<div class="row small" style="margin:8px 0 0 26px;gap:6px;flex-wrap:wrap"><span class="muted" title="Credit an earlier unused post toward this week's blog goal (separate from processing)">Count toward goal:</span>${chips}${cands2.length?`<select style="flex:1;min-width:150px;max-width:320px" onchange="if(this.value)blogAssign('${wsIso}',this.value)"><option value="">+ an earlier post\u2026</option>${cands2.map(b=>`<option value="${b.id}">${esc((b.title||'').slice(0,44))}${b.published_at?' ('+(new Date(b.published_at).getMonth()+1)+'/'+new Date(b.published_at).getDate()+')':''}</option>`).join('')}</select>`:''}</div>`;})()}
         <div class="row" style="margin-left:26px;margin-top:8px;flex-wrap:wrap;gap:6px">
-          <span class="rbtn" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
-          ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
+          <span class="rbtn" style="flex:1 1 0;justify-content:center;text-align:center" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span>
+          ${S.blog.filter(b=>b.status==='idea').length?`<span class="rbtn" style="flex:1 1 0;justify-content:center;text-align:center" onclick="blogIdeasModal()">${ic('bulb')} Ideas \u00b7 ${S.blog.filter(b=>b.status==='idea').length}</span>`:''}
           ${S.blog.some(b=>['published','waterfalled'].includes(b.status)&&b.url)?`<span class="rbtn" style="border-color:var(--coral);color:var(--coral-b);flex:1 1 100%;text-align:center" onclick="pinBatchModal('${(weekFocus(wsIso)||{}).id||''}')">${ic('pin')} Pin batch</span>`:''}
         </div>
       </div>
