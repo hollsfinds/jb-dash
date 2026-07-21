@@ -209,6 +209,7 @@ const WP_POST_API=(id)=>'https://public-api.wordpress.com/wp/v2/sites/juneybyrd.
 function wpStrip(h){return String(h||'').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&#8217;|&#8216;/g,"'").replace(/&#8220;|&#8221;/g,'"').replace(/&nbsp;|&amp;|&hellip;|&mdash;|&ndash;/g,' ').replace(/&[a-z0-9#]+;/gi,' ').replace(/\s+/g,' ').trim();}
 function stripDashes(v){if(typeof v==='string')return v.replace(/\s*[—–]\s*/g,', ').replace(/ ,/g,',');if(Array.isArray(v))return v.map(stripDashes);if(v&&typeof v==='object'){const o={};for(const k in v)o[k]=stripDashes(v[k]);return o;}return v;}
 const MODEL='claude-sonnet-4-5';
+const ANTHROPIC_PROXY='https://jb-anthropic.juneybyrd.workers.dev';
 const PILLARS={1:'Pain hooks',2:'Plain-English help',3:'Tools talking',4:'The maker',5:'Ask the bestie'};
 const THEMES=['money','habits','home','organizing','planning'];
 const PLATFORMS=['pinterest','instagram','facebook','tiktok'];
@@ -297,12 +298,11 @@ async function updUnit(id,patch){patch.updated_at=new Date().toISOString();await
 
 /* ================= CLAUDE ================= */
 async function claude(system,user,maxTok=1500,useSearch=false,fetchUrl=null){
-  if(!S.anthKey)throw new Error('No Anthropic key found (pinterest_auth id=anth_key).');
   const body={model:MODEL,max_tokens:maxTok,system,messages:[{role:'user',content:user}]};
-  const headers={'content-type':'application/json','x-api-key':S.anthKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+  const headers={'content-type':'application/json'};
   if(useSearch)body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3}];
   if(fetchUrl){let _host='';try{_host=new URL(fetchUrl).host;}catch(e){}body.tools=[{type:'web_fetch_20250910',name:'web_fetch',max_uses:5,...(_host?{allowed_domains:[_host]}:{})}];headers['anthropic-beta']='web-fetch-2025-09-10';}
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers,body:JSON.stringify(body)});
+  const r=await fetch(ANTHROPIC_PROXY,{method:'POST',headers,body:JSON.stringify(body)});
   if(!r.ok)throw new Error('Claude API '+r.status);
   const j=await r.json();
   return j.content.filter(c=>c.type==='text').map(c=>c.text).join('\n');
@@ -3316,8 +3316,7 @@ function vSet(){
     </div>
     <div class="card"><h3>Connections</h3>
       <p class="small">Supabase: <b style="color:var(--good)">connected</b> (shared with Pin Planner)</p>
-      <p class="small">Anthropic key: <b style="color:${S.anthKey?'var(--good)':'var(--bad)'}">${S.anthKey?'saved':'MISSING — paste it below'}</b></p>
-      <div class="row" style="margin-top:8px"><input id="anth-key" type="password" placeholder="Anthropic API key (sk-ant-...)"><button class="btn sm" onclick="saveAnthKey()">Save</button></div>
+      <p class="small">Anthropic: <b style="color:var(--good)">via secure proxy</b> (key lives server-side on the jb-anthropic Cloudflare Worker, never in this app or the database)</p>
       <p class="small">WordPress: public API, no key needed</p>
       <p class="small">ContentStudio sync: <b style="color:${S.settings.cs_key?'var(--good)':'var(--bad)'}">${S.settings.cs_key?'wired — sync from Copy Packs':'needs your API key'}</b></p>
       <div class="row" style="margin-top:8px"><input id="cs-key" type="password" placeholder="ContentStudio API key (app.contentstudio.io/juneybyrd/api)"><button class="btn sm" onclick="saveCSKey()">Save</button></div>
