@@ -2551,8 +2551,10 @@ function unitBody(u){
     <div class="ustep">
       <span class="stepnum">1</span><span class="steptitle" style="${coworkSkel(u.skeleton_id)?'color:var(--coral)':''}">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'COWORK (Claude)':'AI Studio'}</span>
       ${coworkSkel(u.skeleton_id)?`<div class="alert" style="background:#f0faf5;border-left:4px solid var(--coral);margin:6px 0 4px"><b>This one is made in Cowork, not CS AI.</b> Copy the handoff below, paste it to Claude, and say which headshot. Claude sends back the finished PNG; upload THAT here as the image, then keep going with the caption.</div>`:`<p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>`}
+      ${SKELETON_SLOTS[u.skeleton_id]?slotFields(u):''}
+      <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer;font-weight:700">Advanced: full render/prompt blob (auto-built from the words above)</summary>
       ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u)),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':'')):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':''))}
-      <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">${coworkSkel(u.skeleton_id)?'Image Prompt: Switch to CS/AI':'Image Prompt: Switch to Claude'}</button></div>
+      <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">${coworkSkel(u.skeleton_id)?'Image Prompt: Switch to CS/AI':'Image Prompt: Switch to Claude'}</button></div></details>
       ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
       ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
@@ -2628,6 +2630,19 @@ function field(label,key,u,forced,grow,rwKey){
 }
 function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="cursor:pointer;margin-left:10px;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
 window.setCaptionPick=async function(id,which){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;await updUnit(id,{copy:{...(u.copy||{}),caption_pick:which}});render();};
+window.saveSlot=async function(id,slot,val){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;const c={...(u.copy||{})};c.slots={...(c.slots||{}),[slot]:val};await updUnit(id,{copy:c});};
+// Editable on-image text (the slots) so Holly can review/edit what the pin says before handing off.
+function slotFields(u){
+  const c=u.copy||{};const sl=c.slots||{};
+  const defs=SKELETON_SLOTS[u.skeleton_id];
+  let rows;
+  if(defs&&defs.length){rows=defs.map(d=>({name:d.t,hint:d.b||''}));}
+  else{const ks=Object.keys(sl);if(!ks.length)return '';rows=ks.map(k=>({name:k,hint:''}));}
+  return `<div class="copyfield" style="margin:10px 0 2px"><label style="color:var(--teal);font-weight:800;font-size:13px">◆ ON-IMAGE WORDS · what the pin actually says (edit before you hand off)</label></div>`+rows.map(r=>{
+    const v=sl[r.name]!=null?sl[r.name]:'';
+    return `<div class="copyfield"><label>${esc(r.name)}${r.hint?` <span class="small muted" style="font-weight:600">${esc(r.hint.slice(0,70))}</span>`:''}</label><textarea class="grow" oninput="this.style.height='auto';this.style.height=(this.scrollHeight+2)+'px'" onchange="saveSlot('${u.id}','${esc(r.name)}',this.value)">${esc(v)}</textarea></div>`;
+  }).join('');
+}
 function sizeGrowAreas(){try{document.querySelectorAll('#modal textarea.grow').forEach(t=>{t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';});}catch(e){}}
 window.sizeGrowAreas=sizeGrowAreas;
 async function saveCopyField(id,key,val){
