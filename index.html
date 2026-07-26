@@ -561,7 +561,7 @@ function buildCSHandoff(units){
     platforms:plats,
     drafts_to_create:plats.map(p=>POST[p]),
     caption_option_chosen:useB?'B':'A', caption:(useB?c.caption_b:c.caption)||'',
-    tiktok_caption:c.tiktok_caption||'', page2_header:c.page2_header||'', page2_items:c.page2_items||[],
+    tiktok_caption:c.tiktok_caption||'', tiktok_hashtags:c.tiktok_hashtags||'', page2_header:c.page2_header||'', page2_items:c.page2_items||[],
     pin_title:c.pin_title||'', alt_text:c.alt_text||'', source_url:c.source_url||''
   };});
   const ttl=cards.length===1?(cards[0].day+' — '+(cards[0].skeleton_name||'')):(cards.length+' cards');
@@ -575,7 +575,7 @@ Claude: for each card below, create ContentStudio DRAFTS (never schedule or publ
    • pinterest → account ${CS.pinterest}, post_type "feed", text_content=caption (this is the pin DESCRIPTION only). The Pinterest TITLE (pin_title) and destination LINK (source_url) have NO API field, so Holly pastes BOTH when she approves: pin_title into the Pinterest "Title" field and source_url into the "Source URL for Pinterest" field. Always surface both in the confirmation.
    • instagram → account ${CS.instagram}, post_type "feed", text_content=caption.
    • facebook → account ${CS.facebook}, post_type "feed", text_content=caption.  (Batch instagram+facebook in ONE create_post call, both accounts, same 4:5 image.)
-   • tiktok → account ${CS.tiktok}, post_type "carousel", images=[cover9x16,page2slide9x16]. text_content = the tiktok_caption HOOK on the FIRST line, then a blank line, then the full caption (the SAME main content used on IG/FB). TikTok allows up to 2200 characters, so use the hook to earn the tap (it is the only line shown before "more") and the caption to carry the substance. The hook must stay the opening line; never leave the TikTok text empty. TikTok settings must be ON: Allow Comments, Add Auto-Music, AI-generated; leave Branded content OFF. Set them via the create_post API if it supports these fields; if not, tell Holly to flip those toggles on the TikTok draft.
+   • tiktok → account ${CS.tiktok}, post_type "carousel", images=[cover9x16,page2slide9x16]. text_content = the tiktok_caption HOOK on the FIRST line, then a blank line, then the full caption (the SAME main content used on IG/FB). TikTok allows up to 2200 characters, so use the hook to earn the tap (it is the only line shown before "more") and the caption to carry the substance. The hook must stay the opening line; never leave the TikTok text empty. If tiktok_hashtags is present, add it as the FINAL line (blank line, then the hashtags). These hashtags go on TikTok ONLY: never add them to the Pinterest, Instagram, or Facebook drafts. TikTok settings must be ON: Allow Comments, Add Auto-Music, AI-generated; leave Branded content OFF. Set them via the create_post API if it supports these fields; if not, tell Holly to flip those toggles on the TikTok draft.
    • ALT TEXT: each card has an alt_text (one description that rides the image on every platform). Set it on the image whenever the API exposes an image alt/description field. If create_post does NOT expose one, tell Holly the exact alt_text per card so she can open the CS Media Library, click the alt-text icon on the image, and paste it in before publishing.
 6. CONFIRMATION MESSAGE (SUMMARY FORM ONLY, no filler, no recap, no narration, no captions, no image descriptions). Reply in exactly this shape and nothing more:
    (a) STATUS - one platform per line, ALWAYS in THIS order, each marked "check" if the draft was created or "not included" if that platform was not in the card:
@@ -2596,6 +2596,7 @@ function unitBody(u){
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
       ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
+      ${field('TikTok \u00b7 Hashtags (TikTok only)','tiktok_hashtags',u,undefined,undefined,'tiktok_hashtags')}
       ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true,'caption')}
       ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true,'caption_b'):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
@@ -3001,6 +3002,7 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: a scroll-stopping hook whose first 3 words earn the tap, under 85 characters. Do NOT put a website, URL, or juneybyrd.com anywhere in the title. No links, no hashtags.",
+"tiktok_hashtags":"3 to 5 niche, topic-matched TikTok hashtags for THIS exact topic, as one space-separated line (e.g. \\"#freelancerbookkeeping #solopreneurtips #smallbizfinance\\"). Specific and on-topic so TikTok indexes the post to the right search; NEVER broad viral tags (#fyp, #foryou, #viral) and never a spread across unrelated topics. No spaces inside a tag.",
 ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a short header for the TikTok page-2 content slide, sentence case, under 6 words; if it names a count it MUST match the number of items below","page2_items":["3 to 5 short steps for THIS topic as separate array items, each under 6 words, punchy, no time claims. CRITICAL: if the cover headline/sub or the page-2 header names a specific number (like 'the 3 questions'), output EXACTLY that many items, no padding"]`:`"slide2_prompt":"an edit instruction to reply with in the SAME AI image chat that turns image 1 into slide 2 of a TikTok carousel: tell it to keep the exact same scene, style, colors and logo, remove the big headline, and replace it with a short checklist card containing 3 concrete written-out tips for this topic (include the 3 tip lines verbatim)"}`}`;
     // ANGLE MEMORY: avoid repeating angles. Memory follows the BLOG (persists across weeks whenever the same blog is reused); non-blog posts fall back to same-week scope.
     let _divBlock='';
@@ -3078,6 +3080,7 @@ function fieldRewriteSpec(field,sk){
     slots:sl?('the on-image text slots ('+sl.map(s=>s.t).join(', ')+'), which ARE the pin scroll-stopping HOOK. The biggest slot must be the boldest, most click-worthy line (bold claim, sharp number, myth-bust, or a that-is-me callout), never generic filler. Reply {"slots":{'+sl.map(s=>'"'+s.t+'":"..."').join(',')+'}}'):null,
     pin_title:'the Pinterest title: keyword-first SEO, front-load the primary keyword, searchable, 45 to 70 characters. Reply {"pin_title":"..."}',
     tiktok_caption:'the TikTok title: a scroll-stopping hook, first 3 words earn the tap, under 85 characters, NO website or URL, no hashtags. Reply {"tiktok_caption":"..."}',
+    tiktok_hashtags:'3 to 5 niche, topic-matched TikTok hashtags as one space-separated line, specific and on-topic (never #fyp/#foryou/#viral, no spaces inside a tag). Reply {"tiktok_hashtags":"..."}',
     caption:'the caption (IG/FB + Pinterest description): 70 to 90 words, under 480 characters, ends with a soft CTA. Reply {"caption":"..."}',
     caption_b:'a fresh alternate caption, under 480 characters, a different angle or wording from the main caption but the SAME subject as the pin image and caption A (never a different topic). Reply {"caption_b":"..."}',
     alt_text:'the alt text: plain literal description of the pin image, under 200 characters. Reply {"alt_text":"..."}',
