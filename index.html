@@ -992,6 +992,24 @@ async function csCall(path,method='GET',body=null){
 }
 const normTxt=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
 const CS_TO_UNIT={draft:'draft_staged',under_review:'draft_staged',failed:'draft_staged',queued:'scheduled',scheduled:'scheduled',partially_failed:'scheduled',published:'published'};
+// Robust match: stored id → same destination link → title/caption PREFIX overlap (copy drifts after posting, so exact match is too brittle).
+function csPostText(x){let raw=x.common&&x.common.content&&x.common.content.text;if(!raw&&x.overrides)for(const k in x.overrides){const t=x.overrides[k]&&x.overrides[k].content&&x.overrides[k].content.text;if(t){raw=t;break;}}return raw;}
+function csMatchUnit(u,posts){
+  const c=u.copy||{};
+  if(c.cs_post_id){const p=posts.find(x=>String(x.id)===String(c.cs_post_id));if(p)return p;}
+  const t1=normTxt(c.pin_title),cap=normTxt(c.caption),capb=normTxt(c.caption_b),src=String(c.source_url||'').trim();
+  const pref=(a,b,n)=>{a=a||'';b=b||'';if(a.length<n||b.length<n)return false;const short=a.length<=b.length?a:b,long=a.length<=b.length?b:a;return long.indexOf(short.slice(0,n))===0||long.indexOf(short.slice(0,n))>=0;};
+  return posts.find(x=>{
+    const pt=normTxt(x.pinterest_options&&x.pinterest_options.title);
+    const tt=normTxt(x.tiktok_options&&x.tiktok_options.title);
+    const link=String((x.pinterest_options&&x.pinterest_options.link)||'').trim();
+    const tx=normTxt(csPostText(x));
+    if(src&&link&&src===link)return true;
+    if(pref(t1,pt,32)||pref(t1,tt,32))return true;
+    if(pref(cap,tx,45)||pref(capb,tx,45))return true;
+    return false;
+  });
+}
 async function syncCS(btn){
   const lbl=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Syncing…'}
@@ -1008,18 +1026,7 @@ async function syncCS(btn){
     let updated=0;
     for(const u of S.units.filter(x=>x.kind==='social')){
       const c=u.copy||{};
-      let p=c.cs_post_id?posts.find(x=>x.id===c.cs_post_id):null;
-      if(!p){
-        const t1=normTxt(c.pin_title),t2=normTxt(c.caption).slice(0,60),t3=normTxt(c.caption_b).slice(0,60);
-        p=posts.find(x=>{
-          const pt=normTxt(x.pinterest_options&&x.pinterest_options.title);
-          const tt=normTxt(x.tiktok_options&&x.tiktok_options.title);
-          let raw=x.common&&x.common.content&&x.common.content.text;
-          if(!raw&&x.overrides)for(const k in x.overrides){const t=x.overrides[k]&&x.overrides[k].content&&x.overrides[k].content.text;if(t){raw=t;break;}}
-          const tx=normTxt(raw).slice(0,60);
-          return (t1&&pt&&pt===t1)||(t1&&tt&&tt===t1)||(t2&&tx&&tx===t2)||(t3&&tx&&tx===t3);
-        });
-      }
+      const p=csMatchUnit(u,posts);
       if(!p)continue;
       const want=CS_TO_UNIT[p.status]||null;
       const patch={};
