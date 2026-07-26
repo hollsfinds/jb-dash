@@ -563,15 +563,29 @@ s15:{pillars:[1,4],cowork:true,tags:['statement','punchy','mantra','truth','refr
 function coworkPhotoFolder(){return (S.settings&&S.settings.cowork_photo_folder)?S.settings.cowork_photo_folder:'Pin Headshots only';}
 function nextCoworkSlot(){return ((S.settings&&S.settings.cowork_photo_idx)||0);}
 async function takeCoworkSlot(skId){const sk=coworkSkel(skId);if(sk&&sk.bg){const s=(S.settings&&S.settings.cowork_bg_idx)||0;await saveSetting('cowork_bg_idx',s+1);return s;}const s=(S.settings&&S.settings.cowork_photo_idx)||0;await saveSetting('cowork_photo_idx',s+1);return s;}
+function isHeadshotSkel(id){return ['s6','s7','s8','s9'].includes(String(id));}
 function scoreSkel(id,post){const m=SKEL_MATCH[id];if(!m)return 0;let sc=0;if(m.pillars&&m.pillars.includes(post.pillar))sc+=3;const hay=(((post.title||'')+' '+(post.theme||''))).toLowerCase();(m.tags||[]).forEach(t=>{if(hay.indexOf(t)>=0)sc+=1;});return sc;}
 function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
   const avail=S.skeletons.filter(s=>SKEL_MATCH[s.id]);if(!avail.length)return null;
   const scored=avail.map(s=>({s,sc:scoreSkel(s.id,post),cw:!!SKEL_MATCH[s.id].cowork,lru:new Date(s.last_used_at||0).getTime()}));
-  const eligible=scored.filter(x=>{if(x.cw){const fits=SKEL_MATCH[x.s.id].pillars.includes(post.pillar)||x.sc>=2;if(!fits)return false;if(portraitUsed>=maxPortrait)return false;}return true;});
-  const pool=eligible.length?eligible:scored.filter(x=>!x.cw);
-  pool.forEach(x=>{const ri=recent.indexOf(x.s.id);x.pen=ri>=0?(ri===0?100:20):0;});
-  pool.sort((a,b)=>((b.sc-b.pen)-(a.sc-a.pen))||(a.lru-b.lru));
+  const eligible=scored.filter(x=>{if(x.cw){const fits=SKEL_MATCH[x.s.id].pillars.includes(post.pillar)||x.sc>=2;if(!fits)return false;}if(isHeadshotSkel(x.s.id)&&portraitUsed>=maxPortrait)return false;return true;});
+  const pool=eligible.length?eligible:scored.filter(x=>!isHeadshotSkel(x.s.id));
+  // prefer skeletons NOT already used this plan, so the week cycles through the whole catalog instead of repeating 2
+  pool.forEach(x=>{x.rec=recent.indexOf(x.s.id)>=0?1:0;});
+  pool.sort((a,b)=>(a.rec-b.rec)||(b.sc-a.sc)||(a.lru-b.lru));
   return pool[0]?pool[0].s:null;
+}
+// Whole-catalog spread for Deal formats: each open card gets a distinct look, drawing from every eligible skeleton.
+function pickVariedSkel(post,used,pst){
+  const cat=S.skeletons.filter(s=>SKEL_MATCH[s.id]&&s.id!=='s16'&&s.id!=='s17');
+  if(!cat.length)return null;
+  let elig=cat.filter(s=>(((SKEL_MATCH[s.id].pillars||[]).includes(post.pillar))||scoreSkel(s.id,post)>=2)&&(!isHeadshotSkel(s.id)||pst.count<pst.max));
+  if(!elig.length)elig=cat.filter(s=>!isHeadshotSkel(s.id));
+  if(!elig.length)elig=cat.slice();
+  elig.sort((a,b)=>((used.has(a.id)?1:0)-(used.has(b.id)?1:0))||(scoreSkel(b.id,post)-scoreSkel(a.id,post))||(new Date(a.last_used_at||0)-new Date(b.last_used_at||0)));
+  const pick=elig[0]||null;
+  if(pick){used.add(pick.id);if(isHeadshotSkel(pick.id))pst.count++;}
+  return pick;
 }
 window.switchPinMode=async function(id){
   const u=S.units.find(x=>x.id===id);if(!u)return;
@@ -1769,6 +1783,9 @@ async function dealFormats(btn){
     weekUnits(ws).filter(u=>u.kind==='social'&&shipped(u)).forEach(u=>mixBuckets(u).forEach(k=>{if(need[k]!=null)need[k]--;}));
     const open=weekUnits(ws).filter(u=>u.kind==='social'&&!shipped(u)).sort((a,b)=>a.day-b.day);
     const D2F={ig_reel:'reel',fb_reel:'fb_reel',ig_post:'ig_post',fb_post:'fb',ig_story:'ig_story',fb_story:'fb_story',tiktok:'tiktok'};
+    // skeleton variety: give each open card its own look, pulled from the whole catalog (not the same 2 all week)
+    const _usedSk=new Set(weekUnits(ws).filter(u=>u.kind==='social'&&shipped(u)).map(u=>u.skeleton_id).filter(Boolean));
+    const _pst={count:weekUnits(ws).filter(u=>u.kind==='social'&&shipped(u)&&isHeadshotSkel(u.skeleton_id)).length,max:Math.max(2,Math.round(open.length/3))};
     for(const u of open){
       const prefs=PILLAR_FMT[u.pillar]||['ig_post','fb_post'];
       const k=prefs.find(x=>need[x]>0)||Object.keys(need).find(x=>x!=='tiktok'&&need[x]>0)||prefs[0];
@@ -1787,15 +1804,17 @@ async function dealFormats(btn){
       const st=(fam!=='story'&&((p.instagram&&need.ig_story>0)||(p.facebook&&need.fb_story>0)))?1:'';
       const copy={...(u.copy||{}),format:fmt,story_too:st};
       const _upd={copy,platforms:p};
-      if(p.tiktok&&typeof coworkSkel==='function'&&!coworkSkel(u.skeleton_id)){
-        const _cw=(typeof pickCoworkSkel==='function')?pickCoworkSkel({pillar:u.pillar,theme:u.theme,title:u.title}):null;
-        if(_cw){_upd.skeleton_id=_cw.id;delete copy.slots;delete copy.image_prompt;copy.cowork_slot=await takeCoworkSlot(_cw.id);}
+      // give each card a distinct skeleton for visual variety; leave cards that already have written copy alone (their slots are tied to the skeleton)
+      if(u.copy&&u.copy.caption){if(u.skeleton_id)_usedSk.add(u.skeleton_id);}
+      else{
+        const _sk=pickVariedSkel({pillar:u.pillar,theme:u.theme,title:u.title},_usedSk,_pst);
+        if(_sk&&_sk.id!==u.skeleton_id){_upd.skeleton_id=_sk.id;delete copy.slots;delete copy.image_prompt;if(coworkSkel(_sk.id)){copy.cowork_slot=await takeCoworkSlot(_sk.id);}else{delete copy.cowork_slot;}}
       }
       const sim={...u,copy,platforms:p};
       mixBuckets(sim).forEach(x=>{if(need[x]!=null)need[x]--;});
       await updUnit(u.id,_upd);
     }
-    render();toast('Formats dealt. Every open card now says exactly what to make.');
+    render();toast('Formats and layouts dealt. Every open card now has its own look and platforms.');
   }catch(e){toast('Deal failed: '+e.message);render();}
   if(btn){btn.disabled=false;btn.innerHTML='Deal formats';}
 }
@@ -2337,7 +2356,7 @@ function startWizard(){
   let _contentIdx=0;
   // rotating angle lenses so slots that share a blog each cover a DIFFERENT facet of it
   const _blogAngleCount={};
-  const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(1,Math.round(socialCount/7));
+  const _recent=[];let _portraitUsed=0;const _maxPortrait=Math.max(2,Math.round(socialCount/4));
   for(let i=0;i<topicCount;i++){
     const pillar=mix[i];
     const theme=themes[i%themes.length];
@@ -2345,7 +2364,7 @@ function startWizard(){
     if(pillar<=3){topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(x=>x.topic_id===t.id));if(topic){title=topic.title;topic_id=topic.id;}else if(procBlogs.length){const bg=procBlogs[_contentIdx%procBlogs.length];_contentIdx++;title=bg.title;blog_id=bg.id;blog_url=bg.url;const _bk=String(bg.id);const _n=(_blogAngleCount[_bk]||0);_blogAngleCount[_bk]=_n+1;angle=ANGLE_LENSES[_n%ANGLE_LENSES.length];}else{needsTopic=true;}}
     else{topic=pool.find(t=>(t.pillar===pillar||!t.pillar)&&!slots.some(s=>s.topic_id===t.id));title=topic?topic.title:'';topic_id=topic?topic.id:null;needsTopic=!topic;}
     const sk=(typeof pickSkelSmart==='function')?pickSkelSmart({pillar,theme,title},_recent,_portraitUsed,_maxPortrait):suggestSkeletonRotating(i);
-    if(sk){_recent.unshift(sk.id);if(SKEL_MATCH[sk.id]&&SKEL_MATCH[sk.id].cowork)_portraitUsed++;}
+    if(sk){_recent.unshift(sk.id);if(isHeadshotSkel(sk.id))_portraitUsed++;}
     slots.push({day:i%7,pillar,theme,kind:'social',topic_id,title,skeleton_id:sk?sk.id:null,needsTopic,blog_id,blog_url,angle});
   }
   const PCOMB=[['B','navy','coral'],['A','white','teal'],['B','white','sage'],['A','navy','coral']];
