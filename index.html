@@ -2579,7 +2579,7 @@ function unitBody(u){
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
       ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true,'caption')}
       ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true,'caption_b'):''}
-      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" onclick="copyText(csHandoffUnit('${u.id}'),'CS draft handoff for this card copied. Open a new Claude chat and paste it.')" title="Copy a full handoff for THIS card (chosen content + its platforms). Paste into a new Claude chat and Claude builds this card's ContentStudio drafts.">${ic('chat')} Copy CS draft handoff (this card)</button></div>
+      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" style="background:var(--teal);color:#fff;font-size:16px;font-weight:800;padding:13px 26px;border-radius:12px" onclick="copyText(csHandoffUnit('${u.id}'),'Full Post Handoff copied. Open a new Claude chat and paste it.')" title="Copy a full handoff for THIS card (chosen content + its platforms). Paste into a new Claude chat and Claude builds this card's ContentStudio drafts.">${ic('chat')} Full Post Handoff for Claude</button></div>
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
