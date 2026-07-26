@@ -2631,8 +2631,11 @@ function field(label,key,u,forced,grow,rwKey){
   const rw=rwKey?`<button class="btn ghost sm" style="padding:0 8px;margin-left:8px;vertical-align:middle" title="Rewrite just this field with AI, same topic" onclick="cardFieldRewrite('${u.id}','${rwKey}',this)">${ic('refresh')}</button>`:'';
   return `<div class="copyfield"><label>${label}${rw}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
 }
-function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="cursor:pointer;margin-left:10px;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
-window.setCaptionPick=async function(id,which){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;await updUnit(id,{copy:{...(u.copy||{}),caption_pick:which}});render();};
+function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span id="capk_${u.id}_${which}" onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="cursor:pointer;margin-left:10px;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
+// Only marks which version is chosen. Never rebuilds the modal, so the copy boxes stay exactly as they are (only the rewrite button changes copy).
+window.setCaptionPick=async function(id,which){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;u.copy={...(u.copy||{}),caption_pick:which};
+  ['a','b'].forEach(w=>{const el=document.getElementById('capk_'+id+'_'+w);if(el){const on=w===which;el.style.color=on?'var(--good)':'var(--muted)';el.textContent=on?'◉ using this':'○ use this';}});
+  try{await updUnit(id,{copy:u.copy});}catch(e){}};
 window.saveSlot=async function(id,slot,val){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;const c={...(u.copy||{})};c.slots={...(c.slots||{}),[slot]:val};await updUnit(id,{copy:c});};
 // Editable on-image text (the slots) so Holly can review/edit what the pin says before handing off.
 function slotFields(u){
