@@ -572,17 +572,24 @@ Claude: for each card below, create ContentStudio DRAFTS (never schedule or publ
 3. For any card whose platforms include tiktok, also render a page-2 slide (typestack-render.cjs mode:"list", eyebrow + page2_items) at 9:16 — TikTok is a 2-image carousel (cover + page-2).
 4. HOST each sized image by committing it to the jb-dash repo under pins/ and using the raw URL: https://raw.githubusercontent.com/hollsfinds/jb-dash/main/pins/<name>.png . NAME every file UNIQUELY per card so parallel runs never overwrite each other: use the pattern <day>-<skeleton_id>-<platform>-<short-random>.png (e.g. tue-s10-pinterest-a1.png). If "git push" is rejected as non-fast-forward (another agent pushed at the same time), run "git pull --rebase" and push again — never force-push.
 5. CREATE drafts via mcp__remote-devices__ContentStudio__create_post, publish_type:"draft", workspace_id ${CS.workspace}:
-   • pinterest → account ${CS.pinterest}, post_type "feed", text_content=caption. Pinterest destination link = source_url; the API has no link field, so tell Holly to paste source_url into the "Source URL for Pinterest" field when she approves.
+   • pinterest → account ${CS.pinterest}, post_type "feed", text_content=caption (this is the pin DESCRIPTION only). The Pinterest TITLE (pin_title) and destination LINK (source_url) have NO API field, so Holly pastes BOTH when she approves: pin_title into the Pinterest "Title" field and source_url into the "Source URL for Pinterest" field. Always surface both in the confirmation.
    • instagram → account ${CS.instagram}, post_type "feed", text_content=caption.
    • facebook → account ${CS.facebook}, post_type "feed", text_content=caption.  (Batch instagram+facebook in ONE create_post call, both accounts, same 4:5 image.)
-   • tiktok → account ${CS.tiktok}, post_type "carousel", images=[cover9x16,page2slide9x16]. text_content = the card's tiktok_caption field — this IS the TikTok post title/hook and must ALWAYS be added to the draft. TikTok settings must be ON: Allow Comments, Add Auto-Music, AI-generated; leave Branded content OFF. Set them via the create_post API if it supports these fields; if not, tell Holly to flip those toggles on the TikTok draft.
+   • tiktok → account ${CS.tiktok}, post_type "carousel", images=[cover9x16,page2slide9x16]. text_content = the card's tiktok_caption field — this IS the TikTok post title/hook and must ALWAYS be added to the draft (never leave the TikTok text empty). TikTok settings must be ON: Allow Comments, Add Auto-Music, AI-generated; leave Branded content OFF. Set them via the create_post API if it supports these fields; if not, tell Holly to flip those toggles on the TikTok draft.
    • ALT TEXT: each card has an alt_text (one description that rides the image on every platform). Set it on the image whenever the API exposes an image alt/description field. If create_post does NOT expose one, tell Holly the exact alt_text per card so she can open the CS Media Library, click the alt-text icon on the image, and paste it in before publishing.
-6. CONFIRMATION MESSAGE (SUMMARY FORM ONLY, no filler, no recap, no narration): reply in exactly this shape and nothing more:
-   (a) One status line per platform for the card: "check" if the draft was created, "not included" if that platform was not in the card. Example: "Pinterest - check · IG - check · FB - check · TT - not included".
-   (b) A "Paste in:" section with ONLY the values Holly must add by hand, EACH in its own fenced code block (triple backticks give a one-click copy button), one value per block with a short label line above it: the Pinterest source_url (label "Pinterest link:") for any card with Pinterest, and the alt_text (label "Alt text:") for any card where you could NOT set it via the API. If there is nothing to paste, write "Paste in: nothing".
-   (c) If the card includes TikTok, ONE short line stating whether you set the toggles via the API (Allow Comments, Auto-Music, AI-generated ON; Branded content OFF) or she must flip them.
-   (d) Only if there is a real problem, ONE "Heads up:" line. If nothing is wrong, omit it entirely.
-   Do NOT restate captions, describe the images, or list the steps you took. Short is the whole point.
+6. CONFIRMATION MESSAGE (SUMMARY FORM ONLY, no filler, no recap, no narration, no captions, no image descriptions). Reply in exactly this shape and nothing more:
+   (a) STATUS - one platform per line, ALWAYS in THIS order, each marked "check" if the draft was created or "not included" if that platform was not in the card:
+       Pinterest - <check|not included>
+       FB - <check|not included>
+       IG - <check|not included>
+       TT - <check|not included>
+   (b) PASTE IN - the values Holly must add by hand, EACH in its own fenced code block (triple backticks give a one-click copy button), one value per block with a label line above it, in THIS order (skip any that do not apply to this card):
+       Pinterest Link:  -> source_url
+       Pinterest Title:  -> pin_title (the API cannot set the Pinterest title, so she pastes it)
+       Alt Text:  -> alt_text (only if you could not set it via the API)
+   (c) If the card includes TikTok: ONE line confirming the TikTok title (tiktok_caption) is in the draft as the post text, and ONE line stating whether the toggles were set via the API (Allow Comments, Auto-Music, AI-generated ON; Branded content OFF) or she must flip them.
+   (d) Only if something is actually wrong, ONE "Heads up:" line. Otherwise omit it entirely.
+   Short is the whole point.
 Leave the posting time and approval to Holly.
 
 ## CARDS (${cards.length})
