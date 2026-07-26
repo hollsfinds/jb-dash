@@ -586,6 +586,19 @@ ${JSON.stringify(cards,null,1)}
 `;
 }
 window.buildCSHandoff=buildCSHandoff;
+// One document split into per-card blocks so Holly can hand each block to a separate Claude chat (one card per agent, parallel-safe).
+function buildWeekBatchHandoff(units){
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const cards=(units||[]).filter(u=>u&&u.kind==='social'&&(u.copy||{}).caption).sort((a,b)=>a.day-b.day);
+  if(!cards.length)return '';
+  const blocks=cards.map((u,i)=>{
+    const nm=(S.skeletons.find(s=>String(s.id)===String(u.skeleton_id))||{}).name||'';
+    return `\n\n======================  CARD ${i+1} OF ${cards.length}  ·  ${days[u.day]} - ${nm}  ======================\nGive THIS block (from here down to the next divider) to ONE Claude chat. One card per agent.\n\n`+buildCSHandoff([u]);
+  });
+  return `# Week batch handoff - Juney & Byrd - ${cards.length} cards\n\nHOW TO RUN THIS IN PARALLEL:\n1. Open one Claude chat per card (2 to 3 at a time is the sweet spot; more just piles up git retries).\n2. Copy exactly ONE "CARD X OF ${cards.length}" block into each chat - one card per agent.\n3. Each agent renders its own image with a UNIQUE filename and creates ONLY that card's drafts, so the agents never overwrite each other.\n4. When every agent is done, come back to the dashboard and hit "Sync ContentStudio" to pull the new drafts in.\n`+blocks.join('');
+}
+window.buildWeekBatchHandoff=buildWeekBatchHandoff;
+window.copyWeekBatch=function(){const cards=weekUnits(S.week).filter(u=>u.kind==='social'&&(u.copy||{}).caption);if(!cards.length){toast('No cards with copy yet. Write the copy first.');return;}copyText(buildWeekBatchHandoff(weekUnits(S.week)),'Batch handoff copied - '+cards.length+' cards. Open one Claude chat per card and paste one block into each.');};
 const SKEL_MATCH={
 s1:{pillars:[2],tags:['guide','how to','how-to','101','basics','beginner','explain','plain','step','what is']},
 s2:{pillars:[2],tags:['checklist','list','steps','tips','benefit','ways','things','rules']},
@@ -2533,7 +2546,7 @@ function vPacks(){
   $('#main').innerHTML=`
   <div class="viewtitle"><h1>Copy Packs</h1><span class="sub">the batch-day workbench</span></div>
   <div class="tabbar">${weeks.map(w=>`<button class="${iso(w)===iso(S.week)?'on':''}" onclick="setWeek('${iso(w)}');go('packs')">${fmtRange(w)}</button>`).join('')}</div>
-  ${units.length?`<div class="row" style="margin-bottom:14px;flex-wrap:wrap"><button class="btn" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><span class="muted small">runs Claude once per unit, in your voice</span><div class="spacer"></div><button class="btn ghost" onclick="syncCS(this)">${ic('refresh')} Sync ContentStudio</button>${S.csSyncedAt?`<span class="muted small">synced ${new Date(S.csSyncedAt).toLocaleTimeString()}</span>`:''}</div>`:''}
+  ${units.length?`<div class="row" style="margin-bottom:14px;flex-wrap:wrap"><button class="btn" onclick="genAll(this)">${ic('sparkle')} Write ALL missing copy</button><span class="muted small">runs Claude once per unit, in your voice</span><button class="btn" style="background:var(--teal);color:#fff" onclick="copyWeekBatch()" title="Copy one handoff split into per-card blocks. Paste one block into each Claude chat to run agents in parallel, one card each.">${ic('chat')} Batch handoff · split across agents</button><div class="spacer"></div><button class="btn ghost" onclick="syncCS(this)">${ic('refresh')} Sync ContentStudio</button>${S.csSyncedAt?`<span class="muted small">synced ${new Date(S.csSyncedAt).toLocaleTimeString()}</span>`:''}</div>`:''}
   ${units.length?units.map(u=>renderUnit(u)).join(''):'<div class="card"><p class="muted">Nothing planned this week. <a href="#" onclick="go(\'plan\');return false">Plan it →</a></p></div>'}`;
 }
 function unitBody(u){
