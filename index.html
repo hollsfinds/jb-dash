@@ -1804,17 +1804,16 @@ async function dealFormats(btn){
       const st=(fam!=='story'&&((p.instagram&&need.ig_story>0)||(p.facebook&&need.fb_story>0)))?1:'';
       const copy={...(u.copy||{}),format:fmt,story_too:st};
       const _upd={copy,platforms:p};
-      // give each card a distinct skeleton for visual variety; leave cards that already have written copy alone (their slots are tied to the skeleton)
-      if(u.copy&&u.copy.caption){if(u.skeleton_id)_usedSk.add(u.skeleton_id);}
-      else{
+      // give each card a distinct skeleton for visual variety. Reassign for cards whose image isn't made yet (idea stage), even if copy exists; clearing the skeleton-specific slots so the on-image text regenerates for the new layout (the caption itself is layout-independent and stays). Cards past 'idea' (image already made/staged) keep their skeleton.
+      if(u.status==='idea'){
         const _sk=pickVariedSkel({pillar:u.pillar,theme:u.theme,title:u.title},_usedSk,_pst);
         if(_sk&&_sk.id!==u.skeleton_id){_upd.skeleton_id=_sk.id;delete copy.slots;delete copy.image_prompt;if(coworkSkel(_sk.id)){copy.cowork_slot=await takeCoworkSlot(_sk.id);}else{delete copy.cowork_slot;}}
-      }
+      }else if(u.skeleton_id){_usedSk.add(u.skeleton_id);}
       const sim={...u,copy,platforms:p};
       mixBuckets(sim).forEach(x=>{if(need[x]!=null)need[x]--;});
       await updUnit(u.id,_upd);
     }
-    render();toast('Formats and layouts dealt. Every open card now has its own look and platforms.');
+    render();toast('Formats and layouts dealt. Cards got varied looks; hit Write ALL copy to fill the new on-image text.');
   }catch(e){toast('Deal failed: '+e.message);render();}
   if(btn){btn.disabled=false;btn.innerHTML='Deal formats';}
 }
@@ -3048,7 +3047,8 @@ async function cardFieldRewrite(id,field,btn){
 window.testCopyModal=testCopyModal;window.testCopyRun=testCopyRun;window.testCopyRewrite=testCopyRewrite;window.testCopyGen=testCopyGen;window.testCopyRender=testCopyRender;window.testFieldRewrite=testFieldRewrite;window.cardFieldRewrite=cardFieldRewrite;
 async function genAll(btn){
   btn.innerHTML='<span class="spin"></span> Writing...';btn.disabled=true;
-  const units=weekUnits(S.week).filter(u=>u.kind==='social'&&!(u.copy||{}).caption);
+  const _needsSlots=u=>typeof SKELETON_SLOTS!=='undefined'&&SKELETON_SLOTS[u.skeleton_id]&&!(((u.copy||{}).slots)&&Object.keys((u.copy||{}).slots||{}).length);
+  const units=weekUnits(S.week).filter(u=>u.kind==='social'&&(!(u.copy||{}).caption||_needsSlots(u)));
   for(const u of units){await genCopy(u.id,null);}
   render();toast('All copy packs written!');
 }
