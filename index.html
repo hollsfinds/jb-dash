@@ -229,6 +229,10 @@ let S={view:'dash',settings:{},topics:[],units:[],blog:[],skeletons:[],inbox:[],
 const $=q=>document.querySelector(q);
 const esc=s=>(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const deent=s=>{if(s==null)return '';const t=document.createElement('textarea');t.innerHTML=String(s);return t.value;};
+// A topic counts as "processed" once it is planned/used/denied OR already exists as a card. Never suggest those again.
+function normTopic(s){return deent(String(s||'')).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+function processedTopicSet(){const set=new Set();(S.topics||[]).forEach(t=>{if(t&&t.title&&['planned','used','denied'].includes(t.status))set.add(normTopic(t.title));});(S.units||[]).forEach(u=>{if(u&&u.title)set.add(normTopic(u.title));});return set;}
+function processedTopicTitles(cap){const arr=[],seen=new Set();const push=t=>{if(!t)return;const k=normTopic(t);if(!k||seen.has(k))return;seen.add(k);arr.push(deent(t));};(S.topics||[]).forEach(t=>{if(t&&['planned','used','denied'].includes(t.status))push(t.title);});(S.units||[]).forEach(u=>push(u&&u.title));return arr.slice(0,cap||80);}
 /* inline SVG icon set (feather-style) */
 const ICON_PATHS={
 home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
@@ -1980,7 +1984,7 @@ window.dashPickPillar=function(p){dashPillar=dashPillar===p?null:p;render();};
 async function dashSuggest(p,btn){
   btn.innerHTML='<span class="spin"></span>';btn.disabled=true;
   try{
-    const used=S.topics.filter(t=>['used','denied'].includes(t.status)).map(t=>t.title).slice(0,40);
+    const used=processedTopicTitles(80);const _proc=processedTopicSet();
     const _pb=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);const _bl=_pb.map((b,i)=>`${i+1}="${b.title}"`).join('; ');
     const _ct=(p===3)?(((S.settings.week_tool||{})[iso(S.week)])||[]).filter(k=>ppProducts()[k]):[];
     let out;
@@ -1999,11 +2003,14 @@ async function dashSuggest(p,btn){
     }
     const j=extractJSON(out);
     const _tb={...(S.settings.topic_blog||{})};let _tbc=false;
-    for(const it of (j.topics||[]).slice(0,5)){
+    let _kept=0;
+    for(const it of (j.topics||[])){
+      if(_kept>=5)break;
       const title=(typeof it==='string')?it:(it.t||it.title||'');if(!title)continue;
+      const _k=normTopic(title);if(!_k||_proc.has(_k))continue;_proc.add(_k);
       const bn=(p<=3&&it&&typeof it==='object'&&+it.b)?+it.b:0;
       const {data}=await sb.from('jb_topics').insert({title,pillar:p,source:'dash',status:'idea'}).select();
-      if(data){S.topics.unshift(data[0]);if(bn>=1&&_pb[bn-1]){_tb[String(data[0].id)]=String(_pb[bn-1].id);_tbc=true;}}
+      if(data){_kept++;S.topics.unshift(data[0]);if(bn>=1&&_pb[bn-1]){_tb[String(data[0].id)]=String(_pb[bn-1].id);_tbc=true;}}
     }
     if(_tbc)await saveSetting('topic_blog',_tb);
     render();
@@ -2378,7 +2385,7 @@ async function suggestTopics(btn){
   try{
     const empty=planDraft.slots.filter(s=>!s.title);
     const _pb=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);const _bl=_pb.map(b=>`"${b.title}"`).join(', ');
-    const used=S.topics.filter(t=>['used','denied'].includes(t.status)).map(t=>t.title).slice(0,40);
+    const used=processedTopicTitles(80);
     const ask=`Suggest one short social post topic for EACH of these slots for Juney & Byrd (life-admin brand: money for freelancers, habits, home organization, planning).${_pb.length?` This week's processing blog posts: ${_bl}. For slots in pillars 1-3 (content), lean toward an angle that promotes or riffs on one of these posts; for pillars 4-5, keep it personal and not tied to a post.`:''} Slots: ${empty.map((s,i)=>`#${i+1}: pillar ${s.pillar} (${PILLARS[s.pillar]}), theme ${s.theme}, type ${s.kind}`).join(' · ')}. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":["...","..."]} in slot order. Topics are short working titles, not captions.`;
     const out=await claude(VOICE,ask,800);
     const j=extractJSON(out);
