@@ -12,12 +12,15 @@ const bgURI = p => `data:image/${path.extname(p).slice(1)};base64,`+fs.readFileS
 
 function theme(cfg){
   const t = cfg.theme||'navy';
-  if(t==='white') return {block:'#ffffff', head:NAVY, eb:CORAL, script:CORAL, chip:'transparent', chipPad:'0'};
-  return {block:NAVY, head:'#ffffff', eb:CORAL, script:MINT, chip:'#ffffff', chipPad:'16px 26px'};
+  // white panel is slightly translucent (a bit opaque) so a soft ghost of the photo shows through
+  if(t==='white') return {block:'#ffffff', ov:`rgba(255,255,255,${cfg.blockAlpha!=null?cfg.blockAlpha:0.93})`, head:NAVY, eb:CORAL, script:CORAL, chip:'transparent', chipPad:'0'};
+  return {block:NAVY, ov:NAVY, head:'#ffffff', eb:CORAL, script:MINT, chip:'#ffffff', chipPad:'16px 26px'};
 }
 
+// baked-in default headshot + crop so split cards frame Holly on the right with zero fiddling
+const DEFAULT_BG = path.join(__dirname,'advice-split-default.jpg');
 function split(cfg){
-  const bg = bgURI(cfg.bg);
+  const bg = bgURI(cfg.bg || DEFAULT_BG);
   const T = theme(cfg);
   const lines = (cfg.advice||[]).map(l=>`<div class="hl">${l}</div>`).join('');
   const fadeStop = cfg.blockW || 46; // % of width where the solid block ends before fading into the photo
@@ -28,8 +31,8 @@ function split(cfg){
   *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
   html,body{width:1000px;height:1500px;}
   .pin{position:relative;width:1000px;height:1500px;overflow:hidden;background:${T.block};}
-  .bg{position:absolute;inset:0;background-size:cover;background-position:${cfg.bgPos||'right center'};}
-  .overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(90deg, ${T.block} 0%, ${T.block} ${fadeStop}%, rgba(0,0,0,0) ${fadeStop+20}%);}
+  .bg{position:absolute;inset:0;background-size:cover;background-position:${cfg.bgPos||'75% center'};}
+  .overlay{position:absolute;inset:0;z-index:2;background:linear-gradient(90deg, ${T.ov} 0%, ${T.ov} ${fadeStop}%, rgba(0,0,0,0) ${fadeStop+20}%);}
   .frame{position:absolute;inset:26px;border:5px solid ${CORAL};border-radius:34px;pointer-events:none;z-index:8;}
   .content{position:absolute;left:0;top:0;bottom:0;width:${cfg.contentW||560}px;z-index:4;
            padding:${cfg.padTop||190}px 40px 70px 74px;display:flex;flex-direction:column;}
