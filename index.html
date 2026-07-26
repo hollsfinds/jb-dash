@@ -543,22 +543,29 @@ function buildCoworkHandoff(sk,unit){
   asset+page2+'\n\n'+
   'Paste this to Claude in Cowork. Claude renders the finished 1000x1500 PNG and sends it back. Download it, then upload THAT image to the ContentStudio composer as the pin image. Skip AI Studio entirely.';
 }
-// Full week handoff: paste to Claude to render every pin, resize per platform, host, and create the ContentStudio DRAFTS.
-function buildCSHandoff(ws){
+// Per-card handoff: paste to Claude to render the pin, resize per platform, host, and create the ContentStudio DRAFTS for THIS card.
+function csHandoffUnit(id){const u=S.units.find(x=>String(x.id)===String(id));return u?buildCSHandoff([u]):'';}
+window.csHandoffUnit=csHandoffUnit;
+function buildCSHandoff(units){
   const CS={workspace:'6a52908a12cc32366f04d676',pinterest:'222083894063761696',instagram:'17841409889555980',facebook:'1174275925758462',tiktok:'08e2eabe-052e-579c-bb64-d9667e7268d2'};
   const FAM=id=>{id=String(id);if(id==='s10'||id==='s11')return 'typestack (typestack-render.cjs, text only)';if(['s6','s7','s8','s9'].includes(id))return 'advice/headshot (s7-render.cjs, needs a headshot from the "Pin Headshots only" folder)';if(['s12','s13','s14','s15'].includes(id))return 'photo (photocard-render.cjs, needs a background from the "Pin Backgrounds only" folder)';return 'AI-Studio prompt skeleton (NOT code-rendered; ask Holly for this image)';};
   const THEME=id=>{const n=((S.skeletons.find(s=>String(s.id)===String(id))||{}).name||'').toLowerCase();return n.includes('navy')?'navy':(n.includes('white')||n.includes('mint')?'white/light':'');};
+  const POST={pinterest:'Pinterest → post_type "feed", image 1000x1500 (2:3)',instagram:'Instagram → post_type "feed", image 1080x1350 (4:5)',facebook:'Facebook → post_type "feed", image 1080x1350 (4:5)',tiktok:'TikTok → post_type "carousel", TWO images 1080x1920 (9:16): cover + page-2 slide'};
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const units=weekUnits(ws).filter(u=>u.kind==='social'&&!['scheduled','published'].includes(u.status)&&(u.copy||{}).caption).sort((a,b)=>a.day-b.day);
-  const cards=units.map(u=>{const c=u.copy||{};const pf=u.platforms||{};return {
+  const list=(units||[]).filter(u=>u&&u.kind==='social'&&(u.copy||{}).caption).sort((a,b)=>a.day-b.day);
+  const cards=list.map(u=>{const c=u.copy||{};const pf=u.platforms||{};const plats=['pinterest','instagram','facebook','tiktok'].filter(p=>pf[p]);
+    const useB=(c.caption_pick==='b'&&c.caption_b);return {
     day:days[u.day], skeleton_id:u.skeleton_id, skeleton_name:(S.skeletons.find(s=>String(s.id)===String(u.skeleton_id))||{}).name||'',
     render_family:FAM(u.skeleton_id), theme:THEME(u.skeleton_id), slots:c.slots||{},
-    platforms:['pinterest','instagram','facebook','tiktok'].filter(p=>pf[p]),
-    caption:c.caption||'', tiktok_caption:c.tiktok_caption||'', page2_header:c.page2_header||'', page2_items:c.page2_items||[],
+    platforms:plats,
+    drafts_to_create:plats.map(p=>POST[p]),
+    caption_option_chosen:useB?'B':'A', caption:(useB?c.caption_b:c.caption)||'',
+    tiktok_caption:c.tiktok_caption||'', page2_header:c.page2_header||'', page2_items:c.page2_items||[],
     pin_title:c.pin_title||'', alt_text:c.alt_text||'', source_url:c.source_url||''
   };});
-  return `# ContentStudio DRAFT handoff — Juney & Byrd — week of ${ws}
-Claude: for each card below, create ContentStudio DRAFTS (never schedule or publish), one per platform in "platforms". Steps:
+  const ttl=cards.length===1?(cards[0].day+' — '+(cards[0].skeleton_name||'')):(cards.length+' cards');
+  return `# ContentStudio DRAFT handoff — Juney & Byrd — ${ttl}
+Claude: for each card below, create ContentStudio DRAFTS (never schedule or publish). Create ONLY the platforms listed in that card's "platforms" / "drafts_to_create" — nothing else. Steps:
 1. RENDER the 1000x1500 pin from render_family + theme + slots, using the render scripts in the jb-dash repo (render-assets/: typestack-render.cjs, s7-render.cjs, photocard-render.cjs). AUTO-FIT: shrink the font sizes (size/scriptSize/padTop) so nothing overflows 1500px. Headshot/photo skeletons pull an image from Holly's device folders. AI-Studio skeletons are not code-rendered — ask Holly for those images.
 2. RESIZE per platform by PADDING with the pin's background color to the target ratio (never crop the text): pinterest 1000x1500 (2:3) · instagram 1080x1350 (4:5) · facebook 1080x1350 (4:5) · tiktok 1080x1920 (9:16).
 3. For any card whose platforms include tiktok, also render a page-2 slide (typestack-render.cjs mode:"list", eyebrow + page2_items) at 9:16 — TikTok is a 2-image carousel (cover + page-2).
@@ -2493,7 +2500,7 @@ function renderWeekGrid(units){
   const _fmtDone=_soc.length>0&&_soc.every(u=>(u.copy||{}).format);
   const _copyDone=_soc.length>0&&_soc.every(u=>(u.copy||{}).caption&&!_needsSlots(u));
   const _badge=(done,n)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:10px;font-weight:900;margin-right:5px;${done?'background:var(--good);color:#fff':'background:#fff;color:var(--coral-b)'}">${done?'\u2713':n}</span>`;
-  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><div class="row" style="flex:0 0 auto;flex-wrap:wrap;gap:6px;justify-content:flex-end"><button class="btn sm" style="white-space:nowrap" onclick="dealFormats(this)" title="Step 1: set each card's platforms and give it a varied visual layout">${_badge(_fmtDone,'1')}Deal formats</button><button class="btn sm" style="white-space:nowrap" onclick="genAll(this)" title="Step 2: write the words for every card">${_badge(_copyDone,'2')}Write ALL copy</button><button class="btn sm" style="white-space:nowrap" onclick="copyText(buildCSHandoff(iso(S.week)),'CS draft handoff copied. Open a new Claude chat and paste it to build the drafts.')" title="Step 3: copy a full handoff of this week's ready cards. Paste it into a new Claude chat and Claude renders the images and creates the ContentStudio drafts across Pinterest/IG/FB/TikTok.">${_badge(false,'3')}CS handoff</button><button class="btn ghost sm" style="white-space:nowrap;opacity:.9" onclick="varyThisWeek(this)" title="Optional: use only if the wording feels repetitive. Rewrites this week's copy with fresh angles.">${ic('refresh')} Vary these <span class="small muted" style="font-weight:700">· optional</span></button></div></div>
+  return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><div class="row" style="flex:0 0 auto;flex-wrap:nowrap;gap:6px"><button class="btn sm" style="white-space:nowrap" onclick="dealFormats(this)" title="Step 1: set each card's platforms and give it a varied visual layout">${_badge(_fmtDone,'1')}Deal formats</button><button class="btn sm" style="white-space:nowrap" onclick="genAll(this)" title="Step 2: write the words for every card">${_badge(_copyDone,'2')}Write ALL copy</button><button class="btn ghost sm" style="white-space:nowrap;opacity:.9" onclick="varyThisWeek(this)" title="Optional: use only if the wording feels repetitive. Rewrites this week's copy with fresh angles.">${ic('refresh')} Vary these <span class="small muted" style="font-weight:700">· optional</span></button></div></div>
   <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${open.map(row).join('')}
   ${done.length||wkBlogs.length?`<tr class="done-divider"><td colspan="5">Completed \u00b7 ${done.length+wkBlogs.length}</td></tr>${wkBlogs.map(blogRow).join('')}${done.map(row).join('')}`:''}
@@ -2570,8 +2577,9 @@ function unitBody(u){
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
-      ${field('Content (A)','caption',u,undefined,true,'caption')}
-      ${c.caption_b?field('Content (B)','caption_b',u,undefined,true,'caption_b'):''}
+      ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true,'caption')}
+      ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true,'caption_b'):''}
+      <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn sm" onclick="copyText(csHandoffUnit('${u.id}'),'CS draft handoff for this card copied. Open a new Claude chat and paste it.')" title="Copy a full handoff for THIS card (chosen content + its platforms). Paste into a new Claude chat and Claude builds this card's ContentStudio drafts.">${ic('chat')} Copy CS draft handoff (this card)</button></div>
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
@@ -2618,6 +2626,8 @@ function field(label,key,u,forced,grow,rwKey){
   const rw=rwKey?`<button class="btn ghost sm" style="padding:0 8px;margin-left:8px;vertical-align:middle" title="Rewrite just this field with AI, same topic" onclick="cardFieldRewrite('${u.id}','${rwKey}',this)">${ic('refresh')}</button>`:'';
   return `<div class="copyfield"><label>${label}${rw}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
 }
+function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="cursor:pointer;margin-left:10px;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
+window.setCaptionPick=async function(id,which){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;await updUnit(id,{copy:{...(u.copy||{}),caption_pick:which}});render();};
 function sizeGrowAreas(){try{document.querySelectorAll('#modal textarea.grow').forEach(t=>{t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';});}catch(e){}}
 window.sizeGrowAreas=sizeGrowAreas;
 async function saveCopyField(id,key,val){
