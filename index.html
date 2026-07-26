@@ -569,7 +569,7 @@ Claude: for each card below, create ContentStudio DRAFTS (never schedule or publ
 1. RENDER the 1000x1500 pin from render_family + theme + slots, using the render scripts in the jb-dash repo (render-assets/: typestack-render.cjs, s7-render.cjs, photocard-render.cjs). AUTO-FIT: shrink the font sizes (size/scriptSize/padTop) so nothing overflows 1500px. Headshot/photo skeletons pull an image from Holly's device folders. AI-Studio skeletons are not code-rendered — ask Holly for those images.
 2. RESIZE per platform by PADDING with the pin's background color to the target ratio (never crop the text): pinterest 1000x1500 (2:3) · instagram 1080x1350 (4:5) · facebook 1080x1350 (4:5) · tiktok 1080x1920 (9:16).
 3. For any card whose platforms include tiktok, also render a page-2 slide (typestack-render.cjs mode:"list", eyebrow + page2_items) at 9:16 — TikTok is a 2-image carousel (cover + page-2).
-4. HOST each sized image by committing it to the jb-dash repo under pins/ and using the raw URL: https://raw.githubusercontent.com/hollsfinds/jb-dash/main/pins/<name>.png
+4. HOST each sized image by committing it to the jb-dash repo under pins/ and using the raw URL: https://raw.githubusercontent.com/hollsfinds/jb-dash/main/pins/<name>.png . NAME every file UNIQUELY per card so parallel runs never overwrite each other: use the pattern <day>-<skeleton_id>-<platform>-<short-random>.png (e.g. tue-s10-pinterest-a1.png). If "git push" is rejected as non-fast-forward (another agent pushed at the same time), run "git pull --rebase" and push again — never force-push.
 5. CREATE drafts via mcp__remote-devices__ContentStudio__create_post, publish_type:"draft", workspace_id ${CS.workspace}:
    • pinterest → account ${CS.pinterest}, post_type "feed", text_content=caption. Pinterest destination link = source_url; the API has no link field, so tell Holly to paste source_url into the "Source URL for Pinterest" field when she approves.
    • instagram → account ${CS.instagram}, post_type "feed", text_content=caption.
@@ -2576,6 +2576,9 @@ function unitBody(u){
     </div>
     <div class="ustep">
       <span class="stepnum">3</span><span class="steptitle">Per-platform fields \u00b7 CS order</span>
+      <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer;font-weight:700">Advanced: which platforms this card posts to</summary>
+      <div class="row stepbody" style="margin-top:8px;flex-wrap:wrap">${PLATFORMS.map(p=>`<span class="plat ${(u.platforms||{})[p]?'on':''}" onclick="togglePlat('${u.id}','${p}')">${ic(PLAT_ICON[p])} ${p}</span>`).join('')}</div>
+      <p class="stephint" style="margin-top:6px">Auto-set from the format. Only touch this if this card should skip or add a platform.</p></details>
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
@@ -2647,7 +2650,7 @@ async function togglePlat(id,p){
     const cw=(typeof pickCoworkSkel==='function')?pickCoworkSkel({pillar:u.pillar,theme:u.theme,title:u.title}):null;
     if(cw){const c={...(u.copy||{})};delete c.slots;delete c.image_prompt;c.cowork_slot=await takeCoworkSlot(cw.id);upd.skeleton_id=cw.id;upd.copy=c;toast('TikTok on: switched to a Cowork pin ('+cw.name+') so it gets the carousel');}
   }
-  await updUnit(id,upd);render();
+  await updUnit(id,upd);if(window.__unitModalId)unitModal(window.__unitModalId);else render();
 }
 window.togglePlat=togglePlat;
 const CS_COMPOSER_URL='https://app.contentstudio.io/juneybyrd/publisher/';
