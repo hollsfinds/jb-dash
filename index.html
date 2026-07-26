@@ -575,7 +575,8 @@ Claude: for each card below, create ContentStudio DRAFTS (never schedule or publ
    • instagram → account ${CS.instagram}, post_type "feed", text_content=caption.
    • facebook → account ${CS.facebook}, post_type "feed", text_content=caption.  (Batch instagram+facebook in ONE create_post call, both accounts, same 4:5 image.)
    • tiktok → account ${CS.tiktok}, post_type "carousel", images=[cover9x16,page2slide9x16]. text_content = the card's tiktok_caption field — this IS the TikTok post title/hook and must ALWAYS be added to the draft. TikTok settings must be ON: Allow Comments, Add Auto-Music, AI-generated; leave Branded content OFF. Set them via the create_post API if it supports these fields; if not, tell Holly to flip those toggles on the TikTok draft.
-6. CONFIRMATION MESSAGE: after creating the drafts, your reply to Holly MUST list, for every card that includes Pinterest, the exact source_url so she can paste it into the "Source URL for Pinterest" field (the API cannot set it). Also confirm the TikTok toggle settings above.
+   • ALT TEXT: each card has an alt_text (one description that rides the image on every platform). Set it on the image whenever the API exposes an image alt/description field. If create_post does NOT expose one, tell Holly the exact alt_text per card so she can open the CS Media Library, click the alt-text icon on the image, and paste it in before publishing.
+6. CONFIRMATION MESSAGE: after creating the drafts, your reply to Holly MUST list, for every card that includes Pinterest, the exact source_url so she can paste it into the "Source URL for Pinterest" field (the API cannot set it). Also list each card's alt_text if you could not set it via the API, and confirm the TikTok toggle settings above.
 Leave the posting time and approval to Holly.
 
 ## CARDS (${cards.length})
@@ -2555,52 +2556,32 @@ function unitBody(u){
     ${u.kind==='social'?`
     <div class="ustep">
       <span class="stepnum">1</span><span class="steptitle" style="${coworkSkel(u.skeleton_id)?'color:var(--coral)':''}">Make the image \u00b7 ${coworkSkel(u.skeleton_id)?'COWORK (Claude)':'AI Studio'}</span>
-      ${coworkSkel(u.skeleton_id)?`<div class="alert" style="background:#f0faf5;border-left:4px solid var(--coral);margin:6px 0 4px"><b>This one is made in Cowork, not CS AI.</b> Copy the handoff below, paste it to Claude, and say which headshot. Claude sends back the finished PNG; upload THAT here as the image, then keep going with the caption.</div>`:`<p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>`}
+      ${coworkSkel(u.skeleton_id)?'':`<p class="stephint">Copy the prompt into AI Studio, generate, save to the CS media library.</p>`}
       ${SKELETON_SLOTS[u.skeleton_id]?slotFields(u):''}
       <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer;font-weight:700">Advanced: full render/prompt blob (auto-built from the words above)</summary>
       ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u)),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':'')):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':''))}
       <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">${coworkSkel(u.skeleton_id)?'Image Prompt: Switch to CS/AI':'Image Prompt: Switch to Claude'}</button></div></details>
-      ${c.slide2_prompt?`<p class="stephint" style="margin-top:8px">Slide 2 (TikTok carousel): reply in the SAME AI Studio chat with this, it edits image 1 instead of starting over.</p>
-      ${field('Slide 2 · reply edit','slide2_prompt',u)}`:''}
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
       ${field('Alt text (rides the image, all platforms)','alt_text',u,undefined,undefined,'alt_text')}`:''}
     </div>
     <div class="ustep">
-      <span class="stepnum">2</span><span class="steptitle">Start the post \u00b7 accounts + format</span>
-      <div class="row stepbody" style="margin-top:8px;flex-wrap:wrap">
-        ${PLATFORMS.map(p=>`<span class="plat ${(u.platforms||{})[p]?'on':''}" onclick="togglePlat('${u.id}','${p}')">${ic(PLAT_ICON[p])} ${p}</span>`).join('')}
-        <span class="small muted" style="margin-left:6px">Format</span>
-        <select style="width:120px" onchange="saveCopyField('${u.id}','format',this.value).then(render)"><option value="">auto</option>${Object.entries(WF_FORMATS).map(([k,v])=>`<option value="${k}" ${c.format===k?'selected':''}>${v}</option>`).join('')}</select>
-        <span class="small muted">Waterfalls from</span>
-        <select style="flex:1;min-width:150px" onchange="saveCopyField('${u.id}','blog_id',this.value).then(render)"><option value="">auto by URL</option>${S.blog.filter(b=>['published','waterfalled'].includes(b.status)).map(b=>`<option value="${b.id}" ${String(c.blog_id||'')===String(b.id)?'selected':''}>${esc((b.title||'').slice(0,48))}</option>`).join('')}</select>
-      </div>
-      <label class="small" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-weight:700;color:var(--muted);cursor:pointer"><input type="checkbox" ${c.story_too?'checked':''} onchange="saveCopyField('${u.id}','story_too',this.checked?1:'').then(render)"> Also shared to Story in CS (counts IG/FB Stories in the mix)</label>
-      ${c.format?(()=>{const FS={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};const items=mixBuckets(u).map(k=>({t:FS[k]||k,c:k.indexOf('story')>-1?'story':''}));if((u.platforms||{}).pinterest)items.push({t:'Pin',c:'pin'});items.sort((a,b)=>a.t.localeCompare(b.t));return `<div class="row" style="margin-top:8px;align-items:center"><span class="small muted" style="font-weight:700">Post as:</span><div class="fmts" style="margin-top:0">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div><span class="small" style="font-weight:800;color:var(--teal);margin-left:2px">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][u.day]||''}</span></div>`;})():''}
-      ${owed.length?`<div class="owedline">This week still needs: ${owed.map(o=>`${o.need} ${MIX_LABEL[o.k]}`).join(' \u00b7 ')}</div>`:''}
-      <p class="stephint" style="margin-top:6px">Reels = reach \u00b7 Posts = authority \u00b7 Stories = connection.</p>
-    </div>
-    <div class="ustep">
-      <span class="stepnum">3</span><span class="steptitle">Content \u00b7 the main caption box</span>
+      <span class="stepnum">2</span><span class="steptitle">Content \u00b7 captions + titles</span>
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
+      ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true,'caption')}
       ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true,'caption_b'):''}
-      <div class="row" style="justify-content:center;margin-top:14px"><button class="btn" style="background:var(--teal);color:#fff;font-size:16px;font-weight:800;padding:13px 26px;border-radius:12px" onclick="copyText(csHandoffUnit('${u.id}'),'Full Post Handoff copied. Open a new Claude chat and paste it.')" title="Copy a full handoff for THIS card (chosen content + its platforms). Paste into a new Claude chat and Claude builds this card's ContentStudio drafts.">${ic('chat')} Full Post Handoff for Claude</button></div>
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
-      <span class="stepnum">4</span><span class="steptitle">Per-platform fields \u00b7 CS order</span>
+      <span class="stepnum">3</span><span class="steptitle">Per-platform fields \u00b7 CS order</span>
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Destination link (with UTM)','source_url_utm',u,utmize(c.source_url,'pinterest'))}
-      ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       `:`<p class="muted small stepbody" style="margin-top:6px">Appears once the copy is written.</p>`}
     </div>
-    <div class="ustep">
-      <span class="stepnum">5</span><span class="steptitle">Save as draft in CS \u00b7 tap the bar above as it moves</span>
-      ${(c.caption||c.pin_title||c.tiktok_caption)?`<div class="row stepbody" style="margin-top:8px;flex-wrap:wrap;align-items:center;gap:8px"><button class="btn sm" onclick="unitSendCS('${u.id}')">${ic('refresh')} Open in CS composer</button><span class="small muted">Copies the caption and opens ContentStudio. Nothing is saved: pick your accounts, paste, add the image, and schedule there.</span></div>`:`<p class="stephint" style="margin-top:6px">Write the copy first and an Open in CS composer button appears here.</p>`}
-    </div>`
+    ${c.caption?`<div class="row" style="justify-content:center;margin-top:18px"><button class="btn" style="background:var(--teal);color:#fff;font-size:16px;font-weight:800;padding:13px 26px;border-radius:12px" onclick="copyText(csHandoffUnit('${u.id}'),'Full Post Handoff copied. Open a new Claude chat and paste it.')" title="Copy a full handoff for THIS card (chosen content + its platforms). Paste into a new Claude chat and Claude builds this card's ContentStudio drafts.">${ic('chat')} Full Post Handoff for Claude</button></div>`:''}`
       :`<p class="small muted">Blog task. Write it with Claude using the blog-writing skill, then it auto-appears in the Brain \u2192 Blog tab when published.</p>
       <button class="btn ghost sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((u.title||'').replace(/'/g,''))} . Please use the J&B blog-writing skill and voice.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy handoff for Claude</button>`}
     <div class="row" style="margin-top:14px"><button class="btn ghost sm" onclick="if(confirm('Delete this unit?'))delUnit('${u.id}')">Delete</button>
@@ -2643,7 +2624,8 @@ function slotFields(u){
   let rows;
   if(defs&&defs.length){rows=defs.map(d=>({name:d.t,hint:d.b||''}));}
   else{const ks=Object.keys(sl);if(!ks.length)return '';rows=ks.map(k=>({name:k,hint:''}));}
-  return `<div class="copyfield" style="margin:10px 0 2px"><label style="color:var(--teal);font-weight:800;font-size:13px">◆ ON-IMAGE WORDS · what the pin actually says (edit before you hand off)</label></div>`+rows.map(r=>{
+  const rw=(defs&&defs.length)?`<button class="btn ghost sm" style="padding:0 8px;margin-left:8px;vertical-align:middle" title="Rewrite the on-image words with AI, same topic" onclick="cardFieldRewrite('${u.id}','slots',this)">${ic('refresh')}</button>`:'';
+  return `<div class="copyfield" style="margin:10px 0 2px"><label style="color:var(--teal);font-weight:800;font-size:13px">◆ ON-IMAGE WORDS · what the pin actually says (edit before you hand off)${rw}</label></div>`+rows.map(r=>{
     const v=sl[r.name]!=null?sl[r.name]:'';
     return `<div class="copyfield"><label>${esc(r.name)}${r.hint?` <span class="small muted" style="font-weight:600">${esc(r.hint.slice(0,70))}</span>`:''}</label><textarea class="grow" oninput="this.style.height='auto';this.style.height=(this.scrollHeight+2)+'px'" onchange="saveSlot('${u.id}','${esc(r.name)}',this.value)">${esc(v)}</textarea></div>`;
   }).join('');
