@@ -994,22 +994,17 @@ const normTxt=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
 const CS_TO_UNIT={draft:'draft_staged',under_review:'draft_staged',failed:'draft_staged',queued:'scheduled',scheduled:'scheduled',partially_failed:'scheduled',published:'published'};
 // Robust match: stored id → same destination link → title/caption PREFIX overlap (copy drifts after posting, so exact match is too brittle).
 function csPostText(x){let raw=x.common&&x.common.content&&x.common.content.text;if(!raw&&x.overrides)for(const k in x.overrides){const t=x.overrides[k]&&x.overrides[k].content&&x.overrides[k].content.text;if(t){raw=t;break;}}return raw;}
-const CS_RANK={published:5,partially_failed:4,scheduled:4,queued:3,under_review:2,draft:1,failed:1};
-function csMatchUnit(u,posts){
+function csLcp(a,b){a=a||'';b=b||'';let i=0;const n=Math.min(a.length,b.length);while(i<n&&a[i]===b[i])i++;return i;}
+// Strength of a unit↔post match by longest-common-prefix of title / caption. Strong = a genuinely unique match.
+function csScore(u,p){
   const c=u.copy||{};
-  if(c.cs_post_id){const p=posts.find(x=>String(x.id)===String(c.cs_post_id));if(p)return p;}
   const t1=normTxt(c.pin_title),cap=normTxt(c.caption),capb=normTxt(c.caption_b);
-  const pref=(a,b,n)=>{a=a||'';b=b||'';if(a.length<n||b.length<n)return false;const short=a.length<=b.length?a:b,long=a.length<=b.length?b:a;return long.indexOf(short.slice(0,n))>=0;};
-  // match on TITLE or CAPTION prefix (unique enough); NOT on the destination link, which many pins share
-  const matches=posts.filter(x=>{
-    const pt=normTxt(x.pinterest_options&&x.pinterest_options.title);
-    const tt=normTxt(x.tiktok_options&&x.tiktok_options.title);
-    const tx=normTxt(csPostText(x));
-    return pref(t1,pt,32)||pref(t1,tt,32)||pref(cap,tx,45)||pref(capb,tx,45);
-  });
-  if(!matches.length)return null;
-  matches.sort((a,b)=>(CS_RANK[b.status]||0)-(CS_RANK[a.status]||0));
-  return matches[0];
+  const pt=normTxt(p.pinterest_options&&p.pinterest_options.title);
+  const tt=normTxt(p.tiktok_options&&p.tiktok_options.title);
+  const tx=normTxt(csPostText(p));
+  const tScore=Math.max(t1&&pt?csLcp(t1,pt):0, t1&&tt?csLcp(t1,tt):0);
+  const cScore=Math.max(cap&&tx?csLcp(cap,tx):0, capb&&tx?csLcp(capb,tx):0);
+  return {strong:(tScore>=40||cScore>=90), val:tScore*3+cScore};
 }
 async function syncCS(btn){
   const lbl=btn?btn.textContent:'';
@@ -1025,16 +1020,17 @@ async function syncCS(btn){
     S.csPosts=posts;S.csSyncedAt=Date.now();
     try{localStorage.setItem('cs_cache',JSON.stringify({at:S.csSyncedAt,posts:posts.map(p=>({id:p.id,status:p.status,campaign:p.campaign,accounts:(p.accounts||[]).map(a=>({platform:a.platform})),scheduling:{execute_time:(p.scheduling||{}).execute_time},pinterest_options:p.pinterest_options?{title:p.pinterest_options.title,link:p.pinterest_options.link}:null}))}));}catch(e){}
     let updated=0;
-    for(const u of S.units.filter(x=>x.kind==='social')){
-      const c=u.copy||{};
-      const p=csMatchUnit(u,posts);
-      if(!p)continue;
-      const want=CS_TO_UNIT[p.status]||null;
-      const patch={};
-      if(c.cs_post_id!==p.id||c.cs_status!==p.status)patch.copy={...c,cs_post_id:p.id,cs_status:p.status,cs_url:p.post_url};
-      if(want&&STATUSES.indexOf(want)>STATUSES.indexOf(u.status))patch.status=want;
-      if(Object.keys(patch).length){await updUnit(u.id,patch);updated++}
-    }
+    const soc=S.units.filter(x=>x.kind==='social');
+    const claimedPosts=new Set();const matched=new Map();
+    // pass 1: honor a previously stored post id
+    for(const u of soc){const c=u.copy||{};if(c.cs_post_id){const p=posts.find(x=>String(x.id)===String(c.cs_post_id));if(p&&!claimedPosts.has(p.id)){claimedPosts.add(p.id);matched.set(u.id,p);}}}
+    // pass 2: strongest unique matches first, one post per card (1:1)
+    const pairs=[];
+    for(const u of soc){if(matched.has(u.id))continue;for(const p of posts){if(claimedPosts.has(p.id))continue;const s=csScore(u,p);if(s.strong)pairs.push({uid:u.id,p,val:s.val});}}
+    pairs.sort((a,b)=>b.val-a.val);
+    for(const pr of pairs){if(matched.has(pr.uid)||claimedPosts.has(pr.p.id))continue;matched.set(pr.uid,pr.p);claimedPosts.add(pr.p.id);}
+    // apply
+    for(const u of soc){const p=matched.get(u.id);if(!p)continue;const c=u.copy||{};const want=CS_TO_UNIT[p.status]||null;const patch={};if(c.cs_post_id!==p.id||c.cs_status!==p.status)patch.copy={...c,cs_post_id:p.id,cs_status:p.status,cs_url:p.post_url};if(want&&STATUSES.indexOf(want)>STATUSES.indexOf(u.status))patch.status=want;if(Object.keys(patch).length){await updUnit(u.id,patch);updated++}}
     const drafts=posts.filter(p=>p.status==='draft').length,sched=posts.filter(p=>['scheduled','queued'].includes(p.status)).length;
     toast(`ContentStudio synced: ${drafts} drafts + ${sched} scheduled in planner · ${updated} unit${updated===1?'':'s'} updated`);
   }catch(e){toast('CS sync failed: '+(e.message||e))}
