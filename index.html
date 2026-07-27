@@ -295,7 +295,27 @@ async function loadAll(){
   ]);
   S.units=un.data||[];S.blog=bl.data||[];S.inbox=inb.data||[];S.winners=win.data||[];S.keywords=kw.data||[];
   S.anthKey=S.settings.anth_key||null;
+  try{await migrateAiStudioCards();}catch(e){}
   try{const cc=JSON.parse(localStorage.getItem('cs_cache')||'null');if(cc&&cc.at&&cc.posts){S.csPosts=cc.posts;S.csSyncedAt=cc.at;}}catch(e){}
+}
+// Holly retired CS image rendering: move any un-built AI-Studio card (s1-s5) onto a code-rendered skeleton so every handoff can be rendered. Only touches cards not yet turned into a CS draft (status before draft_staged). Idempotent.
+async function migrateAiStudioCards(){
+  if(typeof aiStudioSkel!=='function')return;
+  const draftIdx=STATUSES.indexOf('draft_staged');
+  const bad=S.units.filter(u=>u&&u.kind==='social'&&aiStudioSkel(u.skeleton_id)&&STATUSES.indexOf(u.status)<draftIdx);
+  if(!bad.length)return;
+  const used=new Set();
+  for(const u of bad){
+    const post={pillar:u.pillar,theme:u.theme,title:u.title};
+    const pool=codeRenderedSkels();
+    if(!pool.length)break;
+    pool.sort((a,b)=>((used.has(a.id)?1:0)-(used.has(b.id)?1:0))||(scoreSkel(b.id,post)-scoreSkel(a.id,post))||(new Date(a.last_used_at||0)-new Date(b.last_used_at||0)));
+    const newId=pool[0].id;used.add(newId);
+    const copy={...(u.copy||{})};delete copy.slots;delete copy.image_prompt;delete copy.slide2_prompt;
+    try{copy.cowork_slot=await takeCoworkSlot(newId);}catch(e){}
+    try{await updUnit(u.id,{skeleton_id:newId,copy});}catch(e){}
+  }
+  try{toast(bad.length+' AI-Studio card'+(bad.length>1?'s':'')+' moved to code-rendered. Regenerate their copy.');}catch(e){}
 }
 async function saveSetting(key,value){await sb.from('jb_settings').upsert({key,value,updated_at:new Date().toISOString()});S.settings[key]=value;}
 async function updUnit(id,patch){patch.updated_at=new Date().toISOString();await sb.from('jb_units').update(patch).eq('id',id);const u=S.units.find(x=>x.id===id);Object.assign(u,patch);}
@@ -350,7 +370,7 @@ function nextTheme(){
   return rot[0];
 }
 function suggestSkeleton(){
-  const sk=[...S.skeletons].filter(s=>!s.cowork).sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
+  const sk=codeRenderedSkels().sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
   return sk[0]||null;
 }
 </script>
@@ -514,6 +534,10 @@ const COWORK_SKELETONS=[
   {id:'s17',name:'Product Grid · Hutch/Stash',best_for:'product showcase pins, meet-the-app, multi-feature spotlights (Hutch, Stash, any J&B product page)',cowork:true,product:true,grid:true,locked:true,img:'skel/product-grid.png',layout:'a 2x2 grid of 4 real app screens on the brand shell, bold Anton title on top, cursive Pacifico bubble sticker, a get-it CTA at the bottom; white or navy theme',quirks:'Rendered by Claude in Cowork from your REAL app screenshots, not AI Studio. Use the Product Pin Builder, choose the Grid layout; it needs 4 distinct screens. Claude writes the title/sticker/CTA from the product page and renders the 1000x1500 PNG. Zero CS AI credits.'}
 ];
 function coworkSkel(id){return COWORK_SKELETONS.find(s=>String(s.id)===String(id))||null;}
+// AI-Studio skeletons (s1-s5) are NOT code-rendered. Holly retired CS image rendering, so these must never be auto-assigned to a card.
+function aiStudioSkel(id){id=String(id);return !!SKEL_MATCH[id]&&!coworkSkel(id)&&id!=='s16'&&id!=='s17';}
+function codeRenderedSkels(){return S.skeletons.filter(s=>!!coworkSkel(s.id)&&!s.product);}
+function defaultCodeSkelId(){const c=codeRenderedSkels();const t=c.find(s=>String(s.id)==='s10')||c.find(s=>!isHeadshotSkel(s.id))||c[0];return t?t.id:'s10';}
 function coworkBgFolder(){return (S.settings&&S.settings.cowork_bg_folder)?S.settings.cowork_bg_folder:'Pin Backgrounds only';}
 function pickCoworkSkel(post){
   const cw=S.skeletons.filter(s=>(typeof coworkSkel==='function'&&coworkSkel(s.id))&&SKEL_MATCH[s.id]);
@@ -567,7 +591,7 @@ function buildCSHandoff(units){
   const ttl=cards.length===1?(cards[0].day+' — '+(cards[0].skeleton_name||'')):(cards.length+' cards');
   return `# ContentStudio DRAFT handoff — Juney & Byrd — ${ttl}
 Claude: for each card below, create ContentStudio DRAFTS (never schedule or publish). Create ONLY the platforms listed in that card's "platforms" / "drafts_to_create" — nothing else. Steps:
-1. RENDER the 1000x1500 pin from render_family + theme + slots, using the render scripts in the jb-dash repo (render-assets/: typestack-render.cjs, s7-render.cjs, photocard-render.cjs). AUTO-FIT: shrink the font sizes (size/scriptSize/padTop) so nothing overflows 1500px. Headshot/photo skeletons pull an image from Holly's device folders. AI-Studio skeletons are not code-rendered — ask Holly for those images.
+1. RENDER the 1000x1500 pin from render_family + theme + slots, using the render scripts in the jb-dash repo (render-assets/: typestack-render.cjs, advice-render.cjs, advice-pills-render.cjs, advice-split-render.cjs, photocard-render.cjs). render_family names the exact script (and theme) to use. AUTO-FIT: shrink the font sizes (size/scriptSize/padTop) so nothing overflows 1500px. Headshot/photo skeletons pull an image from Holly's device folders. Every skeleton in use is code-rendered, so you never need Holly to supply an image.
 2. RESIZE per platform by PADDING with the pin's background color to the target ratio (never crop the text): pinterest 1000x1500 (2:3) · instagram 1080x1350 (4:5) · facebook 1080x1350 (4:5) · tiktok 1080x1920 (9:16).
 3. For any card whose platforms include tiktok, also render a page-2 slide (typestack-render.cjs mode:"list", eyebrow + page2_items) at 9:16 — TikTok is a 2-image carousel (cover + page-2).
 4. HOST each sized image by committing it to the jb-dash repo under pins/ and using the raw URL: https://raw.githubusercontent.com/hollsfinds/jb-dash/main/pins/<name>.png . NAME every file UNIQUELY per card so parallel runs never overwrite each other: use the pattern <day>-<skeleton_id>-<platform>-<short-random>.png (e.g. tue-s10-pinterest-a1.png). If "git push" is rejected as non-fast-forward (another agent pushed at the same time), run "git pull --rebase" and push again — never force-push.
@@ -635,7 +659,7 @@ async function takeCoworkSlot(skId){const sk=coworkSkel(skId);if(sk&&sk.bg){cons
 function isHeadshotSkel(id){return ['s6','s7','s8','s9'].includes(String(id));}
 function scoreSkel(id,post){const m=SKEL_MATCH[id];if(!m)return 0;let sc=0;if(m.pillars&&m.pillars.includes(post.pillar))sc+=3;const hay=(((post.title||'')+' '+(post.theme||''))).toLowerCase();(m.tags||[]).forEach(t=>{if(hay.indexOf(t)>=0)sc+=1;});return sc;}
 function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
-  const avail=S.skeletons.filter(s=>SKEL_MATCH[s.id]);if(!avail.length)return null;
+  const avail=S.skeletons.filter(s=>SKEL_MATCH[s.id]&&!aiStudioSkel(s.id));if(!avail.length)return null;
   const scored=avail.map(s=>({s,sc:scoreSkel(s.id,post),cw:!!SKEL_MATCH[s.id].cowork,lru:new Date(s.last_used_at||0).getTime()}));
   const eligible=scored.filter(x=>{if(x.cw){const fits=SKEL_MATCH[x.s.id].pillars.includes(post.pillar)||x.sc>=2;if(!fits)return false;}if(isHeadshotSkel(x.s.id)&&portraitUsed>=maxPortrait)return false;return true;});
   const pool=eligible.length?eligible:scored.filter(x=>!isHeadshotSkel(x.s.id));
@@ -646,7 +670,7 @@ function pickSkelSmart(post,recent,portraitUsed,maxPortrait){
 }
 // Whole-catalog spread for Deal formats: each open card gets a distinct look, drawing from every eligible skeleton.
 function pickVariedSkel(post,used,pst){
-  const cat=S.skeletons.filter(s=>SKEL_MATCH[s.id]&&s.id!=='s16'&&s.id!=='s17');
+  const cat=S.skeletons.filter(s=>SKEL_MATCH[s.id]&&s.id!=='s16'&&s.id!=='s17'&&!aiStudioSkel(s.id));
   if(!cat.length)return null;
   let elig=cat.filter(s=>(((SKEL_MATCH[s.id].pillars||[]).includes(post.pillar))||scoreSkel(s.id,post)>=2)&&(!isHeadshotSkel(s.id)||pst.count<pst.max));
   if(!elig.length)elig=cat.filter(s=>!isHeadshotSkel(s.id));
@@ -658,24 +682,17 @@ function pickVariedSkel(post,used,pst){
 }
 window.switchPinMode=async function(id){
   const u=S.units.find(x=>x.id===id);if(!u)return;
-  const isCw=!!coworkSkel(u.skeleton_id);
   const post={pillar:u.pillar,theme:u.theme,title:u.title};
-  const copy={...(u.copy||{})};let newId;
-  if(isCw){
-    const cand=S.skeletons.filter(x=>SKEL_MATCH[x.id]&&!SKEL_MATCH[x.id].cowork).sort((a,b)=>scoreSkel(b.id,post)-scoreSkel(a.id,post));
-    newId=(cand[0]||S.skeletons.find(x=>!coworkSkel(x.id))||{id:'s1'}).id;
-    delete copy.cowork_slot;
-  }else{
-    const idx=(S.settings.cowork_photo_idx||0);
-    const _rot=(typeof COWORK_SKELETONS!=='undefined')?COWORK_SKELETONS.filter(s=>!s.product):[];/* product skeletons (s16) never rotate onto blog topics */
-    newId=_rot.length?_rot[idx%_rot.length].id:'s6';
-    const _bsk=coworkSkel(newId);
-    if(_bsk&&_bsk.bg){const _b=(S.settings.cowork_bg_idx||0);copy.cowork_slot=_b;await saveSetting('cowork_bg_idx',_b+1);await saveSetting('cowork_photo_idx',idx+1);}
-    else{copy.cowork_slot=idx;await saveSetting('cowork_photo_idx',idx+1);}
-  }
+  const copy={...(u.copy||{})};
+  // AI-Studio pins are retired, so this just rotates to a DIFFERENT code-rendered look.
+  const pool=codeRenderedSkels().filter(s=>String(s.id)!==String(u.skeleton_id));
+  if(!pool.length){toast('No other code-rendered skeleton available');return;}
+  pool.sort((a,b)=>(scoreSkel(b.id,post)-scoreSkel(a.id,post))||(new Date(a.last_used_at||0)-new Date(b.last_used_at||0)));
+  const newId=pool[0].id;
   delete copy.image_prompt;delete copy.slots;
+  try{copy.cowork_slot=await takeCoworkSlot(newId);}catch(e){}
   await updUnit(id,{skeleton_id:newId,copy});
-  render();toast(isCw?'Switched to a CS AI pin':'Switched to a Cowork face pin');
+  render();toast('Switched to a different look: '+((coworkSkel(newId)||{}).name||newId));
 };
 function buildImagePrompt(skelId,unit){
   const t=SKELETON_PROMPTS[skelId];if(!t)return '';
@@ -2449,8 +2466,8 @@ function startWizard(){
 }
 window.startWizard=startWizard;
 function suggestSkeletonRotating(i){
-  const sk=[...S.skeletons].filter(s=>!s.cowork).sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
-  return sk[i%sk.length]||null;
+  const sk=codeRenderedSkels().sort((a,b)=>new Date(a.last_used_at||0)-new Date(b.last_used_at||0));
+  return sk.length?sk[i%sk.length]:null;
 }
 function renderWizard(){
   return `<div class="card"><h3>Draft plan · approve, swap, or clear each slot</h3>
@@ -2466,7 +2483,7 @@ function renderWizard(){
     </div>${s.needsTopic&&!s.title?'<div class="small muted" style="margin-top:6px">Needs a topic: type one, or use Suggest below</div>':''}</div>`).join('')}
   <div class="row" style="margin-top:14px;flex-wrap:wrap">
     <button class="btn ghost" onclick="suggestTopics(this)">${ic('sparkle')} Suggest topics for empty slots</button>
-    <button class="btn ghost" onclick="planDraft.slots.push({day:0,pillar:1,theme:'habits',kind:'social',title:'',skeleton_id:'s1'});render()">+ Add slot</button>
+    <button class="btn ghost" onclick="planDraft.slots.push({day:0,pillar:1,theme:'habits',kind:'social',title:'',skeleton_id:defaultCodeSkelId()});render()">+ Add slot</button>
     <div class="spacer"></div>
     <button class="btn" onclick="savePlan(this)">Save week plan</button>
   </div></div>`;
@@ -2586,7 +2603,7 @@ function unitBody(u){
       ${SKELETON_SLOTS[u.skeleton_id]?slotFields(u):''}
       <details style="margin-top:8px"><summary class="small muted" style="cursor:pointer;font-weight:700">Advanced: full render/prompt blob (auto-built from the words above)</summary>
       ${coworkSkel(u.skeleton_id)?field('Cowork handoff (paste to Claude)','image_prompt',u,(c.image_prompt||buildCoworkHandoff(coworkSkel(u.skeleton_id),u)),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':'')):field('Image prompt','image_prompt',u,(c.image_prompt||buildImagePrompt(u.skeleton_id,{slots:c.slots||{},title:u.title})),undefined,(u.skeleton_id&&SKELETON_SLOTS[u.skeleton_id]?'slots':''))}
-      <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">${coworkSkel(u.skeleton_id)?'Image Prompt: Switch to CS/AI':'Image Prompt: Switch to Claude'}</button></div></details>
+      <div class="row" style="justify-content:flex-end;margin-top:2px"><button class="btn ghost sm" onclick="switchPinMode('${u.id}')">Switch to a different look</button></div></details>
       ${c.alt_text?`<p class="stephint" style="margin-top:8px">Alt text: in the CS Media Library, click the middle icon on the image and paste this in (has to happen before publishing).</p>
       ${field('Alt text (rides the image, all platforms)','alt_text',u,undefined,undefined,'alt_text')}`:''}
     </div>
@@ -2872,7 +2889,7 @@ async function pbGenForPost(b,n){
     const angles=PIN_ANGLES.slice(0,n);
     const kws=S.keywords.filter(k=>k.platform==='pinterest').flatMap(k=>k.items||[]).slice(0,25).join(', ');
     const kind=b.status==='page'?'juneybyrd.com page':'blog post';
-    const sks=[...S.skeletons].filter(s=>!s.cowork).sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
+    const sks=codeRenderedSkels().sort((a,c)=>new Date(a.last_used_at||0)-new Date(c.last_used_at||0));
     const assign=angles.map((a,i)=>({angle:a,sk:sks.length?sks[i%sks.length]:null}));
     const slotLines=assign.map((x,i)=>{
       const spec=(x.sk&&SKELETON_SLOTS[x.sk.id])?SKELETON_SLOTS[x.sk.id].map(sl=>sl.t+' = '+sl.b).join('; '):'OVERLAY = one punchy line under 12 words';
