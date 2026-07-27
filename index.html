@@ -902,8 +902,8 @@ function renderNum(){
   <div class="row" style="margin-bottom:12px">${[7,30,90,0].map(d=>`<span class="chip ${NUM.range===d?'on':''}" onclick="NUM.range=${d};renderNum()" style="${NUM.range===d?'background:var(--navy);color:#fff;border-color:var(--navy)':''}">${d===0?'All time':d+' days'}</span>`).join('')}</div>
   <div class="card" style="border-color:var(--navy);margin-bottom:14px"><h3>All of Juney &amp; Byrd</h3><div class="tiles2">${[
     {n:fmt$((P?rev-ref:0)+eRev),l:'Revenue in period',d:(P?(ref?'Paddle net of refunds':'Paddle')+' + Etsy':'Paddle unreachable + Etsy')},
-    {n:P?fmt$(P.mrrCents):'–',l:'MRR',d:'monthly run rate'},
-    {n:P?(P.active+P.pastDue):numCnt(A,a=>['active','trialing','past_due'].includes(a.s)),l:'Paying subscribers',d:'Hutch Plus'},
+    {n:P?fmt$(P.mrrCents):'–',l:'MRR',d:'monthly run rate'+(P&&P.testActive?' · excl. '+P.testActive+' test sub'+(P.testActive>1?'s':'')+' (yours)':'')},
+    {n:P?(P.active+P.pastDue):numCnt(A,a=>['active','trialing','past_due'].includes(a.s)),l:'Paying subscribers',d:'Hutch Plus'+(P&&P.testActive?' · excl. '+P.testActive+' test (yours)':'')},
     {n:A.length,l:'App accounts',d:numCnt(A,a=>a.t&&a.cu>Date.now()&&!a.s)+' in trial now'},
     {n:wIn?wIn.reduce((a,x)=>a+x.v,0).toLocaleString():'–',l:'Site views',d:'juneybyrd.com'},
     {n:optins!=null?optins:'–',l:'Email opt-ins',d:'app list'}
@@ -926,7 +926,7 @@ function renderNum(){
     const f=t=>new Date(t).toLocaleDateString('en-US',{month:'short',day:'numeric'});
     body+=`<div class="card"><h3>Hutch, the app</h3><div class="tiles2">${[
       {n:A.length,l:'Accounts, total',d:numCnt(A,a=>numInRange(a.c))+' new in period'},
-      {n:H.vaults,l:'Vaults with books',d:'sync in use'},
+      {n:H.vaults,l:'Vaults with books',d:'sync in use'+((H.vaultList&&H.vaultList.filter(v=>v.test).length)?' · +'+H.vaultList.filter(v=>v.test).length+' yours':(H.vaultList?' · real users':''))},
       {n:numCnt(A,a=>a.t&&a.cu>Date.now()&&!a.s),l:'Active trials',d:'14-day Plus, no card'},
       {n:numCnt(A,a=>a.cl>0),l:'Local claims, total',d:numCnt(A,a=>numInRange(a.cl))+' in period'},
       {n:numCnt(A,a=>['active','trialing','past_due'].includes(a.s)),l:'Paying Plus subs',d:'live from Paddle webhooks'},
@@ -935,7 +935,10 @@ function renderNum(){
     ].map(tile2).join('')}</div></div>
     <div class="card"><h3>Sign-ups per ${weekly?'week':'day'}</h3>
       <div class="bars">${counts.map((c,i)=>`<div class="bar" style="height:${Math.round(c/max*100)}%" data-t="${c} · ${f(start+i*bucket)}"></div>`).join('')}</div>
-      <div class="axis"><span>${f(start)}</span><span>today</span></div></div>`;
+      <div class="axis"><span>${f(start)}</span><span>today</span></div></div>
+    ${H.vaultList?`<div class="card"><h3>Synced vaults · who's actually using books sync</h3>
+      ${H.vaultList.length?[...H.vaultList].sort((a,b)=>(a.test?1:0)-(b.test?1:0)).map(v=>`<div class="row" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span class="small" style="flex:1;font-weight:700;color:var(--navy)">${esc(v.e)}</span>${v.test?'<span class="chip" style="background:var(--mist);font-weight:800;font-size:10px">you</span>':'<span class="chip" style="background:var(--mint);color:#204430;font-weight:800;font-size:10px">real user</span>'}</div>`).join(''):'<p class="small muted">No synced vaults yet.</p>'}
+      <p class="small muted" style="margin-top:8px">Emails are sign-in metadata; the books inside every vault stay sealed and unreadable.</p></div>`:`<div class="card"><h3>Synced vaults</h3><p class="small muted">Redeploy the hutch-api worker to see the per-vault list here.</p></div>`}`;
   }
   if(NUM.sec==='etsy'){
     const agg={};
