@@ -91,6 +91,8 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--mute
 td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 .copyfield{position:relative;margin-bottom:10px}
 .copyfield label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--coral-b);font-weight:800;display:block;margin-bottom:4px}
+.copyfield .cfhead{display:flex;align-items:center;margin-bottom:4px}
+.copyfield .cfhead>label{margin-bottom:0}
 .copyfield textarea{min-height:64px;font-size:13.5px;padding-right:64px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere}
 .copyfield textarea.grow{overflow:hidden}
 .copyfield .cp{position:absolute;right:8px;top:26px;background:var(--navy);color:#fff;padding:4px 10px;font-size:11px;border-radius:8px}
@@ -2637,8 +2639,8 @@ function unitBody(u){
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
       ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       ${field('TikTok \u00b7 Hashtags (TikTok only)','tiktok_hashtags',u,undefined,undefined,'tiktok_hashtags')}
-      ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true,'caption')}
-      ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true,'caption_b'):''}
+      ${field('Content (A)','caption',u,undefined,true,'caption',c.caption_b?captionPickHTML(u,'a'):'')}
+      ${c.caption_b?field('Content (B)','caption_b',u,undefined,true,'caption_b',captionPickHTML(u,'b')):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
@@ -2679,13 +2681,13 @@ window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;
 window.toggleUnitDone=async function(id,done){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;u.copy={...(u.copy||{}),done:!!done};try{await updUnit(id,{copy:u.copy});}catch(e){}render();};
 window.unitNext=async function(id){const u=S.units.find(x=>x.id===id);if(!u)return;if(u.kind!=='blog-task'){u.copy={...(u.copy||{}),done:true};try{await updUnit(id,{copy:u.copy});}catch(e){}}const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2){closeModal();render();return;}unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
 
-function field(label,key,u,forced,grow,rwKey){
+function field(label,key,u,forced,grow,rwKey,extra){
   const val=forced!==undefined?forced:(u.copy||{})[key]||'';
   const g=grow?` class="grow" oninput="this.style.height='auto';this.style.height=(this.scrollHeight+2)+'px'"`:'';
-  const rw=rwKey?`<button class="btn ghost sm" style="padding:0 8px;margin-left:8px;vertical-align:middle" title="Rewrite just this field with AI, same topic" onclick="cardFieldRewrite('${u.id}','${rwKey}',this)">${ic('refresh')}</button>`:'';
-  return `<div class="copyfield"><label>${label}${rw}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
+  const rw=rwKey?`<button class="btn ghost sm" style="padding:0 8px;margin-left:8px" title="Rewrite just this field with AI, same topic" onclick="cardFieldRewrite('${u.id}','${rwKey}',this)">${ic('refresh')}</button>`:'';
+  return `<div class="copyfield"><div class="cfhead"><label>${label}</label>${rw}${extra?`<div class="spacer"></div>${extra}`:''}</div><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
 }
-function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span id="capk_${u.id}_${which}" onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="float:right;cursor:pointer;margin-top:-2px;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
+function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span id="capk_${u.id}_${which}" onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="cursor:pointer;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
 // Only marks which version is chosen. Never rebuilds the modal, so the copy boxes stay exactly as they are (only the rewrite button changes copy).
 window.setCaptionPick=async function(id,which){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;u.copy={...(u.copy||{}),caption_pick:which};
   ['a','b'].forEach(w=>{const el=document.getElementById('capk_'+id+'_'+w);if(el){const on=w===which;el.style.color=on?'var(--good)':'var(--muted)';el.textContent=on?'◉ using this':'○ use this';}});
