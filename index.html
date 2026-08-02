@@ -2548,9 +2548,10 @@ window.savePlan=savePlan;
 function renderWeekGrid(units){
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const doneSt=u=>['scheduled','published'].includes(u.status);
+  const isDone=u=>doneSt(u)||!!(u.copy||{}).done;
   const srt=(a,b)=>(a.day-b.day)||((a.kind==='blog-task'?0:1)-(b.kind==='blog-task'?0:1));
-  const open=[...units].filter(u=>!doneSt(u)).sort(srt);
-  const done=[...units].filter(doneSt).sort(srt);
+  const open=[...units].filter(u=>!isDone(u)).sort(srt);
+  const done=[...units].filter(isDone).sort(srt);
   const wkBlogs=S.blog.filter(b=>['published','waterfalled'].includes(b.status)&&b.published_at&&iso(weekStart(new Date(new Date(b.published_at).getTime()+2*864e5)))===iso(S.week));
   const FSING={ig_reel:'IG Reel',ig_post:'IG Post',ig_story:'IG Story',fb_reel:'FB Reel',fb_post:'FB Post',fb_story:'FB Story',tiktok:'TikTok'};
   const chips=u=>{
@@ -2562,17 +2563,17 @@ function renderWeekGrid(units){
     items.sort((a,b)=>a.t.localeCompare(b.t));
     return items.length?`<div class="fmts">${items.map(x=>`<span class="${x.c}">${x.t}</span>`).join('')}</div>`:'';
   };
-  const row=u=>`<tr${doneSt(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td><select title="Move to another day" onclick="event.stopPropagation()" onchange="event.stopPropagation();changeUnitDay('${u.id}',this.value)" style="width:66px;padding:2px 3px;font-size:12px">${days.map((dn,di)=>`<option value="${di}" ${di===u.day?'selected':''}>${dn}</option>`).join('')}</select></td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${(()=>{const _n=unitBlogNum(u);return _n?`<span title="promotes processing blog #${_n}" style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:900;margin-right:5px;vertical-align:middle">${_n}</span>`:'';})()}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
-  const blogRow=b=>`<tr class="donerow" style="cursor:pointer" onclick="window.open('${esc(b.url||'#')}','_blank')"><td>Sun</td><td>${ic('pen')} ${esc(b.title||'')}<div class="fmts"><span style="background:var(--peach);color:var(--navy)">Blog</span></div></td><td></td><td class="small muted"></td><td class="small"><b style="color:var(--teal-lt)">\u2713</b> Published</td></tr>`;
+  const row=u=>`<tr${isDone(u)?' class="donerow"':''} style="cursor:pointer" onclick="unitModal('${u.id}')"><td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" title="Mark this item done" ${isDone(u)?'checked':''} onchange="toggleUnitDone('${u.id}',this.checked)" style="width:16px;height:16px;cursor:pointer"></td><td><select title="Move to another day" onclick="event.stopPropagation()" onchange="event.stopPropagation();changeUnitDay('${u.id}',this.value)" style="width:66px;padding:2px 3px;font-size:12px">${days.map((dn,di)=>`<option value="${di}" ${di===u.day?'selected':''}>${dn}</option>`).join('')}</select></td><td>${u.kind==='blog-task'?ic('pen')+' ':''}${(()=>{const _n=unitBlogNum(u);return _n?`<span title="promotes processing blog #${_n}" style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:900;margin-right:5px;vertical-align:middle">${_n}</span>`:'';})()}${esc(u.title)}${chips(u)}</td><td>${u.pillar?`<span class="pill p${u.pillar}">P${u.pillar}</span>`:''}</td><td class="small muted">${u.skeleton_id?(S.skeletons.find(s=>s.id===u.skeleton_id)||{}).name||'':''}</td><td class="small">${['scheduled','published'].includes(u.status)?`<b style="color:var(--teal-lt)">\u2713</b> `:''}${STATUS_LABEL[u.status]||u.status}</td></tr>`;
+  const blogRow=b=>`<tr class="donerow" style="cursor:pointer" onclick="window.open('${esc(b.url||'#')}','_blank')"><td style="text-align:center"><b style="color:var(--teal-lt)">✓</b></td><td>Sun</td><td>${ic('pen')} ${esc(b.title||'')}<div class="fmts"><span style="background:var(--peach);color:var(--navy)">Blog</span></div></td><td></td><td class="small muted"></td><td class="small"><b style="color:var(--teal-lt)">\u2713</b> Published</td></tr>`;
   const _soc=open.filter(u=>u.kind==='social');
   const _needsSlots=u=>typeof SKELETON_SLOTS!=='undefined'&&SKELETON_SLOTS[u.skeleton_id]&&!(((u.copy||{}).slots)&&Object.keys((u.copy||{}).slots||{}).length);
   const _fmtDone=_soc.length>0&&_soc.every(u=>(u.copy||{}).format);
   const _copyDone=_soc.length>0&&_soc.every(u=>(u.copy||{}).caption);
   const _badge=(done,n)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;font-size:10px;font-weight:900;margin-right:5px;${done?'background:var(--good);color:#fff':'background:#fff;color:var(--coral-b)'}">${done?'\u2713':n}</span>`;
   return `<div class="card stepcard"><span class="bignum">3${open.length===0?'<span class="stepck">\u2713</span>':''}</span><div class="row" style="flex-wrap:wrap;margin-bottom:6px;margin-left:26px"><h3 style="margin:0">Process the cards <span style="color:var(--muted);font-weight:600">\u00b7 ${open.length} open</span></h3><div class="spacer"></div><div class="row" style="flex:0 0 auto;flex-wrap:nowrap;gap:6px"><button class="btn sm" style="white-space:nowrap" onclick="dealFormats(this)" title="Step 1: set each card's platforms and give it a varied visual layout">${_badge(_fmtDone,'1')}Deal formats</button><button class="btn sm" style="white-space:nowrap" onclick="genAll(this)" title="Step 2: write the words for every card">${_badge(_copyDone,'2')}Write ALL copy</button><button class="btn ghost sm" style="white-space:nowrap;opacity:.9" onclick="varyThisWeek(this)" title="Optional: use only if the wording feels repetitive. Rewrites this week's copy with fresh angles.">${ic('refresh')} Vary these <span class="small muted" style="font-weight:700">· optional</span></button></div></div>
-  <table><tr><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
+  <table><tr><th style="width:26px" title="Done">✓</th><th>Day</th><th>Item</th><th>Pillar</th><th>Skeleton</th><th>Status</th></tr>
   ${open.map(row).join('')}
-  ${done.length||wkBlogs.length?`<tr class="done-divider"><td colspan="5">Completed \u00b7 ${done.length+wkBlogs.length}</td></tr>${wkBlogs.map(blogRow).join('')}${done.map(row).join('')}`:''}
+  ${done.length||wkBlogs.length?`<tr class="done-divider"><td colspan="6">Completed \u00b7 ${done.length+wkBlogs.length}</td></tr>${wkBlogs.map(blogRow).join('')}${done.map(row).join('')}`:''}
   </table>
   <div class="row" style="margin-top:14px"><button class="btn ghost sm" onclick="if(confirm('Delete this whole week plan?'))deleteWeek('${iso(S.week)}')">Delete plan</button></div></div>`;
 }
@@ -2675,7 +2676,8 @@ window.unitModal=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;
     Object.assign(u,{platforms:pl});updUnit(id,{platforms:pl});
   }
   modal(unitBody(u));$('#modal').classList.add('wide');window.__unitModalId=id;sizeGrowAreas();};
-window.unitNext=function(id){const u=S.units.find(x=>x.id===id);if(!u)return;const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2)return;unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
+window.toggleUnitDone=async function(id,done){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;u.copy={...(u.copy||{}),done:!!done};try{await updUnit(id,{copy:u.copy});}catch(e){}render();};
+window.unitNext=async function(id){const u=S.units.find(x=>x.id===id);if(!u)return;if(u.kind!=='blog-task'){u.copy={...(u.copy||{}),done:true};try{await updUnit(id,{copy:u.copy});}catch(e){}}const us=S.units.filter(x=>x.week_start===u.week_start).sort((a,b)=>(a.day-b.day)||String(a.id).localeCompare(String(b.id)));const i=us.findIndex(x=>x.id===id);if(us.length<2){closeModal();render();return;}unitModal(us[(i+1)%us.length].id);$('#overlay').scrollTop=0;};
 
 function field(label,key,u,forced,grow,rwKey){
   const val=forced!==undefined?forced:(u.copy||{})[key]||'';
