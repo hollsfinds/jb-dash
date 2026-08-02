@@ -2627,8 +2627,8 @@ function unitBody(u){
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
       ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       ${field('TikTok \u00b7 Hashtags (TikTok only)','tiktok_hashtags',u,undefined,undefined,'tiktok_hashtags')}
-      ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true,'caption')}
-      ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true,'caption_b'):''}
+      ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true)}
+      ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
