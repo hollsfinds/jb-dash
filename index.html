@@ -2637,8 +2637,8 @@ function unitBody(u){
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
       ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       ${field('TikTok \u00b7 Hashtags (TikTok only)','tiktok_hashtags',u,undefined,undefined,'tiktok_hashtags')}
-      ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):''),'caption',u,undefined,true)}
-      ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b'),'caption_b',u,undefined,true):''}
+      ${field('Content (A)'+(c.caption_b?captionPickHTML(u,'a'):'')+capRw(u,'caption'),'caption',u,undefined,true)}
+      ${c.caption_b?field('Content (B)'+captionPickHTML(u,'b')+capRw(u,'caption_b'),'caption_b',u,undefined,true):''}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
@@ -2686,6 +2686,7 @@ function field(label,key,u,forced,grow,rwKey){
   return `<div class="copyfield"><label>${label}${rw}</label><textarea${g} onchange="saveCopyField('${u.id}','${key}',this.value)">${esc(val)}</textarea><button class="cp" onclick="copyText(this.previousElementSibling.value)">copy</button></div>`;
 }
 function captionPickHTML(u,which){const pick=((u.copy||{}).caption_pick)||'a';const on=pick===which;return `<span id="capk_${u.id}_${which}" onclick="event.stopPropagation();setCaptionPick('${u.id}','${which}')" style="cursor:pointer;margin-left:10px;font-size:11px;font-weight:800;color:${on?'var(--good)':'var(--muted)'}" title="Use this version in the CS draft handoff">${on?'◉ using this':'○ use this'}</span>`;}
+function capRw(u,key){return `<button class="btn ghost sm" style="margin-left:16px;padding:0 9px;border-color:var(--coral);color:var(--coral-b);vertical-align:middle;font-weight:700" title="Rewrite just this caption with AI, same topic (does not change which version is selected)" onclick="event.stopPropagation();cardFieldRewrite('${u.id}','${key}',this)">${ic('refresh')} Rewrite</button>`;}
 // Only marks which version is chosen. Never rebuilds the modal, so the copy boxes stay exactly as they are (only the rewrite button changes copy).
 window.setCaptionPick=async function(id,which){const u=S.units.find(x=>String(x.id)===String(id));if(!u)return;u.copy={...(u.copy||{}),caption_pick:which};
   ['a','b'].forEach(w=>{const el=document.getElementById('capk_'+id+'_'+w);if(el){const on=w===which;el.style.color=on?'var(--good)':'var(--muted)';el.textContent=on?'◉ using this':'○ use this';}});
