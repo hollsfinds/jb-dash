@@ -22,7 +22,7 @@ jobs:
           SB_KEY: sb_publishable_IE9lkBK6Q282q-5mlVwnBA_2G6rxqck
         run: |
           code=$(curl -sS -o /dev/null -w "%{http_code}" \
-            "$SB_URL/rest/v1/jb_settings?select=id&limit=1" \
+            "$SB_URL/rest/v1/jb_settings?select=key&limit=1" \
             -H "apikey: $SB_KEY" \
             -H "Authorization: Bearer $SB_KEY")
           echo "Supabase responded with HTTP $code"
