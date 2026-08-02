@@ -2182,14 +2182,14 @@ window.blogIdeasModal=function(){
   modal(`<h3 style="margin-bottom:4px">Blog ideas · ${ideas.length}</h3>
   <p class="small muted" style="margin-bottom:10px">Everything banked by research or quick capture. Not now hides it for later; not ever bans it from future research.</p>
   ${ideas.map(b=>`<div class="alert" style="margin-bottom:8px"><b>${esc(b.title||b.topic||'')}</b>${b.topic&&b.topic!==b.title?`<br><span class="small muted">answers: "${esc(b.topic)}"</span>`:''}
-    <div class="row" style="margin-top:6px"><button class="btn sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((b.title||b.topic||'').replace(/'/g,''))}. The market question it answers: ${esc((b.topic||'').replace(/'/g,''))}. Please use the J&B blog-writing skill and voice. Answer the question directly, in plain English.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy for Claude</button><div class="spacer"></div><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','snoozed')">Not now</button><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','denied')">Not ever</button></div>
+    <div class="row" style="margin-top:6px"><button class="btn sm" onclick="copyText('Blog post request for juneybyrd.com: ${esc((b.title||b.topic||'').replace(/'/g,''))}. The market question it answers: ${esc((b.topic||'').replace(/'/g,''))}. Please use the J&B blog-writing skill and voice. Answer the question directly, in plain English.','Handoff copied! Paste it to Claude.')">${ic('chat')} Copy for Claude</button><button class="btn sm" onclick="blogIdeaStatus('${b.id}','used')">Used it</button><div class="spacer"></div><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','snoozed')">Not now</button><button class="btn ghost sm" onclick="blogIdeaStatus('${b.id}','denied')">Not ever</button></div>
   </div>`).join('')||'<p class="muted small">No blog ideas banked yet. Hit Run blog research.</p>'}
   <div class="row" style="margin-top:10px"><span class="rbtn" style="margin-top:0" onclick="dashResearch(this)">${ic('sparkle')} Run blog research</span><div class="spacer"></div><button class="btn ghost" onclick="closeModal();render()">Close</button></div>`);
 };
 window.blogIdeaStatus=async function(id,st){
   await sb.from('jb_blog').update({status:st}).eq('id',id);
   const b=S.blog.find(x=>String(x.id)===String(id));if(b)b.status=st;
-  toast(st==='denied'?'Banned from future research':st==='idea'?'Back in the idea pile':'Snoozed');
+  toast(st==='denied'?'Banned from future research':st==='idea'?'Back in the idea pile':st==='used'?'Marked used. It will not be suggested again.':'Snoozed');
   if($('#overlay').style.display==='flex')blogIdeasModal();else render();
 };
 window.blogAssign=async function(ws,id){if(!id)return;const m={...(S.settings.blog_assign||{})};m[ws]=[...(m[ws]||[]).map(String),String(id)];await saveSetting('blog_assign',m);toast('Counted toward this week\u2019s blog goal');render();};
