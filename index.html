@@ -616,11 +616,17 @@ Claude: for each card below, create ContentStudio DRAFTS (never schedule or publ
        FB - <check|not included>
        IG - <check|not included>
        TT - <check|not included>
-   (b) PASTE IN - the values Holly must add by hand, EACH in its own fenced code block (triple backticks give a one-click copy button), one value per block with a label line above it, in THIS order (skip any that do not apply to this card):
-       Pinterest Title:  -> pin_title (the API cannot set the Pinterest title, so she pastes it)
-       Pinterest Link:  -> source_url
-       Alt Text:  -> alt_text (only if you could not set it via the API)
-   (c) If the card includes TikTok: ONE line confirming the TikTok text (hook first line + full caption) is in the draft, and ONE line stating whether the toggles were set via the API (Allow Comments, Auto-Music, AI-generated ON; Branded content OFF) or she must flip them.
+   (b) PASTE IN - the values Holly must add by hand. For EACH value, first print its field name as a bold label on its OWN line (for example a line reading "**Pinterest Title:**"), then DIRECTLY BELOW that label put the value in its own fenced code block (triple backticks give a one-click copy button), one value per block. NEVER output a code block without its bold field label on the line immediately above it. Include these in THIS order, skipping any that do not apply to this card:
+       **Pinterest Title:**  -> pin_title (the API cannot set the Pinterest title, so she pastes it)
+       **Pinterest Link:**  -> source_url
+       **Alt Text:**  -> alt_text (only if you could not set it via the API)
+   (c) If the card includes TikTok, output this as a bulleted list, each item on its own line, exactly:
+       - TikTok text (hook first line + full caption + hashtags) is in the draft.
+       - These toggles are not settable via the API, so flip them on the draft yourself:
+         - Allow Comments: ON
+         - Auto-Music: ON
+         - AI-generated: ON
+         - Branded content: OFF
    (d) Only if something is actually wrong, ONE "Heads up:" line. Otherwise omit it entirely.
    Short is the whole point.
 Leave the posting time and approval to Holly.
