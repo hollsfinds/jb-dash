@@ -211,6 +211,13 @@ function stripDashes(v){if(typeof v==='string')return v.replace(/\s*[—–]\s*/
 const MODEL='claude-sonnet-4-5';
 const ANTHROPIC_PROXY='https://jb-anthropic.juneybyrd.workers.dev';
 const PILLARS={1:'Pain hooks',2:'Plain-English help',3:'Tools talking',4:'The maker',5:'Ask the bestie'};
+const PGUIDE={
+ 1:'Pain hooks: the relatable, honest frustrations of running a tiny business AND a busy life. Money-adjacent is fine but so are time, overwhelm, mental load, and juggling it all.',
+ 2:'Plain-English help: one small practical tip that makes business or life admin easier, explained simply with zero jargon.',
+ 3:'Tools talking: a REAL feature of the Hutch or Stash app (or another genuinely useful tool) and the real problem it solves.',
+ 4:'The maker: Holly herself as a real business-owner mom. Personal, behind-the-scenes, human. Her days juggling kids and building the brand, honest founder moments, what she is learning, small wins and messes, her personality and everyday life. NOT product features, NOT money or bookkeeping tips, NEVER tax or finance. Just her, in a way other business-owner moms see themselves in.',
+ 5:'Ask the bestie: warm, conversational questions or prompts to the audience, like texting a friend. Relatable business-owner-mom life that invites replies. Not product-focused.'
+};
 const THEMES=['money','habits','home','organizing','planning'];
 const PLATFORMS=['pinterest','instagram','facebook','tiktok'];
 const STATUSES=['idea','image_made','draft_staged','caption_added','scheduled','published'];
@@ -2111,7 +2118,7 @@ async function dashSuggest(p,btn){
       try{out=await claude(VOICE,askLive,1200,false,_url||null);}catch(e){out=await claude(VOICE,askGrounded,900);}
     }else{
       const _blogPillar=(p<=3);
-      const ask=`Suggest 5 short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd (life-admin brand: money for freelancers via the Hutch bookkeeping app and the Stash savings app, habits, home organization, planning).${(_blogPillar&&_pb.length)?` This week's processing blog posts, NUMBERED: ${_bl}. Make about HALF the topics fresh angles that promote or riff on one of these posts through the lens of pillar ${p} (${PILLARS[p]}); make the rest fresh pillar topics not tied to a post, so I get a real choice. For EACH topic set "b" to the NUMBER of the blog post it promotes, or 0 if it is a fresh pillar topic tied to no post.`:` These are standalone pillar topics NOT tied to any blog post: for EVERY topic set "b" to 0.`} Topics must be about real life or REAL product features, never about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
+      const ask=`Suggest 5 short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd, a warm life-admin brand by Holly, a business-owner mom (she makes the Hutch bookkeeping app and the Stash savings app, and posts about small-business life, home and life organization, habits, and planning). WHAT THIS PILLAR MEANS, follow it above all else: ${PGUIDE[p]}${(_blogPillar&&_pb.length)?` This week's processing blog posts, NUMBERED: ${_bl}. Make about HALF the topics fresh angles that promote or riff on one of these posts through the lens of this pillar; make the rest fresh pillar topics not tied to a post, so I get a real choice. For EACH topic set "b" to the NUMBER of the blog post it promotes, or 0 if it is a fresh pillar topic tied to no post.`:` These are standalone pillar topics NOT tied to any blog post: for EVERY topic set "b" to 0.`} Never suggest topics about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
       out=await claude(VOICE,ask,750);
     }
     const j=extractJSON(out);
