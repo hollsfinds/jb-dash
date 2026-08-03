@@ -1903,7 +1903,7 @@ async function dealFormats(btn){
       const prefs=PILLAR_FMT[u.pillar]||['ig_post','fb_post'];
       const k=prefs.find(x=>need[x]>0)||Object.keys(need).find(x=>x!=='tiktok'&&need[x]>0)||prefs[0];
       const fmt=D2F[k]||'ig_post';
-      const fam=FMT_FAMILY[fmt];const _vid=(fam==='reel'||fmt==='tiktok');
+      const fam=FMT_FAMILY[fmt];
       const p={pinterest:(u.platforms||{}).pinterest!==false};
       if(fam==='story'){
         p.instagram=k==='ig_story'||need.ig_story>0;
@@ -1914,17 +1914,14 @@ async function dealFormats(btn){
         if(need.tiktok>0)p.tiktok=true;
       }
       if(!p.instagram&&!p.facebook&&!p.tiktok)p[k.indexOf('fb')===0?'facebook':'instagram']=true;
+      if(isOmni(u)){p.instagram=true;p.facebook=true;p.tiktok=true;p.pinterest=true;}
       const st=(fam!=='story'&&((p.instagram&&need.ig_story>0)||(p.facebook&&need.fb_story>0)))?1:'';
-      const copy={...(u.copy||{}),format:fmt,story_too:st,media:_vid?'video':'image'};
+      const copy={...(u.copy||{}),format:fmt,story_too:st};
       const _upd={copy,platforms:p};
       // give each card a distinct skeleton for visual variety. Reassign for cards whose image isn't made yet (idea stage), even if copy exists; clearing the skeleton-specific slots so the on-image text regenerates for the new layout (the caption itself is layout-independent and stays). Cards past 'idea' (image already made/staged) keep their skeleton.
       if(u.status==='idea'){
-        if(_vid){
-          if(u.skeleton_id!=='s10'&&u.skeleton_id!=='s11'){_upd.skeleton_id=REEL_SKEL;delete copy.slots;delete copy.image_prompt;delete copy.cowork_slot;}
-        }else{
-          const _sk=pickVariedSkel({pillar:u.pillar,theme:u.theme,title:u.title},_usedSk,_pst);
-          if(_sk&&_sk.id!==u.skeleton_id){_upd.skeleton_id=_sk.id;delete copy.slots;delete copy.image_prompt;if(coworkSkel(_sk.id)){copy.cowork_slot=await takeCoworkSlot(_sk.id);}else{delete copy.cowork_slot;}}
-        }
+        const _sk=pickVariedSkel({pillar:u.pillar,theme:u.theme,title:u.title},_usedSk,_pst);
+        if(_sk&&_sk.id!==u.skeleton_id){_upd.skeleton_id=_sk.id;delete copy.slots;delete copy.image_prompt;if(coworkSkel(_sk.id)){copy.cowork_slot=await takeCoworkSlot(_sk.id);}else{delete copy.cowork_slot;}}
       }else if(u.skeleton_id){_usedSk.add(u.skeleton_id);}
       const sim={...u,copy,platforms:p};
       mixBuckets(sim).forEach(x=>{if(need[x]!=null)need[x]--;});
@@ -1936,6 +1933,7 @@ async function dealFormats(btn){
 }
 window.dealFormats=dealFormats;
 function mixBuckets(u){
+  if(isOmni(u)){const p=u.platforms||{};const out=[];if(p.instagram)out.push('ig_post','ig_reel','ig_story');if(p.facebook)out.push('fb_post','fb_reel','fb_story');if(p.tiktok)out.push('tiktok');return out;}
   const f=guessFormat(u);const fam=FMT_FAMILY[f];
   if(!fam||fam==='pin')return [];
   if(fam==='tiktok')return ['tiktok'];
@@ -1953,7 +1951,10 @@ function mixCounts(ws,publishedOnly){
   return out;
 }
 function mixOwed(ws){const mc=mixCounts(ws,false);return Object.keys(mc).filter(k=>k!=='tiktok'&&mc[k].n<mc[k].goal).map(k=>({k,need:mc[k].goal-mc[k].n}));}
-function isReel(u){return (((u&&u.copy)||{}).media)==='video';}
+// omni card = a normal daily social card that covers all surfaces (static image + video reel).
+// Product spotlights (is_product) stay static-only.
+function isOmni(u){return !!(u&&u.kind==='social'&&!(((u.copy)||{}).is_product));}
+function isReel(u){return isOmni(u);}
 const REEL_SKEL='s10';
 function suggestFormat(u){
   const owed=mixOwed(new Date(u.week_start+'T00:00:00'));
@@ -2455,7 +2456,7 @@ window.setWeek=setWeek;
 const ANGLE_LENSES=['a relatable "that feeling" pain moment','a myth-bust or contrarian truth','a concrete how-to or the steps','a surprising number or result','a behind-the-scenes / maker take','a question that sparks replies','the most common mistake to avoid','one specific quick win'];
 function startWizard(){
   const cad=S.settings.cadence||{};
-  const _fmx=formatMix();const socialCount=(_fmx.tiktok||7)+Math.max(_fmx.ig_post||0,_fmx.fb_post||0);
+  const socialCount=7;
   const prodPer=(cad.product_per_week!=null)?cad.product_per_week:2;const readyProd=Object.keys(ppProducts()).filter(k=>ppImageStatus(ppProducts()[k],'A').ok);const chosenTools=((S.settings.week_tool||{})[iso(S.week)]||[]).filter(k=>ppProducts()[k]);const toolPool=chosenTools.length?chosenTools:readyProd;const useProd=toolPool.length?Math.min(chosenTools.length?chosenTools.length:prodPer,4):0;const topicCount=Math.max(0,socialCount-useProd);
   const blogPerWeek=Math.max(1,Math.round((cad.blog_per_month||4)/4));
   const {stats}=pillarStats();
@@ -2490,7 +2491,7 @@ function startWizard(){
   for(let j=0;j<useProd;j++){const pk=toolPool[j%toolPool.length];const pcx=PCOMB[j%PCOMB.length];slots.push({day:(topicCount+j)%7,kind:'social',isProduct:true,product:pk,layout:pcx[0],ptheme:pcx[1],accent:pcx[2],skeleton_id:'s16',pillar:3,theme:'product',title:ppProducts()[pk].label+' spotlight',needsTopic:false});}
   const needs=(()=>{const mc=mixCounts(S.week,false);const n={};Object.keys(mc).forEach(k=>n[k]=Math.max(0,mc[k].goal-mc[k].n));return n;})();
   const B2F={ig_reel:'reel',ig_post:'ig_post',ig_story:'ig_story',fb_reel:'fb_reel',fb_post:'fb',fb_story:'fb_story'};
-  slots.forEach(s=>{if(s.isProduct)return;const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}const _fam=FMT_FAMILY[s.format];if(_fam==='reel'||s.format==='tiktok'){s.media='video';s.skeleton_id='s10';}else{s.media='image';}});
+  slots.forEach(s=>{if(s.isProduct)return;const prefs=PILLAR_FMT[s.pillar]||[];const b=prefs.find(k=>needs[k]>0)||prefs[0];if(b){s.format=B2F[b]||null;if(needs[b]>0)needs[b]--;}});
   planDraft={week:iso(S.week),slots};
   render();
 }
@@ -2546,8 +2547,8 @@ async function savePlan(btn){
       await sb.from('jb_topics').update({status:'planned'}).eq('id',topic_id);
     }
     const FMT_NATIVE={pin:{pinterest:true},reel:{instagram:true,pinterest:true},ig_post:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},ig_story:{instagram:true,pinterest:true},fb_reel:{facebook:true,pinterest:true},fb:{facebook:true,pinterest:true},fb_story:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}};
-    let _cwCopy={};if(s.kind==='social'&&s.media!=='video'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=await takeCoworkSlot(s.skeleton_id);_cwCopy={cowork_slot:_sl};}
-    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'&&s.format?(FMT_NATIVE[s.format]||{}):{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),...(s.media?{media:s.media}:{}),..._cwCopy,...(s.angle?{angle:s.angle}:{}),...(s.blog_url?{source_url:s.blog_url,blog_id:s.blog_id}:{})}});
+    let _cwCopy={};if(s.kind==='social'&&s.skeleton_id&&typeof coworkSkel==='function'&&coworkSkel(s.skeleton_id)){const _sl=await takeCoworkSlot(s.skeleton_id);_cwCopy={cowork_slot:_sl};}
+    rows.push({week_start:planDraft.week,day:s.kind==='blog-task'?0:s.day,topic_id,title:s.title,pillar:s.pillar,theme:s.theme,skeleton_id:s.skeleton_id||null,kind:s.kind,platforms:s.kind==='social'?{instagram:true,facebook:true,tiktok:true,pinterest:true}:{},copy:{source_url:S.settings.site_url?JSON.parse(JSON.stringify(S.settings.site_url)):'https://juneybyrd.com',...(s.kind==='social'&&s.format?{format:s.format}:{}),..._cwCopy,...(s.angle?{angle:s.angle}:{}),...(s.blog_url?{source_url:s.blog_url,blog_id:s.blog_id}:{})}});
   }
   const {data,error}=await sb.from('jb_units').insert(rows).select();
   if(error){toast('Save failed: '+error.message);btn.disabled=false;btn.textContent='Save week plan';return;}
