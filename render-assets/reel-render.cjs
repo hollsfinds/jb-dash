@@ -11,6 +11,12 @@ const path = require('path');
 const [,, slotsPath, bgPath, outPath] = process.argv;
 if (!slotsPath || !bgPath || !outPath) { console.error('usage: node reel-render.cjs <slots.json> <bg.mp4> <out.mp4>'); process.exit(1); }
 const S = JSON.parse(fs.readFileSync(slotsPath, 'utf8'));
+// accept the dash's on-image slot names (EYEBROW/STACK/SCRIPT/SUB) as well as lowercase; STACK may be a newline string
+S.eyebrow = S.eyebrow || S.EYEBROW || '';
+S.script  = S.script  || S.SCRIPT  || '';
+S.sub     = S.sub     || S.SUB     || '';
+S.handle  = S.handle  || '@juneyandbyrd';
+if (!Array.isArray(S.stack)) { const raw = S.stack || S.STACK || ''; S.stack = String(raw).split(/\r?\n|\\n/).map(x => x.trim()).filter(Boolean); }
 const FONTS = path.join(__dirname, 'fonts');
 const CHROME = process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const b64 = f => fs.readFileSync(path.join(FONTS, f)).toString('base64');
