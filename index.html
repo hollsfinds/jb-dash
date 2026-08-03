@@ -1616,6 +1616,7 @@ function vMktg(){
   if(rt&&!rt.links){rt.links=JSON.parse(JSON.stringify((MKTG_SEED.tracks.find(x=>x.id==='reddit')||{}).links||[]));mig=true;}
   if(!p.blog2wk){p.blog2wk=true;const cad2={...(S.settings.cadence||{})};cad2.blog_per_month=8;saveSetting('cadence',cad2);mig=true;}
   if(!p.reelmix2026){p.reelmix2026=true;saveSetting('format_mix',{ig_reel:5,ig_post:5,ig_story:5,fb_reel:5,fb_post:5,fb_story:5,tiktok:7});mig=true;}
+  if(!p.reelmix2026b){p.reelmix2026b=true;saveSetting('format_mix',{ig_reel:7,ig_post:7,ig_story:7,fb_reel:7,fb_post:7,fb_story:7,tiktok:7});mig=true;}
   (p.tracks||[]).forEach(T=>(T.links||[]).forEach(L=>{if(!L.grp){L.grp=/alphaandbetausers|sideproject|indiehackers/i.test((L.label||'')+(L.url||''))?'post':'comment';mig=true;}}));
   const RULE_SEED=[[/alphaandbetausers/i,'ok','Built for tester asks, state the stage and what feedback you want'],[/sideproject/i,'ok','Launch-friendly, low-effort promo gets ignored, screenshots help'],[/indiehackers/i,'ok','Builder community, be transparent about the zero-users stage'],[/r\/freelance/i,'no','Strict no self-promo, value comments only'],[/etsysellers/i,'no','No self-promo, answer seller questions as the accountant']];
   if(!p.outreach){p.outreach={contacts:OC_SEED.map((s,i)=>({id:'oc'+i,name:s.n,outlet:s.o,url:s.u,method:s.m,lane:s.l,angle:s.g,notes:'',status:'topitch',dates:{},codes:{},excluded:false}))};mig=true;}
@@ -1884,7 +1885,7 @@ const MIX_KEY={reel:'ig_reel',ig_post:'ig_post',carousel:'ig_post',ig_story:'ig_
 const MIX_LABEL={ig_reel:'IG Reels',ig_post:'IG Posts',ig_story:'IG Stories',fb_reel:'FB Reels',fb_post:'FB Posts',fb_story:'FB Stories',tiktok:'TikTok'};
 const MIX_ROLE={ig_reel:'reach',fb_reel:'reach',ig_post:'authority',fb_post:'authority',ig_story:'connection',fb_story:'connection',tiktok:'reach'};
 const PILLAR_FMT={1:['ig_reel','fb_reel','ig_post','fb_post'],2:['ig_post','fb_post','ig_reel','fb_reel'],3:['ig_post','fb_post','ig_reel','fb_reel'],4:['ig_story','fb_story','ig_reel','fb_reel'],5:['ig_story','fb_story','ig_post','fb_post']};
-function formatMix(){return {ig_reel:5,ig_post:5,ig_story:5,fb_reel:5,fb_post:5,fb_story:5,tiktok:7,...(S.settings.format_mix||{})};}
+function formatMix(){return {ig_reel:7,ig_post:7,ig_story:7,fb_reel:7,fb_post:7,fb_story:7,tiktok:7,...(S.settings.format_mix||{})};}
 const FMT_FAMILY={reel:'reel',fb_reel:'reel',ig_post:'post',carousel:'post',fb:'post',ig_story:'story',fb_story:'story',tiktok:'tiktok',pin:'pin'};
 async function dealFormats(btn){
   if(btn){btn.disabled=true;btn.textContent='Dealing\u2026';}
