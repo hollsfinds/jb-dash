@@ -604,7 +604,11 @@ Claude: each card below is ONE day's full post. Unless "is_omni" is false (produ
 A. STATIC IMAGE (feeds the Pinterest static pin + the IG/FB feed posts): RENDER the 1000x1500 pin from render_family + theme + slots using the render-assets scripts (typestack-render.cjs, advice-render.cjs, advice-pills-render.cjs, advice-split-render.cjs, photocard-render.cjs). AUTO-FIT so nothing overflows 1500px. Then make platform sizes by PADDING with the background color (never crop): pinterest 1000x1500 (2:3), instagram/facebook 1080x1350 (4:5). Headshot/photo skeletons pull their image from Holly's device folders; every skeleton is code-rendered.
 
 B. VIDEO REEL (feeds IG/FB Reels + IG/FB Stories + TikTok + the Pinterest VIDEO pin). Skip this whole step only when is_omni is false.
-   1. Choose B-roll: read reels/broll/manifest.json and pick the clip whose tags best match this card's theme/topic (any clip if none clearly match).
+   1. Choose B-roll from reels/broll/manifest.json — aim for RELEVANT and VARIED:
+      a. Prefer clips whose tags match this card's theme/topic.
+      b. Among matches, pick the LEAST-recently-used (oldest or missing "last_used"), and NEVER reuse a clip already assigned to another card in THIS handoff.
+      c. If NO clip's tags match, fall back to clips tagged "general" (still least-recently-used) — do NOT pick a random unrelated clip. Only if there are zero "general" clips, use any clip.
+      d. After choosing, set that clip's "last_used" to today's date (YYYY-MM-DD) in manifest.json, and commit the updated manifest alongside the rendered files.
    2. Write the card's reel_slots to a temp slots.json: {"EYEBROW": <EYEBROW>, "STACK": <STACK, keep its 2 to 3 lines newline-separated>, "SCRIPT": <SCRIPT>, "SUB": <SUB>, "handle": "@juneyandbyrd", "duration": 7}.
    3. Run: node render-assets/reel-render.cjs <slots.json> reels/broll/<clip.mp4> <out.mp4>  → a 1080x1920 MP4. If a headline line is very long, shorten it so it does not overflow.
 

@@ -1,7 +1,7 @@
 [
-  { "file": "broll-01-laptop-work.mp4", "tags": ["work", "laptop", "hustle", "office-casual"], "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
-  { "file": "broll-02-coffee-casual.mp4", "tags": ["coffee", "style", "lifestyle", "casual"], "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
-  { "file": "broll-03-coffee-friends-outdoors.mp4", "tags": ["coffee", "friends", "outdoors", "walk"], "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
-  { "file": "broll-04-home-desk-cozy.mp4", "tags": ["home-office", "cozy", "wfh", "work"], "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
-  { "file": "broll-05-coffee-style.mp4", "tags": ["coffee", "style", "fashion", "errands"], "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" }
+  { "file": "broll-01-laptop-work.mp4", "tags": ["work", "laptop", "hustle", "office-casual", "business", "general"], "last_used": null, "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
+  { "file": "broll-02-coffee-casual.mp4", "tags": ["coffee", "style", "lifestyle", "casual", "morning", "general"], "last_used": null, "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
+  { "file": "broll-03-coffee-friends-outdoors.mp4", "tags": ["coffee", "friends", "outdoors", "walk", "connection"], "last_used": null, "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
+  { "file": "broll-04-home-desk-cozy.mp4", "tags": ["home-office", "cozy", "wfh", "work", "planning", "mom", "general"], "last_used": null, "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" },
+  { "file": "broll-05-coffee-style.mp4", "tags": ["coffee", "style", "fashion", "errands", "lifestyle"], "last_used": null, "source": "user-supplied", "license": "confirm commercial rights", "res": "404x720" }
 ]
