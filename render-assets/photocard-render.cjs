@@ -125,7 +125,7 @@ function cardlist(cfg){const bg=bgURI(cfg.bg);
   const cfg = JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
   const out = process.argv[3]||'out.png';
   const fn = {editorial,sticker,band,stacked,list2,cardlist}[cfg.style]||editorial;
-  const browser = await chromium.launch({executablePath:'/opt/pw-browsers/chromium-1194/chrome-linux/chrome'});
+  const browser = await chromium.launch((process.env.PW_CHROME?{executablePath:process.env.PW_CHROME}:{}));
   const page = await browser.newPage({viewport:{width:1000,height:1500},deviceScaleFactor:2});
   await page.setContent(fn(cfg),{waitUntil:'networkidle'});
   await page.evaluate(()=>document.fonts.ready);

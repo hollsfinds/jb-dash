@@ -18,7 +18,7 @@ S.sub     = S.sub     || S.SUB     || '';
 S.handle  = S.handle  || '@juneyandbyrd';
 if (!Array.isArray(S.stack)) { const raw = S.stack || S.STACK || ''; S.stack = String(raw).split(/\r?\n|\\n/).map(x => x.trim()).filter(Boolean); }
 const FONTS = path.join(__dirname, 'fonts');
-const CHROME = process.env.PW_CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const CHROME = process.env.PW_CHROME || '';
 const b64 = f => fs.readFileSync(path.join(FONTS, f)).toString('base64');
 const POPB = b64('Poppins-Black.ttf'), POPM = b64('Poppins-Medium.ttf'), HAV = b64('Havana-Regular.otf');
 
@@ -72,7 +72,7 @@ window.seek=function(t){
 (async () => {
   const N = Math.round(FPS * DUR);
   const tdir = fs.mkdtempSync('/tmp/reel-tf-');
-  const b = await chromium.launch({ executablePath: CHROME });
+  const b = await chromium.launch(CHROME?{executablePath:CHROME}:{});
   const p = await b.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await p.setContent(html, { waitUntil: 'networkidle' });
   await p.evaluate(() => document.fonts.ready); await p.waitForTimeout(200);
