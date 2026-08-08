@@ -2664,8 +2664,8 @@ function unitBody(u){
       ${field('TikTok \u00b7 Hashtags (TikTok only)','tiktok_hashtags',u,undefined,undefined,'tiktok_hashtags')}
       ${field('Image caption (A) \u00b7 static posts','caption',u,undefined,true,'caption',c.caption_b?captionPickHTML(u,'a'):'')}
       ${c.caption_b?field('Image caption (B) \u00b7 static posts','caption_b',u,undefined,true,'caption_b',captionPickHTML(u,'b')):''}
-      ${field('Video caption (C) \u00b7 reels/stories/TikTok','video_caption',u,undefined,true,'video_caption',c.video_caption_b?videoCaptionPickHTML(u,'c'):'')}
-      ${c.video_caption_b?field('Video caption (D) \u00b7 reels/stories/TikTok','video_caption_b',u,undefined,true,'video_caption_b',videoCaptionPickHTML(u,'d')):''}
+      ${field('Video caption (C) \u00b7 reels/stories/TikTok','video_caption',u,undefined,true,'video_caption',videoCaptionPickHTML(u,'c'))}
+      ${field('Video caption (D) \u00b7 reels/stories/TikTok','video_caption_b',u,undefined,true,'video_caption_b',videoCaptionPickHTML(u,'d'))}
       `:`<p class="muted small stepbody" style="margin-top:6px">No copy yet. Hit Write copy below.</p>`}
     </div>
     <div class="ustep">
