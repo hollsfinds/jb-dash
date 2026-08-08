@@ -618,8 +618,8 @@ C. Each hosted artifact is at https://raw.githubusercontent.com/hollsfinds/jb-da
 D. CREATE drafts via mcp__remote-devices__ContentStudio__create_post, publish_type:"draft", workspace_id ${CS.workspace}. For each card create ALL of the following (skip the video ones when is_omni is false):
    • Pinterest STATIC pin → account ${CS.pinterest}, post_type "feed", images=[static 2:3], text_content=image_caption. pin_title and source_url have NO API field — surface BOTH for Holly to paste.
    • Pinterest VIDEO pin → account ${CS.pinterest}, post_type "video", video=<reel mp4 URL>, text_content=video_caption. (Same Entrepreneur board.)
-   • Instagram → account ${CS.instagram}: create post_type "feed" (static 4:5) with text_content=image_caption, post_type "reel" (video=<reel URL>) with text_content=video_caption, AND post_type "story" (video=<reel URL>) with text_content=video_caption.
-   • Facebook → account ${CS.facebook}: create post_type "feed" (static) with text_content=image_caption, post_type "reel" (video) with text_content=video_caption, AND post_type "story" (video) with text_content=video_caption.
+   • Instagram → account ${CS.instagram}: create post_type "feed" (static 4:5) with text_content=image_caption, AND post_type "reel+story" (video=<reel URL>) with text_content=video_caption (ONE post that covers both the reel and the story — do NOT create them separately).
+   • Facebook → account ${CS.facebook}: create post_type "feed" (static) with text_content=image_caption, AND post_type "reel+story" (video) with text_content=video_caption (ONE post that covers both the reel and the story — do NOT create them separately).
    • TikTok → account ${CS.tiktok}, post_type "video", video=<reel URL>. text_content = the tiktok_caption HOOK on line 1, a blank line, then the video_caption; if tiktok_hashtags is present, a blank line then the hashtags (TikTok ONLY, never on the other platforms). TikTok toggles (Allow Comments, Auto-Music, AI-generated ON; Branded content OFF) via the API if it supports them, else tell Holly to flip them.
    • ALT TEXT: set alt_text on the static image if the API exposes an alt field; otherwise tell Holly to paste it in the CS Media Library before publishing.
    You MAY batch Instagram + Facebook of the SAME post_type into one create_post call (both accounts, same media).
@@ -628,8 +628,10 @@ E. CONFIRMATION MESSAGE (SUMMARY FORM ONLY, no filler, no recap, no captions). R
    (a) "Posting day: <day>", then a status line per surface, "check" if the draft was created or "not included":
        Pinterest pin - <check|not included>
        Pinterest video - <check|not included>
-       IG feed/reel/story - <check|not included>
-       FB feed/reel/story - <check|not included>
+       IG feed - <check|not included>
+       IG reel/story - <check|not included>
+       FB feed - <check|not included>
+       FB reel/story - <check|not included>
        TikTok - <check|not included>
    (b) PASTE IN - the values Holly must add by hand. For EACH value, first print its field name as a bold label on its OWN line (for example a line reading "**Pinterest Title:**"), then DIRECTLY BELOW that label put the value in its own fenced code block (triple backticks give a one-click copy button), one value per block. NEVER output a code block without its bold field label on the line immediately above it. Include these in THIS order, skipping any that do not apply to this card:
        **Pinterest Title (static pin):**  -> pin_title (the API cannot set the Pinterest title, so she pastes it)
