@@ -595,7 +595,7 @@ function buildCSHandoff(units){
     platforms:plats,
     caption_option_chosen:useB?'B':'A', caption:imgCap, image_caption:imgCap, video_caption:vidCap, video_caption_is_fallback:(!c.video_caption&&!c.video_caption_b),
     tiktok_caption:c.tiktok_caption||'', tiktok_hashtags:c.tiktok_hashtags||'',
-    pin_title:c.pin_title||'', alt_text:c.alt_text||'', source_url:c.source_url||''
+    pin_title:c.pin_title||'', video_pin_title:c.video_pin_title||'', alt_text:c.alt_text||'', source_url:c.source_url||''
   };});
   const ttl=cards.length===1?(cards[0].day+' — '+(cards[0].skeleton_name||'')):(cards.length+' cards');
   return `# ContentStudio DRAFT handoff — Juney & Byrd — ${ttl}
@@ -632,7 +632,8 @@ E. CONFIRMATION MESSAGE (SUMMARY FORM ONLY, no filler, no recap, no captions). R
        FB feed/reel/story - <check|not included>
        TikTok - <check|not included>
    (b) PASTE IN - the values Holly must add by hand. For EACH value, first print its field name as a bold label on its OWN line (for example a line reading "**Pinterest Title:**"), then DIRECTLY BELOW that label put the value in its own fenced code block (triple backticks give a one-click copy button), one value per block. NEVER output a code block without its bold field label on the line immediately above it. Include these in THIS order, skipping any that do not apply to this card:
-       **Pinterest Title:**  -> pin_title (the API cannot set the Pinterest title, so she pastes it)
+       **Pinterest Title (static pin):**  -> pin_title (the API cannot set the Pinterest title, so she pastes it)
+       **Pinterest Title (video pin):**  -> video_pin_title (a DIFFERENT title so the two Pinterest pins are not identical)
        **Pinterest Link:**  -> source_url
        **Alt Text:**  -> alt_text (only if you could not set it via the API)
    (c) If the card includes TikTok, output this as a bulleted list, each item on its own line, exactly:
@@ -2661,6 +2662,7 @@ function unitBody(u){
       ${c.caption?`
       <div style="margin-top:8px"></div>
       ${field('Pinterest \u00b7 Title','pin_title',u,undefined,undefined,'pin_title')}
+      ${field('Pinterest \u00b7 Video title','video_pin_title',u,undefined,undefined,'video_pin_title')}
       ${field('TikTok \u00b7 Post title','tiktok_caption',u,undefined,undefined,'tiktok_caption')}
       ${field('TikTok \u00b7 Hashtags (TikTok only)','tiktok_hashtags',u,undefined,undefined,'tiktok_hashtags')}
       ${field('Image caption (A) \u00b7 static posts','caption',u,undefined,true,'caption',c.caption_b?captionPickHTML(u,'a'):'')}
@@ -3083,6 +3085,7 @@ ${slotSpec?`IMAGE TEXT (most important): this unit's pin image uses the "${sk.na
 "video_caption":"the VIDEO caption for the same-day reel (IG/FB Reels + Stories, TikTok body, Pinterest video pin). SAME topic and core offer as the caption above, but SHORTER and HOOK-FIRST so the motion carries the story: open on the strongest line, tease the payoff, let the clip deliver. Holly full voice, 30 to 55 words, UNDER 300 characters, one soft CTA, NO URL. It must NOT be a copy or synonym-swap of the image caption: a real second post.",
 "video_caption_b":"a second take on the VIDEO caption (a different hook or angle, SAME topic and offer), same shorter hook-first rules, under 300 characters",
 "pin_title":"Pinterest title = SEO FIRST, personality second. Front-load the primary keyword and match how people actually search this topic (using the Pinterest keywords above) so it gets FOUND, but then give it a little Holly personality: a warm, playful, or knowing touch in the phrasing so it does not read like a dry search string. Keep the keyword phrase intact and near the front; add the personality after or around it (a light aside, a wink, a relatable framing), never so clever that it buries the keyword. Clear and specific still wins. 45 to 70 characters, never over 100.",
+"video_pin_title":"a SECOND Pinterest title for the VIDEO pin. The static pin and the video pin post to the SAME board, so this MUST NOT match pin_title: same keyword-first SEO rules (front-load a primary keyword, searchable), but a DIFFERENT angle or phrasing than pin_title. 45 to 70 characters, never over 100.",
 "alt_text":"plain literal description of a pin image about this topic, under 200 chars",
 "source_url":"the single best URL for this topic (a specific blog post if one fits, else https://juneybyrd.com)",
 "tiktok_caption":"TikTok post title: a scroll-stopping hook whose first 3 words earn the tap, under 85 characters. Do NOT put a website, URL, or juneybyrd.com anywhere in the title. No links, no hashtags.",
@@ -3110,7 +3113,7 @@ ${(sk&&typeof coworkSkel==='function'&&coworkSkel(sk.id))?`"page2_header":"a sho
     if(opts&&opts.noSave){return j;}
     const c={...(u.copy||{}),...j};
     if(u.copy&&u.copy.blog_id&&u.copy.source_url)c.source_url=u.copy.source_url;
-    if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
+    if(c.pin_title)c.pin_title=capChars(c.pin_title,100);if(c.video_pin_title)c.video_pin_title=capChars(c.video_pin_title,100);
     if(c.caption)c.caption=capChars(c.caption,490);
     if(c.caption_b)c.caption_b=capChars(c.caption_b,490);if(c.video_caption)c.video_caption=capChars(c.video_caption,490);if(c.video_caption_b)c.video_caption_b=capChars(c.video_caption_b,490);
     await updUnit(id,{copy:c,status:u.status==='idea'?'idea':u.status});
@@ -3163,6 +3166,7 @@ function fieldRewriteSpec(field,sk){
   const specs={
     slots:sl?('the on-image text slots ('+sl.map(s=>s.t).join(', ')+'), which ARE the pin scroll-stopping HOOK. The biggest slot must be the boldest, most click-worthy line (bold claim, sharp number, myth-bust, or a that-is-me callout), never generic filler. Reply {"slots":{'+sl.map(s=>'"'+s.t+'":"..."').join(',')+'}}'):null,
     pin_title:'the Pinterest title: keyword-first SEO, front-load the primary keyword, searchable, 45 to 70 characters. Reply {"pin_title":"..."}',
+    video_pin_title:'the Pinterest VIDEO pin title: keyword-first SEO like the main title but a DIFFERENT angle or phrasing so it does not match pin_title (both post to the same board), 45 to 70 characters. Reply {"video_pin_title":"..."}',
     tiktok_caption:'the TikTok title: a scroll-stopping hook, first 3 words earn the tap, under 85 characters, NO website or URL, no hashtags. Reply {"tiktok_caption":"..."}',
     tiktok_hashtags:'3 to 5 niche, topic-matched TikTok hashtags as one space-separated line, specific and on-topic (never #fyp/#foryou/#viral, no spaces inside a tag). Reply {"tiktok_hashtags":"..."}',
     caption:'the caption (IG/FB + Pinterest description): 70 to 90 words, under 480 characters, ends with a soft CTA. Reply {"caption":"..."}',
@@ -3209,7 +3213,7 @@ async function cardFieldRewrite(id,field,btn){
   if(!r){toast('Rewrite failed, try again');if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.h||'';}return;}
   const c={...(u.copy||{}),...r};
   if(r.slots)delete c.image_prompt;
-  if(c.pin_title)c.pin_title=capChars(c.pin_title,100);
+  if(c.pin_title)c.pin_title=capChars(c.pin_title,100);if(c.video_pin_title)c.video_pin_title=capChars(c.video_pin_title,100);
   if(c.caption)c.caption=capChars(c.caption,490);
   if(c.caption_b)c.caption_b=capChars(c.caption_b,490);if(c.video_caption)c.video_caption=capChars(c.video_caption,490);if(c.video_caption_b)c.video_caption_b=capChars(c.video_caption_b,490);
   await updUnit(id,{copy:c});
