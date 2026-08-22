@@ -2141,7 +2141,7 @@ async function dashSuggest(p,btn){
   try{
     const used=processedTopicTitles(80);const _proc=processedTopicSet();
     const _pb=(typeof weekFocusList==='function'?weekFocusList(S.week):[]).filter(x=>x&&x.url);const _bl=_pb.map((b,i)=>`${i+1}="${b.title}"`).join('; ');
-    const _ct=(p===3)?(((S.settings.week_tool||{})[iso(S.week)])||[]).filter(k=>ppProducts()[k]):[];
+    const _ct=(p===3)?(function(){const _sel=(((S.settings.week_tool||{})[iso(S.week)])||[]).filter(k=>ppProducts()[k]);return _sel.length?_sel:Object.keys(ppProducts()).filter(k=>ppProducts()[k]);})():[];
     let out;
     let _target=5;
     if(_ct.length){
@@ -2153,7 +2153,7 @@ async function dashSuggest(p,btn){
       const askGrounded=`Plan 5 "Tools talking" social post topics for Juney & Byrd about this REAL product only: ${_ti}. Use ONLY these real features and invent nothing beyond them: ${_feat}. Every topic is grounded in one of these features or the real problem it solves. ${_guard}`;
       try{out=await claude(VOICE,askLive,1200,false,_url||null);}catch(e){out=await claude(VOICE,askGrounded,900);}
     }else{
-      const _blogPillar=(p<=3);
+      const _blogPillar=(p<=2);
       _target=(_blogPillar&&_pb.length)?3*_pb.length:5;
       const ask=`Suggest ${_target} short social post topics for pillar ${p} (${PILLARS[p]}) for Juney & Byrd, a warm life-admin brand by Holly, a business-owner mom (she makes the Hutch bookkeeping app and the Stash savings app, and posts about small-business life, home and life organization, habits, and planning). WHAT THIS PILLAR MEANS, follow it above all else: ${PGUIDE[p]}${(_blogPillar&&_pb.length)?` This week's processing blog posts, NUMBERED: ${_bl}. This is a BLOG-BASED pillar. Give me EXACTLY 3 topics for EACH numbered blog post above (${_pb.length} posts, ${_target} topics total): 3 fresh, clearly DIFFERENT-angle topics per post, all through the lens of this pillar. Every post must get its own 3, none left out. For EVERY topic set "b" to the NUMBER of the post it belongs to (never 0).`:` These are standalone pillar topics NOT tied to any blog post: for EVERY topic set "b" to 0.`} Never suggest topics about internal planning tools. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
       out=await claude(VOICE,ask,Math.max(750,_target*180));
