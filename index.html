@@ -2119,13 +2119,15 @@ async function pickDayGo(format,blogId,topicId){
   const b=blogId?S.blog.find(x=>String(x.id)===String(blogId)):weekFocus(ws);
   const t=topicId?S.topics.find(x=>String(x.id)===String(topicId)):null;
   const pdPillar=+($('#pd-pillar')&&$('#pd-pillar').value)||2;
+  const _wt=((S.settings.week_tool||{})[ws]||[]).filter(k=>ppProducts()[k]);
+  const _prod=(pdPillar===3)?(ppProducts()[_wt[0]]||ppProducts()[Object.keys(ppProducts()).filter(k=>ppProducts()[k])[0]]||null):null;
   const platforms={pin:{pinterest:true},reel:{instagram:true,pinterest:true},carousel:{instagram:true,pinterest:true},fb:{facebook:true,pinterest:true},tiktok:{tiktok:true,pinterest:true}}[format]||{pinterest:true,instagram:true,facebook:true,tiktok:true};
   const row={week_start:ws,day,kind:'social',
     title:t?t.title:(WF_FORMATS[format]||'Post')+': '+(b?b.title:''),
     pillar:pdPillar,theme:t?(t.theme||nextTheme()):nextTheme(),
     topic_id:t?t.id:null,skeleton_id:(suggestSkeleton()||{}).id||null,
     platforms,
-    copy:{source_url:b?b.url:'https://juneybyrd.com',...(b?{blog_id:String(b.id)}:{}),...(format?{format}:{})}};
+    copy:{source_url:_prod?(_prod.page_url||'https://juneybyrd.com'):(b?b.url:'https://juneybyrd.com'),...((!_prod&&b)?{blog_id:String(b.id)}:{}),...(format?{format}:{})}};
   const {data,error}=await sb.from('jb_units').insert(row).select();
   if(error){toast('Save failed: '+error.message);return;}
   S.units.push(data[0]);
