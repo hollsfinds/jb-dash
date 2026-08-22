@@ -2150,7 +2150,7 @@ async function dashSuggest(p,btn){
       const _url=_ct.map(k=>(ppProducts()[k]||{}).page_url).filter(Boolean)[0]||'';
       const _ti=_ct.map(k=>(ppProducts()[k]||{}).label||k).join(' and ');
       const _feat=_ct.map(k=>{const f=toolFeatures(k);return ((ppProducts()[k]||{}).label||k)+': '+(f||'(core purpose only, invent nothing)');}).join('  ||  ');
-      const _guard=`HARD RULE: never invent a feature, section, screen, tab, button, ritual, integration, or behavior (for example never invent a "Wins this week" section, "weekly reflection prompts", or say it "lives in Notes"). Never mention any other product. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title","b":0}]}.`;
+      const _guard=`HARD RULE: never invent a feature, section, screen, tab, button, ritual, integration, or behavior (for example never invent a "Wins this week" section, "weekly reflection prompts", or say it "lives in Notes"). Never mention any other product. NEVER suggest these already-used/denied topics: ${used.join('; ')||'none'}. Reply as JSON only: {"topics":[{"t":"short working title"}]}.`;
       const askLive=`Plan 5 "Tools talking" social post topics for Juney & Byrd about this REAL product only: ${_ti}.${_url?` FETCH and READ this live product page and base EVERY topic ONLY on the real, current features it actually describes: ${_url}`:''} If you cannot read the page, use only these known facts and nothing more: ${_feat}. ${_guard}`;
       const askGrounded=`Plan 5 "Tools talking" social post topics for Juney & Byrd about this REAL product only: ${_ti}. Use ONLY these real features and invent nothing beyond them: ${_feat}. Every topic is grounded in one of these features or the real problem it solves. ${_guard}`;
       try{out=await claude(VOICE,askLive,1200,false,_url||null);}catch(e){out=await claude(VOICE,askGrounded,900);}
@@ -2167,7 +2167,7 @@ async function dashSuggest(p,btn){
       if(_kept>=_target)break;
       const title=(typeof it==='string')?it:(it.t||it.title||'');if(!title)continue;
       const _k=normTopic(title);if(!_k||_proc.has(_k))continue;_proc.add(_k);
-      const bn=(p<=3&&it&&typeof it==='object'&&+it.b)?+it.b:0;
+      const bn=(p<=2&&it&&typeof it==='object'&&+it.b)?+it.b:0;
       const {data}=await sb.from('jb_topics').insert({title,pillar:p,source:'dash',status:'idea'}).select();
       if(data){_kept++;S.topics.unshift(data[0]);if(bn>=1&&_pb[bn-1]){_tb[String(data[0].id)]=String(_pb[bn-1].id);_tbc=true;}}
     }
